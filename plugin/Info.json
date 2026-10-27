@@ -1,0 +1,20 @@
+{
+  "name": "Otoha",
+  "identifier": "io.otoha.iina",
+  "version": "0.1.0",
+  "description": "Apple 本机双语字幕转录",
+  "author": {
+    "name": "Otoha"
+  },
+  "entry": "main.js",
+  "permissions": ["file-system"],
+  "sidebarTab": {
+    "name": "Otoha"
+  },
+  "preferencesPage": "preferences.html",
+  "preferenceDefaults": {
+    "backend": "apple",
+    "ffmpeg_path": "",
+    "output_directory": ""
+  }
+}

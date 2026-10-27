@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Otoha</title>
+    <link rel="stylesheet" href="sidebar.css" />
+    <script defer src="sidebar.js"></script>
+  </head>
+  <body>
+    <main>
+      <header class="header">
+        <h1>Otoha</h1>
+        <span class="backend">Apple 本机</span>
+      </header>
+
+      <section class="media" aria-labelledby="media-heading">
+        <h2 id="media-heading">当前视频</h2>
+        <p id="media-name" class="media-name">未打开视频</p>
+        <p id="media-error" class="inline-error" role="status"></p>
+      </section>
+
+      <form id="job-form">
+        <label for="audio-track">音轨</label>
+        <select id="audio-track" name="trackId" required></select>
+
+        <div class="language-grid">
+          <div>
+            <label for="source-language">转录语言</label>
+            <select id="source-language" required></select>
+          </div>
+          <div>
+            <label for="target-language">翻译为</label>
+            <select id="target-language" required></select>
+          </div>
+        </div>
+
+        <button id="start-button" class="primary" type="submit">生成双语字幕</button>
+      </form>
+
+      <section id="job-status" class="job-status" aria-live="polite" aria-atomic="true">
+        <p id="job-message">选择音轨和语言后开始</p>
+        <progress id="translation-progress" max="1" hidden></progress>
+        <div class="job-actions">
+          <button id="cancel-button" type="button" hidden>取消</button>
+          <button id="retry-button" type="button" hidden>重试加载</button>
+          <button id="reveal-button" type="button" hidden>在 Finder 中显示</button>
+        </div>
+      </section>
+
+      <details class="settings">
+        <summary>路径设置</summary>
+        <label for="ffmpeg-path">FFmpeg 可执行文件</label>
+        <div class="path-row">
+          <input id="ffmpeg-path" type="text" autocomplete="off" spellcheck="false" placeholder="留空时从 PATH 查找" />
+          <button id="choose-ffmpeg" class="secondary" type="button" aria-label="选择 FFmpeg 可执行文件">选择</button>
+        </div>
+        <label for="output-directory">字幕输出文件夹</label>
+        <div class="path-row">
+          <input id="output-directory" type="text" autocomplete="off" spellcheck="false" placeholder="默认与视频保存在同一文件夹" />
+          <button id="choose-output" class="secondary" type="button" aria-label="选择字幕输出文件夹">选择</button>
+        </div>
+        <p id="output-default" class="setting-help"></p>
+      </details>
+    </main>
+  </body>
+</html>

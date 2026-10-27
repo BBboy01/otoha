@@ -1,0 +1,7 @@
+{
+  "name": "otoha-iina-plugin",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}
