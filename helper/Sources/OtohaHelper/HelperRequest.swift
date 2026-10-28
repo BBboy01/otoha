@@ -8,18 +8,20 @@ struct HelperRequest: Decodable {
     let audioStreamIndex: Int
     let sourceLanguage: String
     let targetLanguage: String
-    let outputDirectoryPath: String
+    let outputDirectoryPath: String?
     let cancellationFilePath: String
 
     var configuration: JobConfiguration {
-        JobConfiguration(
+        let mediaURL = URL(fileURLWithPath: mediaPath)
+        let rootDirectory = SubtitleLibrary.rootDirectory(configuredPath: outputDirectoryPath)
+        return JobConfiguration(
             backend: backend,
-            mediaURL: URL(fileURLWithPath: mediaPath),
+            mediaURL: mediaURL,
             ffmpegPath: ffmpegPath,
             audioStreamIndex: audioStreamIndex,
             sourceLanguage: sourceLanguage,
             targetLanguage: targetLanguage,
-            outputDirectory: URL(fileURLWithPath: Self.expandingTilde(outputDirectoryPath), isDirectory: true)
+            outputDirectory: SubtitleLibrary.mediaDirectory(for: mediaURL, rootDirectory: rootDirectory)
         )
     }
 
@@ -27,7 +29,28 @@ struct HelperRequest: Decodable {
         URL(fileURLWithPath: cancellationFilePath)
     }
 
-    private static func expandingTilde(_ path: String) -> String {
-        path.hasPrefix("~/") ? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(String(path.dropFirst(2))).path : path
+}
+
+struct SubtitleListingRequest: Decodable {
+    let mediaPath: String
+    let outputDirectoryPath: String?
+
+    var mediaURL: URL { URL(fileURLWithPath: mediaPath) }
+    var rootDirectory: URL { SubtitleLibrary.rootDirectory(configuredPath: outputDirectoryPath) }
+    var legacyDirectories: [URL] {
+        let mediaDirectory = mediaURL.deletingLastPathComponent()
+        let configuredPath = outputDirectoryPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !configuredPath.isEmpty else { return [mediaDirectory] }
+        let configuredDirectory = SubtitleLibrary.rootDirectory(configuredPath: configuredPath)
+        return configuredDirectory == mediaDirectory.standardizedFileURL ? [mediaDirectory] : [mediaDirectory, configuredDirectory]
     }
+}
+
+struct SubtitleListingResponse: Encodable {
+    struct Entry: Encodable {
+        let path: String
+    }
+
+    let rootDirectoryPath: String
+    let files: [Entry]
 }

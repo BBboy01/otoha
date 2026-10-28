@@ -20,7 +20,21 @@
         <p id="media-error" class="inline-error" role="status"></p>
       </section>
 
-      <form id="job-form">
+      <section class="automation" aria-labelledby="automation-heading">
+        <label class="toggle-row" for="auto-load">
+          <input id="auto-load" type="checkbox" />
+          <span id="automation-heading">自动处理字幕</span>
+        </label>
+        <p class="setting-help">有字幕时自动加载，没有时按当前音轨语言自动生成。</p>
+      </section>
+
+      <section id="existing-subtitles" aria-labelledby="subtitle-heading" hidden>
+        <h2 id="subtitle-heading">已有字幕</h2>
+        <select id="subtitle-choice" aria-label="选择已有字幕"></select>
+      </section>
+
+      <form id="job-form" aria-labelledby="generation-heading">
+        <h2 id="generation-heading">生成设置</h2>
         <label for="audio-track">音轨</label>
         <select id="audio-track" name="trackId" required></select>
 
@@ -35,7 +49,7 @@
           </div>
         </div>
 
-        <button id="start-button" class="primary" type="submit">生成双语字幕</button>
+        <button id="start-button" class="primary" type="submit">生成</button>
       </form>
 
       <section id="job-status" class="job-status" aria-live="polite" aria-atomic="true">
@@ -55,10 +69,10 @@
           <input id="ffmpeg-path" type="text" autocomplete="off" spellcheck="false" placeholder="留空时从 PATH 查找" />
           <button id="choose-ffmpeg" class="secondary" type="button" aria-label="选择 FFmpeg 可执行文件">选择</button>
         </div>
-        <label for="output-directory">字幕输出文件夹</label>
+        <label for="output-directory">字幕库根目录</label>
         <div class="path-row">
-          <input id="output-directory" type="text" autocomplete="off" spellcheck="false" placeholder="默认与视频保存在同一文件夹" />
-          <button id="choose-output" class="secondary" type="button" aria-label="选择字幕输出文件夹">选择</button>
+          <input id="output-directory" type="text" autocomplete="off" spellcheck="false" placeholder="留空时使用 Otoha 字幕库" />
+          <button id="choose-output" class="secondary" type="button" aria-label="选择字幕库根目录">选择</button>
         </div>
         <p id="output-default" class="setting-help"></p>
       </details>

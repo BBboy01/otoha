@@ -1,185 +1,11 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const fs = require("node:fs");
 const path = require("node:path");
-const vm = require("node:vm");
-const controller = require("../controller");
-
-const mainSource = fs.readFileSync(path.join(__dirname, "../main.js"), "utf8");
-const pluginDirectory = "/tmp/iina/Otoha.iinaplugin";
-const helperPath = path.join(pluginDirectory, "bin", "OtohaHelper.app", "Contents", "MacOS", "otoha-helper");
+const { createPlugin, helperPath, mainSource } = require("./main-fixture");
 
 test("main loads its controller with an explicit JavaScript extension", () => {
   assert.match(mainSource, /require\("\.\/controller\.js"\)/);
 });
-function createPlugin({
-  failSubtitleLoad = false,
-  changeMediaBeforeCompletion = false,
-  loadFileFailures = 0,
-  windowReadyAtStart = true,
-  ffmpegPath = "",
-  ffmpegSearchPath = "/opt/homebrew/bin/ffmpeg",
-  configuredFFmpegValid = true,
-  subtitleTrackVisible = true,
-  exposesCoreOpen = false,
-} = {}) {
-  const sidebarHandlers = new Map();
-  const eventHandlers = new Map();
-  const messages = [];
-  const execCalls = [];
-  const fileWrites = [];
-  const loadedTracks = [];
-  const menuItems = [];
-  const consoleErrors = [];
-  const coreOpenCalls = [];
-  const pendingTimers = [];
-  let clock = 1000;
-  let windowReady = windowReadyAtStart;
-  let remainingLoadFileFailures = loadFileFailures;
-  const preferenceValues = { ffmpeg_path: ffmpegPath, output_directory: "" };
-  const tracks = [
-    { type: "audio", id: 7, "ff-index": 2, lang: "ja-JP", title: "Japanese", selected: true },
-    { type: "audio", id: 8, "ff-index": 4, lang: "en-US", title: "English" },
-  ];
-
-  const iina = {
-    core: {
-      window: {
-        loaded: windowReady,
-      },
-      status: { url: "file:///Users/test/Anime%20episode.mkv", title: "Anime episode" },
-      subtitle: {
-        async loadTrack(filePath) {
-          loadedTracks.push(filePath);
-          if (failSubtitleLoad) throw new Error("fixture load failure");
-          if (subtitleTrackVisible) {
-            tracks.push({ type: "sub", id: 20 + loadedTracks.length, "external-filename": filePath });
-          }
-        },
-      },
-      ...(exposesCoreOpen ? { open(url) { coreOpenCalls.push(url); } } : {}),
-    },
-    event: { on: (name, callback) => eventHandlers.set(name, callback) },
-    file: { write: (filePath, content) => fileWrites.push({ filePath, content }) },
-    console: { error: (message) => consoleErrors.push(message) },
-    menu: {
-      item: (name, action) => ({ name, action }),
-      addItem(item) { menuItems.push(item); },
-    },
-    mpv: {
-      getNative(name) {
-        if (name === "track-list") return tracks;
-        if (name === "aid") return 7;
-        return null;
-      },
-    },
-    preferences: {
-      get: (key) => preferenceValues[key],
-      set: (key, value) => { preferenceValues[key] = value; },
-      sync() {},
-    },
-    sidebar: {
-      show() {
-        messages.push({ kind: "show-sidebar" });
-      },
-      loadFile(filePath) {
-        sidebarHandlers.clear();
-        if (!windowReady) throw new Error("window not available");
-        if (remainingLoadFileFailures > 0) {
-          remainingLoadFileFailures -= 1;
-          throw new Error("temporary load failure");
-        }
-        messages.push({ kind: "load-file", filePath });
-      },
-      onMessage: (name, callback) => sidebarHandlers.set(name, callback),
-      postMessage: (name, payload) => messages.push({ kind: "message", name, payload }),
-    },
-    utils: {
-      resolvePath(value) {
-        if (value.startsWith("@tmp/")) return `/tmp/iina/tmp/${value.slice(5)}`;
-        if (!path.isAbsolute(value)) return null;
-        return value;
-      },
-      preferredLocalizations: () => ["zh-Hans-CN", "en-US"],
-      async exec(file, args, cwd, stdoutHook, stderrHook) {
-        execCalls.push({ file, args, cwd });
-        if (file === "/bin/zsh") {
-          if (args[1] === 'test -f "$1" && test -x "$1"') {
-            return configuredFFmpegValid
-              ? { status: 0, stdout: "", stderr: "" }
-              : { status: 1, stdout: "", stderr: "" };
-          }
-          return ffmpegSearchPath
-            ? { status: 0, stdout: `${ffmpegSearchPath}\n`, stderr: "" }
-            : { status: 127, stdout: "", stderr: "ffmpeg not found" };
-        }
-        if (file === "/usr/bin/test") {
-          return configuredFFmpegValid ? { status: 0, stdout: "", stderr: "" } : { status: 1, stdout: "", stderr: "" };
-        }
-        if (file.endsWith("otoha-helper")) {
-          stdoutHook('{"type":"phase","phase":"transcribing","message":"正在转录"}\n');
-          if (changeMediaBeforeCompletion) {
-            iina.core.status.url = "file:///Users/test/Another%20video.mkv";
-          }
-          stdoutHook('{"type":"completed","path":"/Users/test/Anime episode.otoha.srt"}\n');
-          return { status: 0, stdout: "", stderr: "" };
-        }
-        return { status: 0, stdout: "", stderr: "" };
-      },
-      async chooseFile() { return null; },
-      open(filePath) { messages.push({ kind: "open", filePath }); },
-    },
-  };
-
-  vm.runInNewContext(mainSource, {
-    console: undefined,
-    Date: { now: () => clock },
-    Math,
-    Promise,
-    setTimeout(callback, delay = 0) { pendingTimers.push({ callback, delay }); },
-    iina,
-    require(id) {
-      if (id !== "./controller.js") throw new Error(`Unexpected plugin module: ${id}`);
-      return controller;
-    },
-  });
-
-  return {
-    eventHandlers,
-    execCalls,
-    fileWrites,
-    loadedTracks,
-    menuItems,
-    messages,
-    pendingTimers,
-    sidebarHandlers,
-    consoleErrors,
-    coreOpenCalls,
-    setWindowReady(value) {
-      windowReady = value;
-      iina.core.window.loaded = value;
-    },
-    runSidebarLoad() {
-      this.runPendingTimers();
-      this.runPendingTimers();
-    },
-    runPendingTimers() {
-      pendingTimers.splice(0).forEach(({ callback, delay }) => {
-        clock += delay;
-        callback();
-      });
-    },
-    runAllPendingTimers() {
-      let runs = 0;
-      while (pendingTimers.length && runs < 100) {
-        this.runPendingTimers();
-        runs += 1;
-      }
-      assert.ok(runs < 100, "timer queue should settle");
-    },
-  };
-}
-
 test("main has no startup integration probe side effects", () => {
   const plugin = createPlugin({ exposesCoreOpen: true });
   plugin.runSidebarLoad();
@@ -211,7 +37,7 @@ test("main maps the chosen IINA track to ff-index and loads completed subtitles"
   });
   await new Promise((resolve) => setImmediate(resolve));
 
-  const helperCall = plugin.execCalls.find((call) => call.file.endsWith("otoha-helper"));
+  const helperCall = plugin.execCalls.find((call) => call.file.endsWith("otoha-helper") && call.args[0] === "--request-json");
   assert.ok(helperCall);
   assert.equal(helperCall.file, helperPath);
   const request = JSON.parse(helperCall.args[1]);
@@ -220,9 +46,152 @@ test("main maps the chosen IINA track to ff-index and loads completed subtitles"
   assert.equal(request.mediaPath, "/Users/test/Anime episode.mkv");
   assert.equal(request.ffmpegPath, "/opt/homebrew/bin/ffmpeg");
   assert.equal(request.backend, "apple");
-  assert.equal(request.outputDirectoryPath, "/Users/test");
+  assert.equal(request.outputDirectoryPath, "");
   assert.deepEqual(plugin.loadedTracks, ["/Users/test/Anime episode.otoha.srt"]);
   assert.equal(plugin.messages.findLast((message) => message.name === "job").payload.status, "completed");
+});
+
+test("main does not load existing subtitles when automatic loading is disabled", async () => {
+  const subtitlePath = "/Users/test/Library/Application Support/Otoha/Subtitles/video/episode.srt";
+  const plugin = createPlugin({ existingSubtitles: [subtitlePath] });
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(plugin.loadedTracks, []);
+});
+
+test("main automatically loads the sole subtitle when automatic loading is enabled", async () => {
+  const subtitlePath = "/Users/test/Library/Application Support/Otoha/Subtitles/video/episode.srt";
+  const plugin = createPlugin({ autoLoad: true, existingSubtitles: [subtitlePath] });
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const listingCall = plugin.execCalls.find((call) => call.file.endsWith("otoha-helper") && call.args[0] === "--list-subtitles-json");
+  assert.ok(listingCall);
+  assert.equal(JSON.parse(listingCall.args[1]).mediaPath, "/Users/test/Anime episode.mkv");
+  assert.deepEqual(plugin.loadedTracks, [subtitlePath]);
+  const state = plugin.messages.findLast((message) => message.name === "state");
+  assert.equal(state.payload.availableSubtitles[0].path, subtitlePath);
+});
+
+test("main automatically loads the newest saved subtitle while keeping other versions selectable", async () => {
+  const choices = ["/library/episode.srt", "/library/episode (2).srt"];
+  const plugin = createPlugin({ autoLoad: true, existingSubtitles: choices });
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const state = plugin.messages.findLast((message) => message.name === "state");
+  assert.deepEqual(Array.from(state.payload.availableSubtitles, (item) => item.path), choices);
+  assert.deepEqual(plugin.loadedTracks, [choices[0]]);
+
+  await plugin.sidebarHandlers.get("loadExisting")(choices[1]);
+  assert.deepEqual(plugin.loadedTracks, [choices[0], choices[1]]);
+});
+
+test("main automatically starts transcription when no subtitle exists", async () => {
+  const plugin = createPlugin({ autoLoad: true });
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const helperCall = plugin.execCalls.find((call) => call.file.endsWith("otoha-helper") && call.args[0] === "--request-json");
+  assert.ok(helperCall);
+  const request = JSON.parse(helperCall.args[1]);
+  assert.equal(request.audioStreamIndex, 2);
+  assert.equal(request.sourceLanguage, "ja");
+  assert.equal(request.targetLanguage, "zh-Hans");
+  assert.deepEqual(plugin.loadedTracks, ["/Users/test/Anime episode.otoha.srt"]);
+});
+
+test("main uses the configured subtitle library as its root directory", async () => {
+  const outputDirectory = "/Users/test/Captions";
+  const plugin = createPlugin({ outputDirectory });
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await new Promise((resolve) => setImmediate(resolve));
+  await plugin.sidebarHandlers.get("start")({
+    trackId: 7,
+    sourceLanguage: "ja",
+    targetLanguage: "zh-Hans",
+  });
+
+  const listingCall = plugin.execCalls.find((call) => call.file.endsWith("otoha-helper") && call.args[0] === "--list-subtitles-json");
+  const requestCall = plugin.execCalls.find((call) => call.file.endsWith("otoha-helper") && call.args[0] === "--request-json");
+  assert.equal(JSON.parse(listingCall.args[1]).outputDirectoryPath, outputDirectory);
+  assert.equal(JSON.parse(requestCall.args[1]).outputDirectoryPath, outputDirectory);
+});
+
+test("main clears the previous subtitle when playback has no local media", async () => {
+  const plugin = createPlugin({ existingSubtitles: ["/library/episode.srt"] });
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await new Promise((resolve) => setImmediate(resolve));
+  plugin.setMediaURL(null);
+  plugin.sidebarHandlers.get("refresh")();
+  const state = plugin.messages.findLast((message) => message.name === "state");
+  assert.equal(state.payload.hasOutput, false);
+  assert.deepEqual(Array.from(state.payload.availableSubtitles), []);
+});
+
+test("main keeps the loaded subtitle path when the library setting changes", async () => {
+  const plugin = createPlugin();
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await plugin.sidebarHandlers.get("start")({ trackId: 7, sourceLanguage: "ja", targetLanguage: "zh-Hans" });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  plugin.sidebarHandlers.get("setSetting")({ key: "output_directory", value: "/Users/test/Captions" });
+  await new Promise((resolve) => setImmediate(resolve));
+  await plugin.sidebarHandlers.get("retryLoad")();
+
+  assert.deepEqual(plugin.loadedTracks, [
+    "/Users/test/Anime episode.otoha.srt",
+    "/Users/test/Anime episode.otoha.srt",
+  ]);
+});
+
+test("main reloads an existing subtitle without removing its track", async () => {
+  const plugin = createPlugin();
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await plugin.sidebarHandlers.get("start")({ trackId: 7, sourceLanguage: "ja", targetLanguage: "zh-Hans" });
+  await plugin.sidebarHandlers.get("retryLoad")();
+
+  assert.equal(plugin.mpvCommands.length, 0);
+  assert.deepEqual(plugin.loadedTracks, [
+    "/Users/test/Anime episode.otoha.srt",
+    "/Users/test/Anime episode.otoha.srt",
+  ]);
+  assert.equal(plugin.messages.findLast((message) => message.name === "job").payload.status, "completed");
+});
+
+test("main reveals a subtitle by selecting it in Finder", async () => {
+  const plugin = createPlugin();
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await plugin.sidebarHandlers.get("reveal")("/Users/test/Library/Application Support/Otoha/Subtitles/video.srt");
+
+  const revealCall = plugin.execCalls.find((call) => call.file === "/usr/bin/open");
+  assert.ok(revealCall);
+  assert.deepEqual(Array.from(revealCall.args), ["-R", "/Users/test/Library/Application Support/Otoha/Subtitles/video.srt"]);
+});
+
+test("main preserves previously discovered subtitles when a new library cannot be read", async () => {
+  const subtitlePath = "/old-library/episode.srt";
+  const plugin = createPlugin({ existingSubtitles: [subtitlePath], failedListingPath: "/Users/test/Captions" });
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  plugin.sidebarHandlers.get("setSetting")({ key: "output_directory", value: "/Users/test/Captions" });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const state = plugin.messages.findLast((message) => message.name === "state");
+  assert.deepEqual(Array.from(state.payload.availableSubtitles, (item) => item.path), [subtitlePath]);
+  assert.match(state.payload.job.message, /仍可使用已发现的字幕/);
 });
 
 test("main stops with an actionable error when login-shell PATH has no FFmpeg", async () => {
@@ -236,7 +205,7 @@ test("main stops with an actionable error when login-shell PATH has no FFmpeg", 
     targetLanguage: "zh-Hans",
   });
 
-  assert.equal(plugin.execCalls.some((call) => call.file.endsWith("otoha-helper")), false);
+  assert.equal(plugin.execCalls.some((call) => call.file.endsWith("otoha-helper") && call.args[0] === "--request-json"), false);
   assert.match(plugin.messages.findLast((message) => message.name === "job").payload.message, /FFmpeg/);
 });
 
@@ -252,7 +221,7 @@ test("main uses a configured FFmpeg path without querying the login shell", asyn
     targetLanguage: "zh-Hans",
   });
 
-  const helperCall = plugin.execCalls.find((call) => call.file.endsWith("otoha-helper"));
+  const helperCall = plugin.execCalls.find((call) => call.file.endsWith("otoha-helper") && call.args[0] === "--request-json");
   assert.ok(helperCall);
   assert.equal(JSON.parse(helperCall.args[1]).ffmpegPath, configuredPath);
   const ffmpegCheck = plugin.execCalls.find((call) => call.file === "/bin/zsh");
@@ -274,7 +243,7 @@ test("main rejects a configured FFmpeg path that is not executable", async () =>
     targetLanguage: "zh-Hans",
   });
 
-  assert.equal(plugin.execCalls.some((call) => call.file.endsWith("otoha-helper")), false);
+  assert.equal(plugin.execCalls.some((call) => call.file.endsWith("otoha-helper") && call.args[0] === "--request-json"), false);
   assert.match(plugin.messages.findLast((message) => message.name === "job").payload.message, /可执行|FFmpeg/);
 });
 
@@ -349,7 +318,7 @@ test("main does not launch helper when the chosen track has no ff-index", async 
     sourceLanguage: "ja",
     targetLanguage: "zh-Hans",
   });
-  assert.equal(plugin.execCalls.some((call) => call.file.endsWith("otoha-helper")), false);
+  assert.equal(plugin.execCalls.some((call) => call.file.endsWith("otoha-helper") && call.args[0] === "--request-json"), false);
 });
 
 test("main rejects a relative helper path reported by the sidebar", async () => {
@@ -384,9 +353,17 @@ test("main exposes a menu command for opening the sidebar", () => {
   assert.equal(plugin.messages.filter((message) => message.kind === "load-file").length, 1);
 });
 
-test("main shows the plugin sidebar before loading its page", () => {
+test("main does not show the plugin sidebar during startup", () => {
   const plugin = createPlugin();
   plugin.runSidebarLoad();
+
+  assert.equal(plugin.messages.filter((message) => message.kind === "load-file").length, 1);
+  assert.equal(plugin.messages.filter((message) => message.kind === "show-sidebar").length, 0);
+});
+
+test("main shows the plugin sidebar only when its menu command is used", () => {
+  const plugin = createPlugin();
+  plugin.menuItems[0].action();
 
   assert.deepEqual(
     plugin.messages.filter((message) => ["show-sidebar", "load-file"].includes(message.kind)).map((message) => message.kind),
@@ -431,5 +408,5 @@ test("main keeps retrying until the sidebar page reports ready", () => {
   plugin.runPendingTimers();
 
   assert.equal(plugin.messages.filter((message) => message.kind === "load-file").length, 2);
-  assert.equal(plugin.messages.filter((message) => message.kind === "show-sidebar").length, 2);
+  assert.equal(plugin.messages.filter((message) => message.kind === "show-sidebar").length, 0);
 });

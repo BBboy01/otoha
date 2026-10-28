@@ -32,6 +32,7 @@ public enum SubtitleJobPipeline {
         emit: @escaping @Sendable (HelperEvent) -> Void = { _ in }
     ) async throws -> URL {
         emit(.phase(.checkingEnvironment, message: "正在检查环境"))
+        try FileManager.default.createDirectory(at: configuration.outputDirectory, withIntermediateDirectories: true)
         try configuration.validate()
         try checkCancellation(cancellationFileURL)
 
@@ -54,10 +55,12 @@ public enum SubtitleJobPipeline {
             return SubtitleCue(start: start, end: end, source: cue.source, translation: translations[index])
         }
         emit(.phase(.saving, message: "正在保存双语字幕"))
+        let baseName = configuration.mediaURL.deletingPathExtension().lastPathComponent
         return try SRTOutput.publish(
             cues,
-            baseName: configuration.mediaURL.deletingPathExtension().lastPathComponent,
+            baseName: "\(baseName) [\(configuration.sourceLanguage) to \(configuration.targetLanguage)]",
             directory: configuration.outputDirectory,
+            overwriteExisting: true,
             cancellationFileURL: cancellationFileURL
         )
     }

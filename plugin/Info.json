@@ -15,6 +15,7 @@
   "preferenceDefaults": {
     "backend": "apple",
     "ffmpeg_path": "",
-    "output_directory": ""
+    "output_directory": "",
+    "auto_load": false
   }
 }

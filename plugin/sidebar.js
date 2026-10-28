@@ -23,9 +23,11 @@ const LANGUAGE_ALIASES = {
 
 const elements = {
   audioTrack: document.querySelector("#audio-track"),
+  autoLoad: document.querySelector("#auto-load"),
   cancel: document.querySelector("#cancel-button"),
   chooseFFmpeg: document.querySelector("#choose-ffmpeg"),
   chooseOutput: document.querySelector("#choose-output"),
+  existingSubtitles: document.querySelector("#existing-subtitles"),
   ffmpegPath: document.querySelector("#ffmpeg-path"),
   jobForm: document.querySelector("#job-form"),
   jobMessage: document.querySelector("#job-message"),
@@ -38,6 +40,7 @@ const elements = {
   retry: document.querySelector("#retry-button"),
   sourceLanguage: document.querySelector("#source-language"),
   start: document.querySelector("#start-button"),
+  subtitleChoice: document.querySelector("#subtitle-choice"),
   targetLanguage: document.querySelector("#target-language"),
 };
 
@@ -45,6 +48,7 @@ let state = null;
 let selectedTrackId = null;
 let selectedSourceLanguage = "";
 let selectedTargetLanguage = "";
+let selectedSubtitlePath = "";
 let currentMediaPath = "";
 let lastPlayerTrackId;
 
@@ -86,6 +90,7 @@ function renderState(nextState) {
   }
 
   const mediaChanged = previousMediaPath !== currentMediaPath;
+  if (mediaChanged) selectedSubtitlePath = "";
   const selectedTrackChanged = String(lastPlayerTrackId) !== String(state.selectedTrackId);
   if (mediaChanged || selectedTrackChanged || selectedTrackId === null) {
     selectedTrackId = state.selectedTrackId;
@@ -100,16 +105,35 @@ function renderState(nextState) {
   fillLanguages(elements.targetLanguage, selectedTargetLanguage);
 
   const busy = state.job && ["running", "canceling", "loading"].includes(state.job.status);
-  elements.start.disabled = !state.media || !availableTrackExists || busy;
+  const checkingSubtitles = Boolean(state.media && state.subtitleLibraryLoading);
+  elements.start.disabled = !state.media || !availableTrackExists || busy || checkingSubtitles;
   elements.audioTrack.disabled = !state.media || audioTracks.length === 0 || busy;
   elements.sourceLanguage.disabled = busy;
   elements.targetLanguage.disabled = busy;
+  elements.autoLoad.checked = Boolean(state.autoLoad);
+  elements.autoLoad.disabled = busy;
+  const subtitles = Array.isArray(state.availableSubtitles) ? state.availableSubtitles : [];
+  elements.existingSubtitles.hidden = subtitles.length === 0;
+  elements.subtitleChoice.replaceChildren();
+  for (const subtitle of subtitles) {
+    const path = subtitle.path;
+    const name = typeof path === "string" ? path.split("/").pop() : "字幕文件";
+    elements.subtitleChoice.add(new Option(name || "字幕文件", path));
+  }
+  if (!subtitles.some((subtitle) => subtitle.path === selectedSubtitlePath)) {
+    selectedSubtitlePath = subtitles.length ? subtitles[0].path : "";
+  }
+  elements.subtitleChoice.value = selectedSubtitlePath;
+  elements.subtitleChoice.disabled = subtitles.length === 0 || busy;
+  elements.start.textContent = subtitles.length ? "重新生成" : "生成";
   elements.ffmpegPath.value = state.ffmpegPath || "";
   elements.outputDirectory.value = state.outputDirectory || "";
   elements.outputDefault.textContent = state.effectiveOutputDirectory
-    ? `留空时保存到：${state.effectiveOutputDirectory}`
-    : "留空时保存到视频所在文件夹。";
-  renderJob(state.job);
+    ? `字幕库位置：${state.effectiveOutputDirectory}`
+    : "留空时使用 Otoha 字幕库。";
+  renderJob(checkingSubtitles && (!state.job || state.job.status === "idle")
+    ? { status: "checking", message: "正在检查已有字幕" }
+    : state.job);
 }
 
 function renderJob(job) {
@@ -138,6 +162,10 @@ elements.targetLanguage.addEventListener("change", () => {
   selectedTargetLanguage = elements.targetLanguage.value;
 });
 
+elements.autoLoad.addEventListener("change", () => {
+  post("setSetting", { key: "auto_load", value: elements.autoLoad.checked });
+});
+
 elements.jobForm.addEventListener("submit", (event) => {
   event.preventDefault();
   if (selectedSourceLanguage === selectedTargetLanguage) {
@@ -152,8 +180,15 @@ elements.jobForm.addEventListener("submit", (event) => {
 });
 
 elements.cancel.addEventListener("click", () => post("cancel"));
+elements.subtitleChoice.addEventListener("change", () => {
+  selectedSubtitlePath = elements.subtitleChoice.value;
+  post("loadExisting", selectedSubtitlePath);
+});
 elements.retry.addEventListener("click", () => post("retryLoad"));
-elements.reveal.addEventListener("click", () => post("reveal"));
+elements.reveal.addEventListener("click", () => post(
+  "reveal",
+  elements.subtitleChoice.value || (state && state.job && state.job.path),
+));
 elements.chooseFFmpeg.addEventListener("click", () => post("chooseFFmpeg"));
 elements.chooseOutput.addEventListener("click", () => post("chooseOutputDirectory"));
 

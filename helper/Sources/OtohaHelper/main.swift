@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import SwiftUI
 import Translation
+import OtohaCore
 
 @main
 @MainActor
@@ -22,6 +23,14 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
             let bundleID = Bundle.main.bundleIdentifier ?? "<missing>"
             FileHandle.standardError.write(Data("Otoha bundle identifier: \(bundleID)\n".utf8))
         }
+        NSApp.setActivationPolicy(.accessory)
+        if let index = CommandLine.arguments.firstIndex(of: "--list-subtitles-json"),
+           CommandLine.arguments.indices.contains(index + 1) {
+            Self.listSubtitles(json: CommandLine.arguments[index + 1])
+            NSApp.terminate(nil)
+            return
+        }
+
         let parsed = Self.parseRequest()
         let model = HelperModel(request: parsed.request, startupError: parsed.error)
         windowController = HelperWindowController(model: model)
@@ -37,6 +46,25 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
             return (request, nil)
         } catch {
             return (nil, "任务配置无效：\(error.localizedDescription)")
+        }
+    }
+
+    private static func listSubtitles(json: String) {
+        do {
+            let request = try JSONDecoder().decode(SubtitleListingRequest.self, from: Data(json.utf8))
+            let files = try SubtitleLibrary.list(
+                for: request.mediaURL,
+                rootDirectory: request.rootDirectory,
+                legacyDirectories: request.legacyDirectories
+            )
+                .map { SubtitleListingResponse.Entry(path: $0.path) }
+            let response = SubtitleListingResponse(rootDirectoryPath: request.rootDirectory.path, files: files)
+            var data = try JSONEncoder().encode(response)
+            data.append(0x0A)
+            FileHandle.standardOutput.write(data)
+        } catch {
+            FileHandle.standardError.write(Data("字幕库读取失败：\(error.localizedDescription)\n".utf8))
+            exit(EXIT_FAILURE)
         }
     }
 }

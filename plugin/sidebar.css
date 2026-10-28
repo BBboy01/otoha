@@ -56,8 +56,37 @@ label {
 }
 
 .media-name {
+  min-width: 0;
   overflow-wrap: anywhere;
   font-size: 12px;
+}
+
+.media,
+#existing-subtitles,
+.automation {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.toggle-row input {
+  width: auto;
+  min-height: auto;
+  margin: 0;
+}
+
+#existing-subtitles h2,
+#generation-heading {
+  margin-bottom: 0;
 }
 
 .inline-error {

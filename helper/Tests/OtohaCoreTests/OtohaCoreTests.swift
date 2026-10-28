@@ -3,6 +3,69 @@ import XCTest
 @testable import OtohaCore
 
 final class OtohaCoreTests: XCTestCase {
+    func testSubtitleLibraryUsesConfiguredPathAndFallsBackToMacApplicationSupport() throws {
+        let home = URL(fileURLWithPath: "/Users/test", isDirectory: true)
+
+        XCTAssertEqual(
+            SubtitleLibrary.rootDirectory(configuredPath: nil, homeDirectory: home),
+            home.appendingPathComponent("Library/Application Support/Otoha/Subtitles", isDirectory: true)
+        )
+        XCTAssertEqual(
+            SubtitleLibrary.rootDirectory(configuredPath: "/Users/test/captions", homeDirectory: home),
+            URL(fileURLWithPath: "/Users/test/captions", isDirectory: true)
+        )
+        XCTAssertEqual(
+            SubtitleLibrary.rootDirectory(configuredPath: "~/Captions", homeDirectory: home),
+            URL(fileURLWithPath: "/Users/test/Captions", isDirectory: true)
+        )
+    }
+
+    func testSubtitleLibrarySeparatesVideosAndListsOnlyTheirSRTFiles() throws {
+        let fixture = try Fixture()
+        let mediaURL = URL(fileURLWithPath: "/Videos/episode.mkv")
+        let otherMediaURL = URL(fileURLWithPath: "/Other/episode.mkv")
+        let directory = SubtitleLibrary.mediaDirectory(for: mediaURL, rootDirectory: fixture.directory)
+        let otherDirectory = SubtitleLibrary.mediaDirectory(for: otherMediaURL, rootDirectory: fixture.directory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data().write(to: directory.appendingPathComponent("episode.srt"))
+        try Data().write(to: directory.appendingPathComponent("episode (2).srt"))
+        try Data().write(to: directory.appendingPathComponent("episode [ja-JP to zh-Hans].srt"))
+        try Data().write(to: directory.appendingPathComponent("partial.tmp"))
+
+        let subtitles = try SubtitleLibrary.list(for: mediaURL, rootDirectory: fixture.directory)
+
+        XCTAssertNotEqual(directory, otherDirectory)
+        XCTAssertEqual(
+            Set(subtitles.map(\.lastPathComponent)),
+            ["episode.srt", "episode (2).srt", "episode [ja-JP to zh-Hans].srt"]
+        )
+        XCTAssertTrue(try SubtitleLibrary.list(for: otherMediaURL, rootDirectory: fixture.directory).isEmpty)
+    }
+
+    func testSubtitleLibraryFindsOnlyMatchingLegacySRTsOutsideItsRoot() throws {
+        let fixture = try Fixture()
+        let mediaURL = fixture.directory.appendingPathComponent("episode.mkv")
+        let legacy = [
+            fixture.directory.appendingPathComponent("episode.srt"),
+            fixture.directory.appendingPathComponent("episode (2).srt"),
+            fixture.directory.appendingPathComponent("episode.otoha (2).srt"),
+            fixture.directory.appendingPathComponent("unrelated.srt"),
+            fixture.directory.appendingPathComponent("episode.ssa"),
+        ]
+        for url in legacy { try Data().write(to: url) }
+
+        let subtitles = try SubtitleLibrary.list(
+            for: mediaURL,
+            rootDirectory: fixture.directory.appendingPathComponent("library"),
+            legacyDirectories: [fixture.directory]
+        )
+
+        XCTAssertEqual(
+            Set(subtitles.map(\.lastPathComponent)),
+            ["episode.srt", "episode (2).srt", "episode.otoha (2).srt"]
+        )
+    }
+
     func testJobConfigurationRejectsInvalidStreamAndLanguage() throws {
         let fixture = try Fixture()
         let invalidStream = fixture.configuration(audioStreamIndex: -1)
@@ -141,6 +204,25 @@ final class OtohaCoreTests: XCTestCase {
         XCTAssertTrue(try String(contentsOf: output, encoding: .utf8).contains("Hello\n你好"))
     }
 
+    func testSRTOutputReplacesExistingFileWhenRequested() throws {
+        let fixture = try Fixture()
+        let existing = fixture.directory.appendingPathComponent("Movie.srt")
+        try Data("old subtitle".utf8).write(to: existing)
+        let cue = SubtitleCue(start: 0, end: 1, source: "Hello", translation: "你好")
+
+        let output = try SRTOutput.publish(
+            [cue],
+            baseName: "Movie",
+            directory: fixture.directory,
+            overwriteExisting: true
+        )
+
+        XCTAssertEqual(output, existing)
+        XCTAssertTrue(try String(contentsOf: existing, encoding: .utf8).contains("Hello\n你好"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.directory.appendingPathComponent("Movie (2).srt").path))
+        XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: fixture.directory.path).contains(where: { $0.hasSuffix(".tmp") }))
+    }
+
     func testSRTOutputDoesNotCommitWhenCancelledAfterTemporaryWrite() throws {
         let fixture = try Fixture()
         var checks = 0
@@ -207,6 +289,8 @@ final class OtohaCoreTests: XCTestCase {
         let fixture = try Fixture()
         let cancellationURL = fixture.directory.appendingPathComponent("cancel")
         let cues = [TranscribedCue(start: 0.5, end: 1.25, source: "こんにちは")]
+        let existingURL = fixture.directory.appendingPathComponent("movie ; $ input [ja-JP to en-US].srt")
+        try Data("old subtitle".utf8).write(to: existingURL)
 
         let outputURL = try await SubtitleJobPipeline.run(
             configuration: fixture.configuration(),
@@ -216,7 +300,8 @@ final class OtohaCoreTests: XCTestCase {
             translate: { _ in ["你好"] }
         )
 
-        XCTAssertEqual(outputURL.lastPathComponent, "movie ; $ input.srt")
+        XCTAssertEqual(outputURL.lastPathComponent, "movie ; $ input [ja-JP to en-US].srt")
+        XCTAssertEqual(outputURL, existingURL)
         XCTAssertEqual(try String(contentsOf: outputURL, encoding: .utf8), """
         1
         00:00:02,500 --> 00:00:03,250
@@ -247,7 +332,7 @@ final class OtohaCoreTests: XCTestCase {
         }
 
         let files = try FileManager.default.contentsOfDirectory(atPath: fixture.directory.path)
-        XCTAssertFalse(files.contains("movie ; $ input.srt"))
+        XCTAssertFalse(files.contains("movie ; $ input [ja-JP to en-US].srt"))
     }
 
     func testSubtitleJobPipelineDoesNotPublishWhenTranslationProviderFails() async throws {
@@ -267,7 +352,28 @@ final class OtohaCoreTests: XCTestCase {
         }
 
         let files = try FileManager.default.contentsOfDirectory(atPath: fixture.directory.path)
-        XCTAssertFalse(files.contains("movie ; $ input.srt"))
+        XCTAssertFalse(files.contains("movie ; $ input [ja-JP to en-US].srt"))
+    }
+
+    func testSubtitleJobPipelineKeepsExistingOutputWhenTranslationFails() async throws {
+        let fixture = try Fixture()
+        let cancellationURL = fixture.directory.appendingPathComponent("cancel")
+        let outputURL = fixture.directory.appendingPathComponent("movie ; $ input [ja-JP to en-US].srt")
+        try Data("keep old subtitle".utf8).write(to: outputURL)
+
+        do {
+            _ = try await SubtitleJobPipeline.run(
+                configuration: fixture.configuration(),
+                cancellationFileURL: cancellationURL,
+                prepareTranslation: {},
+                transcribe: { TranscriptionOutput(cues: [TranscribedCue(start: 0, end: 1, source: "Hello")], sourceTimeOffset: 0) },
+                translate: { _ in throw FixtureError.translationFailed }
+            )
+            XCTFail("Expected translation failure")
+        } catch FixtureError.translationFailed {
+        }
+
+        XCTAssertEqual(try String(contentsOf: outputURL, encoding: .utf8), "keep old subtitle")
     }
 
     func testTranslationAccumulatorMapsOutOfOrderResponsesAndRejectsWrongBatch() throws {

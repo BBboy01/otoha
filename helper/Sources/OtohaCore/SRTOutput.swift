@@ -6,9 +6,10 @@ public enum SRTOutput {
         _ cues: [SubtitleCue],
         baseName: String,
         directory: URL,
+        overwriteExisting: Bool = false,
         cancellationFileURL: URL? = nil
     ) throws -> URL {
-        try publish(cues, baseName: baseName, directory: directory) {
+        try publish(cues, baseName: baseName, directory: directory, overwriteExisting: overwriteExisting) {
             cancellationFileURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
         }
     }
@@ -17,6 +18,7 @@ public enum SRTOutput {
         _ cues: [SubtitleCue],
         baseName: String,
         directory: URL,
+        overwriteExisting: Bool = false,
         isCancelled: () -> Bool
     ) throws -> URL {
         try checkCancellation(isCancelled)
@@ -30,6 +32,13 @@ public enum SRTOutput {
             try checkCancellation(isCancelled)
             let suffix = index == 1 ? "" : " (\(index))"
             let destination = directory.appendingPathComponent("\(safeBaseName)\(suffix).srt")
+            if overwriteExisting {
+                guard rename(temporaryURL.path, destination.path) == 0 else {
+                    throw SRTOutputError.publishFailed(String(cString: strerror(errno)))
+                }
+                syncDirectory(directory)
+                return destination
+            }
             if link(temporaryURL.path, destination.path) == 0 {
                 if isCancelled() {
                     guard unlink(destination.path) == 0 else {

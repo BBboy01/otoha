@@ -47,6 +47,30 @@ function localMedia(value) {
   return { path, name };
 }
 
+function waitForSubtitleTrack(mpv, filePath, now = Date.now, schedule = setTimeout) {
+  const expectedPath = localMedia(filePath).path;
+  const deadline = now() + 3000;
+
+  return new Promise((resolve, reject) => {
+    const check = () => {
+      const loaded = (mpv.getNative("track-list") || []).some((track) => {
+        if (!track || track.type !== "sub") return false;
+        const externalFilename = track["external-filename"] || track.externalFilename;
+        if (typeof externalFilename !== "string") return false;
+        try {
+          return localMedia(externalFilename).path === expectedPath;
+        } catch {
+          return externalFilename === expectedPath;
+        }
+      });
+      if (loaded) resolve();
+      else if (now() >= deadline) reject(new Error("IINA 尚未确认字幕轨道加载，请重试或在播放器中检查字幕轨道。"));
+      else schedule(check, 100);
+    };
+    check();
+  });
+}
+
 function audioTracks(rawTracks) {
   if (!Array.isArray(rawTracks)) return [];
   return rawTracks
@@ -63,6 +87,13 @@ function audioTracks(rawTracks) {
         available: !track.external && streamIndex !== null,
       };
     });
+}
+
+function automaticJobPayload(rawTracks, selectedAudioId, targetLanguage) {
+  const track = audioTracks(rawTracks).find((item) => String(item.id) === String(selectedAudioId));
+  const sourceLanguage = track ? defaultLanguage(track.lang) : "";
+  if (!track || !sourceLanguage || !targetLanguage || sourceLanguage === targetLanguage) return null;
+  return { trackId: track.id, sourceLanguage, targetLanguage };
 }
 
 function resolveAudioStreamIndex(tracks, id) {
@@ -148,13 +179,45 @@ function phaseLabel(phase) {
   return labels[phase] || "处理中";
 }
 
+async function resolveFFmpegPath(preferences, exec) {
+  const configuredPath = preferences.get("ffmpeg_path");
+  if (typeof configuredPath === "string" && configuredPath.trim()) {
+    const filePath = configuredPath.trim();
+    await assertExecutableFile(exec, filePath, "配置的 FFmpeg 路径不存在或不可执行，请选择可执行文件或清空设置后重试。");
+    return filePath;
+  }
+
+  const result = await exec("/bin/zsh", ["-lc", "command -v ffmpeg"]);
+  const candidates = String(result.stdout || "").trim().split(/\r?\n/).filter(Boolean);
+  const discoveredPath = candidates[candidates.length - 1];
+  if (result.status !== 0 || !discoveredPath || !discoveredPath.startsWith("/")) {
+    throw new Error("未找到 FFmpeg。请安装后重试，或在路径设置中填写可执行文件的完整路径。");
+  }
+  await assertExecutableFile(exec, discoveredPath, "找到的 FFmpeg 不可执行，请检查安装或在路径设置中填写可执行文件的完整路径。");
+  return discoveredPath;
+}
+
+async function assertExecutableFile(exec, filePath, message) {
+  if (!filePath.startsWith("/")) throw new Error(message);
+  try {
+    const result = await exec("/bin/zsh", ["-lc", 'test -f "$1" && test -x "$1"', "--", filePath]);
+    if (result.status !== 0) throw new Error(message);
+  } catch (error) {
+    if (error && error.message === message) throw error;
+    throw new Error(message);
+  }
+}
+
 module.exports = {
   LANGUAGES,
   audioTracks,
+  automaticJobPayload,
   createJsonLineParser,
   defaultLanguage,
   localMedia,
+  waitForSubtitleTrack,
   normalizeLanguage,
   phaseLabel,
+  resolveFFmpegPath,
   resolveAudioStreamIndex,
 };

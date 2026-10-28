@@ -17,6 +17,8 @@
       h2 { margin: 0 0 8px; font-size: 13px; }
       label { display: block; margin-bottom: 5px; font-weight: 600; }
       input { width: 100%; min-height: 32px; padding: 5px 8px; border: 1px solid color-mix(in srgb, CanvasText 24%, transparent); border-radius: 5px; color: CanvasText; background: color-mix(in srgb, CanvasText 4%, Canvas); font: inherit; }
+      .check-row { display: flex; align-items: center; gap: 7px; }
+      .check-row input { width: auto; min-height: auto; margin: 0; }
       p { margin: 5px 0 0; color: color-mix(in srgb, CanvasText 62%, transparent); font-size: 12px; }
     </style>
   </head>
@@ -28,10 +30,15 @@
       <p>留空时从当前环境的 PATH 查找；也可以填写 FFmpeg 的绝对路径。</p>
     </section>
     <section>
-      <h2>字幕输出</h2>
-      <label for="output-directory">输出文件夹</label>
-      <input id="output-directory" type="text" data-pref-key="output_directory" autocomplete="off" spellcheck="false" placeholder="默认与视频保存在同一文件夹" />
-      <p>留空时保存到当前视频所在文件夹；同名文件会自动使用新文件名。</p>
+      <h2>字幕库</h2>
+      <label for="output-directory">字幕库根目录</label>
+      <input id="output-directory" type="text" data-pref-key="output_directory" autocomplete="off" spellcheck="false" placeholder="留空时使用 Otoha 字幕库" />
+      <p>留空时使用 ~/Library/Application Support/Otoha/Subtitles。每个视频单独存放，重新生成同一语言配置会覆盖对应字幕，其他版本保留。</p>
+    </section>
+    <section>
+      <h2>自动处理字幕</h2>
+      <label class="check-row"><input type="checkbox" data-pref-key="auto_load" /> 开启自动加载和转录</label>
+      <p>有已有字幕时自动加载，没有时按当前音轨语言生成；无法识别音轨语言时不会自动启动。</p>
     </section>
   </body>
 </html>
