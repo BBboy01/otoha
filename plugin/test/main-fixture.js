@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const controller = require("../controller");
+const subtitleDisplay = require("../subtitle-display");
 
 const mainSource = fs.readFileSync(path.join(__dirname, "../main.js"), "utf8");
 const pluginDirectory = "/tmp/iina/Otoha.iinaplugin";
@@ -28,6 +29,7 @@ function createPlugin({
   fileLoadedBeforeCompletion = "",
   subtitleScale = 100,
   existingSubtitles = [],
+  subtitleContents = {},
   failedListingPath = "",
 } = {}) {
   const sidebarHandlers = new Map();
@@ -40,6 +42,8 @@ function createPlugin({
   const consoleErrors = [];
   const coreOpenCalls = [];
   const mpvCommands = [];
+  let selectedSubtitleId = null;
+  let lastLoadedTrackId = null;
   const pendingTimers = [];
   let clock = 1000;
   let windowReady = windowReadyAtStart;
@@ -58,19 +62,37 @@ function createPlugin({
       window: { loaded: windowReady },
       status: { url: "file:///Users/test/Anime%20episode.mkv", title: "Anime episode" },
       subtitle: {
+        get id() { return selectedSubtitleId; },
+        set id(value) { selectedSubtitleId = Number(value); },
         async loadTrack(filePath) {
           loadedTracks.push(filePath);
           if (failSubtitleLoad) throw new Error("fixture load failure");
-          if (tracks.some((track) => track.type === "sub" && track["external-filename"] === filePath)) return;
+          const existing = tracks.find((track) => track.type === "sub" && track["external-filename"] === filePath);
+          if (existing) {
+            lastLoadedTrackId = existing.id;
+            return;
+          }
           if (subtitleTrackVisible) {
-            tracks.push({ type: "sub", id: 20 + loadedTracks.length, "external-filename": filePath });
+            const track = { type: "sub", id: 20 + loadedTracks.length, "external-filename": filePath };
+            tracks.push(track);
+            lastLoadedTrackId = track.id;
           }
         },
       },
       ...(exposesCoreOpen ? { open(url) { coreOpenCalls.push(url); } } : {}),
     },
     event: { on: (name, callback) => eventHandlers.set(name, callback) },
-    file: { write: (filePath, content) => fileWrites.push({ filePath, content }) },
+    file: {
+      read(filePath) {
+        if (!(filePath in subtitleContents)) throw new Error(`fixture missing file: ${filePath}`);
+        return subtitleContents[filePath];
+      },
+      write(filePath, content) {
+        const resolvedPath = filePath.startsWith("@data/") ? `/tmp/iina/data/${filePath.slice(6)}` : filePath;
+        subtitleContents[resolvedPath] = content;
+        fileWrites.push({ filePath, resolvedPath, content });
+      },
+    },
     console: { error: (message) => consoleErrors.push(message) },
     menu: {
       item: (name, action) => ({ name, action }),
@@ -113,6 +135,7 @@ function createPlugin({
     utils: {
       resolvePath(value) {
         if (value.startsWith("@tmp/")) return `/tmp/iina/tmp/${value.slice(5)}`;
+        if (value.startsWith("@data/")) return `/tmp/iina/data/${value.slice(6)}`;
         if (!path.isAbsolute(value)) return null;
         return value;
       },
@@ -179,6 +202,7 @@ function createPlugin({
     require(id) {
       if (id === "./controller.js") return controller;
       if (id === "./subtitle-settings.js") return require("../subtitle-settings.js");
+      if (id === "./subtitle-display.js") return subtitleDisplay;
       throw new Error(`Unexpected plugin module: ${id}`);
     },
   });
@@ -196,6 +220,8 @@ function createPlugin({
     coreOpenCalls,
     mpvCommands,
     preferenceValues,
+    get selectedSubtitleId() { return selectedSubtitleId; },
+    get lastLoadedTrackId() { return lastLoadedTrackId; },
     setWindowReady(value) {
       windowReady = value;
       iina.core.window.loaded = value;

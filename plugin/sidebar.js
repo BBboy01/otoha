@@ -20,10 +20,8 @@ const elements = {
   autoLoad: document.querySelector("#auto-load"),
   autoLoadHelp: document.querySelector("#auto-load-help"),
   cancel: document.querySelector("#cancel-button"),
-  chooseFFmpeg: document.querySelector("#choose-ffmpeg"),
-  chooseOutput: document.querySelector("#choose-output"),
+  displayMode: document.querySelector("#display-mode"),
   existingSubtitles: document.querySelector("#existing-subtitles"),
-  ffmpegPath: document.querySelector("#ffmpeg-path"),
   jobForm: document.querySelector("#job-form"),
   jobMessage: document.querySelector("#job-message"),
   jobStatus: document.querySelector("#job-status"),
@@ -32,8 +30,6 @@ const elements = {
   jobDetailMessage: document.querySelector("#job-detail-message"),
   mediaError: document.querySelector("#media-error"),
   mediaName: document.querySelector("#media-name"),
-  outputDefault: document.querySelector("#output-default"),
-  outputDirectory: document.querySelector("#output-directory"),
   progress: document.querySelector("#translation-progress"),
   reveal: document.querySelector("#reveal-button"),
   retry: document.querySelector("#retry-button"),
@@ -119,6 +115,11 @@ function renderState(nextState) {
   elements.targetLanguage.disabled = busy;
   elements.autoLoad.checked = Boolean(state.autoLoad);
   elements.autoLoad.disabled = busy;
+  const displayMode = ["source", "translation", "bilingual"].includes(state.displayMode)
+    ? state.displayMode
+    : "bilingual";
+  elements.displayMode.value = displayMode;
+  elements.displayMode.disabled = !state.media || busy;
   const subtitles = Array.isArray(state.availableSubtitles) ? state.availableSubtitles : [];
   elements.existingSubtitles.hidden = subtitles.length === 0;
   elements.reveal.hidden = subtitles.length === 0;
@@ -140,13 +141,8 @@ function renderState(nextState) {
   elements.subtitleChoice.value = selectedSubtitlePath;
   elements.subtitleChoice.disabled = subtitles.length === 0 || busy;
   updateGeneration();
-  elements.ffmpegPath.value = state.ffmpegPath || "";
-  elements.outputDirectory.value = state.outputDirectory || "";
-  elements.outputDefault.textContent = state.effectiveOutputDirectory
-    ? `字幕库位置：${state.effectiveOutputDirectory}`
-    : "留空时使用 Otoha 字幕库。";
   renderJob(checkingSubtitles && (!state.job || state.job.status === "idle")
-    ? { status: "checking", message: "正在检查已有字幕" }
+    ? { status: "checking", message: "正在检查字幕列表" }
     : state.job);
 }
 
@@ -168,7 +164,7 @@ function renderJob(job) {
   const failed = ["error", "load-error"].includes(current.status);
   const noSpeech = failed && message.includes("没有识别到语音");
   const libraryWarning = (current.status === "available" && message.includes("失败"))
-    || (current.status === "error" && message.startsWith("无法读取已有字幕："));
+    || (current.status === "error" && message.startsWith("无法读取字幕列表："));
   const hasDetails = (failed || libraryWarning) && Boolean(message);
   const feedbackKey = JSON.stringify([currentMediaPath, current.status, message]);
   if (feedbackKey !== lastFeedbackKey) {
@@ -225,6 +221,14 @@ elements.autoLoad.addEventListener("change", () => {
   post("setSetting", { key: "auto_load", value: elements.autoLoad.checked });
 });
 
+function setDisplayMode(mode) {
+  const busy = state && state.job && ["running", "canceling", "loading"].includes(state.job.status);
+  if (!state || !state.media || busy || !["source", "translation", "bilingual"].includes(mode)) return;
+  post("setDisplayMode", mode);
+}
+
+elements.displayMode.addEventListener("change", () => setDisplayMode(elements.displayMode.value));
+
 elements.jobForm.addEventListener("submit", (event) => {
   event.preventDefault();
   if (!selectedSourceLanguage || !selectedTargetLanguage) {
@@ -250,17 +254,6 @@ elements.subtitleChoice.addEventListener("change", () => {
 });
 elements.retry.addEventListener("click", () => post("retryLoad"));
 elements.reveal.addEventListener("click", () => post("reveal", elements.subtitleChoice.value));
-elements.chooseFFmpeg.addEventListener("click", () => post("chooseFFmpeg"));
-elements.chooseOutput.addEventListener("click", () => post("chooseOutputDirectory"));
-
-elements.ffmpegPath.addEventListener("change", () => {
-  post("setSetting", { key: "ffmpeg_path", value: elements.ffmpegPath.value });
-});
-
-elements.outputDirectory.addEventListener("change", () => {
-  post("setSetting", { key: "output_directory", value: elements.outputDirectory.value });
-});
-
 iina.onMessage("state", renderState);
 iina.onMessage("job", (job) => {
   if (state) {

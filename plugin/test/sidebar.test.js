@@ -10,11 +10,12 @@ const sidebarStyles = fs.readFileSync(path.join(__dirname, "../sidebar.css"), "u
 
 function createSidebar() {
   const selectors = [
-    "#audio-track", "#auto-load", "#auto-load-help", "#cancel-button", "#choose-ffmpeg", "#choose-output", "#ffmpeg-path",
+    "#audio-track", "#auto-load", "#auto-load-help", "#cancel-button",
     "#existing-subtitles", "#job-form", "#job-message", "#job-status", "#job-icon",
     "#job-detail-toggle", "#job-detail-message", "#subtitle-loaded", "#media-error",
-    "#media-name", "#output-default", "#output-directory", "#subtitle-choice", "#translation-progress",
+    "#media-name", "#subtitle-choice", "#translation-progress",
     "#reveal-button", "#retry-button", "#source-language", "#start-button", "#target-language",
+    "#display-mode",
   ];
   const elements = new Map(selectors.map((selector) => [selector, {
     children: [],
@@ -95,10 +96,9 @@ test("sidebar uses a compact hover and click explanation for automatic loading",
   assert.match(sidebarMarkup, /<div class="help-popover">/);
   assert.match(sidebarMarkup, /aria-label="自动加载说明"/);
   assert.match(sidebarMarkup, /role="tooltip"/);
-  assert.doesNotMatch(sidebarMarkup, /class="setting-help">打开视频时加载已有字幕/);
   assert.match(sidebarMarkup, /<span id="automation-heading">自动加载<\/span>[\s\S]*<div class="help-popover">[\s\S]*<span class="help-icon" aria-hidden="true">\?<\/span>/);
   assert.match(sidebarStyles, /\.automation-row \{[\s\S]*justify-content: flex-start;/);
-  assert.match(sidebarStyles, /\.help-icon \{[\s\S]*width: 18px;[\s\S]*height: 18px;/);
+  assert.match(sidebarStyles, /\.help-icon \{[\s\S]*width: 15px;[\s\S]*height: 15px;/);
   assert.match(sidebarStyles, /@media \(hover: hover\) \{[\s\S]*\.help-popover:hover > \.help-tooltip/);
   assert.match(sidebarStyles, /\.help-popover:focus-within > \.help-tooltip/);
   const sidebar = createSidebar();
@@ -107,8 +107,30 @@ test("sidebar uses a compact hover and click explanation for automatic loading",
   assert.equal(help.focused, true);
 });
 
+test("sidebar leaves global path settings to plugin preferences", () => {
+  assert.doesNotMatch(sidebarMarkup, /<details class="settings">/);
+  assert.doesNotMatch(sidebarMarkup, /id="ffmpeg-path"/);
+  assert.doesNotMatch(sidebarMarkup, /id="output-directory"/);
+});
+
+test("sidebar gives generation a clear primary hierarchy", () => {
+  assert.match(sidebarMarkup, /<h2 id="generation-heading">生成字幕<\/h2>/);
+  assert.match(sidebarMarkup, /<div class="track-row">[\s\S]*<label for="audio-track">音轨<\/label>[\s\S]*<select id="audio-track"/);
+  assert.match(sidebarMarkup, /<label for="source-language">源语言<\/label>/);
+  assert.match(sidebarMarkup, /<label for="target-language">目标语言<\/label>/);
+  assert.match(sidebarMarkup, /<section class="playback-options" aria-label="播放选项">/);
+  assert.match(sidebarStyles, /h2 \{[\s\S]*font-size: 13px;[\s\S]*font-weight: 650;/);
+  assert.match(sidebarStyles, /label \{[\s\S]*font-size: 11px;[\s\S]*font-weight: 600;/);
+  assert.match(sidebarStyles, /form \{[\s\S]*padding-top: 11px;[\s\S]*border-top: 1px solid var\(--quiet-border\);/);
+  assert.match(sidebarStyles, /\.track-row \{[\s\S]*grid-template-columns: auto minmax\(0, 1fr\);/);
+  assert.match(sidebarStyles, /button\.primary \{[\s\S]*min-height: 34px;/);
+});
+
 test("sidebar places the Finder action beside the selected subtitle", () => {
   assert.match(sidebarMarkup, /<div class="subtitle-row">[\s\S]*<select id="subtitle-choice"[\s\S]*<button id="reveal-button"/);
+  assert.match(sidebarMarkup, /<h2 id="subtitle-heading">字幕列表<\/h2>/);
+  assert.match(sidebarMarkup, /id="subtitle-loaded"[^>]*aria-label="字幕已加载"[^>]*title="字幕已加载"[^>]*>✓<\/span>/);
+  assert.doesNotMatch(sidebarMarkup, /<span id="subtitle-loaded"[^>]*>已加载<\/span>/);
   assert.doesNotMatch(sidebarMarkup, /<div class="job-actions">[\s\S]*id="reveal-button"/);
   assert.match(sidebarStyles, /\.subtitle-row \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto;/);
 
@@ -327,7 +349,7 @@ test("sidebar hides ordinary available feedback but preserves subtitle library w
 
 test("sidebar identifies library errors before any subtitle has been generated", () => {
   const sidebar = createSidebar();
-  const message = "无法读取已有字幕：目录无法读取";
+  const message = "无法读取字幕列表：目录无法读取";
   sidebar.handlers.get("state")(videoState({ job: { status: "error", message } }));
   assert.equal(sidebar.elements.get("#job-message").textContent, "字幕库读取失败");
   assert.equal(sidebar.elements.get("#job-detail-message").textContent, message);
@@ -348,7 +370,7 @@ test("sidebar waits for subtitle lookup before enabling generation", () => {
   });
 
   assert.equal(sidebar.elements.get("#start-button").disabled, true);
-  assert.equal(sidebar.elements.get("#job-message").textContent, "正在检查已有字幕");
+  assert.equal(sidebar.elements.get("#job-message").textContent, "正在检查字幕列表");
 });
 
 test("sidebar keeps edited languages when audio tracks or periodic state change", () => {

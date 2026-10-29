@@ -24,6 +24,7 @@ const sourceFiles = [
   manifest.preferencesPage,
   "controller.js",
   "subtitle-settings.js",
+  "subtitle-display.js",
   "sidebar.html",
   "sidebar.css",
   "sidebar.js",

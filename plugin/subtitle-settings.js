@@ -19,6 +19,12 @@ function absolutePath(value) {
   return typeof value === "string" && value.startsWith("/") && !value.includes("\0");
 }
 
+const DISPLAY_MODES = new Set(["source", "translation", "bilingual"]);
+
+function displayMode(value) {
+  return DISPLAY_MODES.has(value) ? value : "bilingual";
+}
+
 function createSubtitleSettings(preferences) {
   function read() {
     try {
@@ -70,6 +76,15 @@ function createSubtitleSettings(preferences) {
       const available = (Array.isArray(files) ? files : []).filter((file) => file && absolutePath(file.path));
       const savedPath = record(read(), mediaPath).subtitlePath;
       return available.find((file) => file.path === savedPath) || available[0] || null;
+    },
+
+    displayMode(mediaPath) {
+      return displayMode(record(read(), mediaPath).displayMode);
+    },
+
+    rememberDisplayMode(mediaPath, value) {
+      if (!absolutePath(mediaPath) || !DISPLAY_MODES.has(value)) return;
+      update(mediaPath, { displayMode: value });
     },
   };
 }

@@ -152,3 +152,45 @@ test("subtitle filename parsing normalizes supported language pairs and ignores 
     assert.deepEqual(subtitleLanguages(value), {});
   }
 });
+
+test("display mode is remembered per video and defaults to bilingual", () => {
+  const preferences = createPreferences();
+  const settings = createSubtitleSettings(preferences);
+
+  assert.equal(settings.displayMode(mediaPath), "bilingual");
+  settings.rememberDisplayMode(mediaPath, "source");
+  settings.rememberDisplayMode("/videos/other.mkv", "translation");
+
+  const restarted = createSubtitleSettings(preferences);
+  assert.equal(restarted.displayMode(mediaPath), "source");
+  assert.equal(restarted.displayMode("/videos/other.mkv"), "translation");
+  assert.equal(restarted.displayMode("/videos/new.mkv"), "bilingual");
+});
+
+test("display mode writes preserve language and subtitle selection", () => {
+  const preferences = createPreferences();
+  const settings = createSubtitleSettings(preferences);
+  settings.rememberGeneration(mediaPath, { sourceLanguage: "ja", targetLanguage: "zh-Hans" }, japaneseSubtitle.path);
+  settings.rememberDisplayMode(mediaPath, "translation");
+
+  const record = JSON.parse(preferences.values.video_settings)[mediaPath];
+  assert.deepEqual(record, {
+    sourceLanguage: "ja",
+    targetLanguage: "zh-Hans",
+    subtitlePath: japaneseSubtitle.path,
+    displayMode: "translation",
+  });
+});
+
+test("invalid display mode writes are ignored", () => {
+  const preferences = createPreferences();
+  const settings = createSubtitleSettings(preferences);
+  settings.rememberDisplayMode(mediaPath, "source");
+  const before = preferences.values.video_settings;
+
+  settings.rememberDisplayMode(mediaPath, "invalid");
+  settings.rememberDisplayMode("relative.mkv", "translation");
+  settings.rememberDisplayMode("__proto__", "bilingual");
+
+  assert.equal(preferences.values.video_settings, before);
+});

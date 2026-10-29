@@ -9,6 +9,7 @@ const {
   waitForSubtitleTrack,
 } = require("./controller.js");
 const { createSubtitleSettings, subtitleLanguages } = require("./subtitle-settings.js");
+const { normalizeDisplayMode, renderSubtitleMode } = require("./subtitle-display.js");
 const { core, event, menu, mpv, preferences, sidebar, utils } = iina;
 const subtitleSettings = createSubtitleSettings(preferences);
 const activeJob = { id: null, cancelPath: null, mediaPath: null, parser: null, terminal: false, fileLoadedSequence: null };
@@ -25,6 +26,8 @@ let helperPath = null;
 let lastOutputPath = null;
 let subtitleLibrary = { mediaPath: null, outputDirectoryPath: null, rootDirectoryPath: "", files: [], loading: false };
 let subtitleLookupId = 0;
+let displayLoadSequence = 0;
+let activeDisplayTrackPath = null;
 let job = { status: "idle", phase: "", message: "", progress: null, path: null, loaded: false };
 const sidebarRetryDelays = [0, 100, 250, 500, 1000, 2000, 4000, 8000];
 const sidebarReadyTimeout = 2000;
@@ -104,11 +107,10 @@ function loadSidebarPage(show = false) {
     sidebar.onMessage("loadExisting", (filePath) => {
       if (subtitleLibrary.files.some((subtitle) => subtitle.path === filePath)) loadSubtitle(filePath, null, true);
     });
+    sidebar.onMessage("setDisplayMode", (mode) => setDisplayMode(mode));
     sidebar.onMessage("cancel", () => cancelJob());
     sidebar.onMessage("retryLoad", () => loadSubtitle(lastOutputPath));
     sidebar.onMessage("reveal", (filePath) => revealOutput(filePath || lastOutputPath));
-    sidebar.onMessage("chooseOutputDirectory", () => chooseSetting("output_directory", true));
-    sidebar.onMessage("chooseFFmpeg", () => chooseSetting("ffmpeg_path", false));
     sidebar.onMessage("setSetting", ({ key, value }) => setSetting(key, value));
     if (sidebarShowRequested) {
       sidebarShowRequested = false;
@@ -151,6 +153,8 @@ event.on("iina.file-loaded", (url) => {
   const eventMediaPath = mediaPathForURL(url);
   latestFileLoadedURL = eventMediaPath ? url : null;
   fileLoadedSequence += 1;
+  displayLoadSequence += 1;
+  activeDisplayTrackPath = null;
   if (eventMediaPath && !uiLoaded) pendingFileLoadedURL = url;
   if (!uiLoaded) initializeSidebar();
   else sendState(eventMediaPath ? url : undefined, Boolean(eventMediaPath));
@@ -182,6 +186,7 @@ function sendState(mediaURLOverride = null, forceLibraryRefresh = false) {
   const availableSubtitles = media && subtitleLibrary.mediaPath === media.path ? subtitleLibrary.files : [];
   const languages = subtitleSettings.languages(media ? media.path : "", utils.preferredLocalizations(), availableSubtitles);
   const selectedSubtitle = subtitleSettings.selectedSubtitle(media ? media.path : "", availableSubtitles);
+  const displayMode = media ? subtitleSettings.displayMode(media.path) : "bilingual";
   updateSubtitleLibrary(media, mediaURLOverride, forceLibraryRefresh);
   send("state", {
     title: core.status.title || (media && media.name) || "",
@@ -192,6 +197,7 @@ function sendState(mediaURLOverride = null, forceLibraryRefresh = false) {
     sourceLanguage: languages.sourceLanguage,
     targetLanguage: languages.targetLanguage,
     selectedSubtitlePath: selectedSubtitle ? selectedSubtitle.path : "",
+    displayMode,
     autoLoad: autoLoadEnabled(),
     outputDirectory,
     effectiveOutputDirectory: outputDirectory || subtitleLibrary.rootDirectoryPath,
@@ -277,7 +283,7 @@ function updateSubtitleLibrary(media, mediaURLOverride = null, forceLibraryRefre
         phase: "",
         message: previousFiles.length
           ? `新字幕库读取失败，仍可使用已发现的字幕：${error.message || error}`
-          : `无法读取已有字幕：${error.message || error}`,
+          : `无法读取字幕列表：${error.message || error}`,
         progress: null,
         path: lastOutputPath,
         loaded: false,
@@ -442,17 +448,25 @@ async function loadSubtitle(filePath, mediaURLOverride = null, rememberSelection
   if (!filePath) return;
   const mediaPath = mediaPathForURL(mediaURLOverride || latestFileLoadedURL || core.status.url);
   const loadFileLoadedSequence = fileLoadedSequence;
+  const loadDisplaySequence = ++displayLoadSequence;
+  const displayMode = subtitleSettings.displayMode(mediaPath);
   const isCurrentMedia = () => loadFileLoadedSequence === fileLoadedSequence
+    && loadDisplaySequence === displayLoadSequence
     && mediaPathForURL(latestFileLoadedURL || core.status.url) === mediaPath;
+  let loadedPath = filePath;
   job = { ...job, status: "loading", phase: "loading", message: "正在加载字幕", path: filePath, loaded: false };
   send("job", job);
   try {
-    await core.subtitle.loadTrack(filePath);
-    await waitForSubtitleTrack(mpv, filePath, Date.now, setTimeout);
+    loadedPath = prepareDisplaySubtitle(filePath, mediaPath, displayMode);
+    await core.subtitle.loadTrack(loadedPath);
+    await waitForSubtitleTrack(mpv, loadedPath, Date.now, setTimeout);
     if (!isCurrentMedia()) return;
+    const loadedTrack = findSubtitleTrack(loadedPath);
+    if (loadedTrack && core.subtitle) core.subtitle.id = loadedTrack.id;
+    removePreviousDisplayTrack(loadedPath);
     if (rememberSelection) subtitleSettings.rememberSelection(mediaPath, filePath);
     lastOutputPath = filePath;
-    job = { status: "completed", phase: "", message: "双语字幕已加载", progress: null, path: filePath, loaded: true };
+    job = { status: "completed", phase: "", message: "双语字幕已加载", progress: null, path: filePath, loaded: true, displayMode };
   } catch (error) {
     if (!isCurrentMedia()) return;
     lastOutputPath = filePath;
@@ -462,6 +476,52 @@ async function loadSubtitle(filePath, mediaURLOverride = null, rememberSelection
   sendState(mediaURLOverride);
 }
 
+function prepareDisplaySubtitle(filePath, mediaPath, mode) {
+  if (mode === "bilingual") return filePath;
+  const content = iina.file.read(filePath);
+  const rendered = renderSubtitleMode(content, mode);
+  const pseudoPath = `@data/otoha-display-${stableHash(mediaPath)}-${mode}.ass`;
+  iina.file.write(pseudoPath, rendered);
+  const resolvedPath = utils.resolvePath(pseudoPath);
+  if (!resolvedPath) throw new Error("无法定位字幕显示缓存。");
+  return resolvedPath;
+}
+
+function stableHash(value) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
+}
+
+function findSubtitleTrack(filePath) {
+  return (mpv.getNative("track-list") || []).find((track) => {
+    if (!track || track.type !== "sub") return false;
+    const externalPath = track["external-filename"] || track.externalFilename;
+    return typeof externalPath === "string" && mediaPathForURL(externalPath) === mediaPathForURL(filePath);
+  });
+}
+
+function removePreviousDisplayTrack(keepPath) {
+  const previousPath = activeDisplayTrackPath;
+  activeDisplayTrackPath = keepPath;
+  if (!previousPath || previousPath === keepPath) return;
+  const previousTrack = findSubtitleTrack(previousPath);
+  if (previousTrack) mpv.command("sub-remove", [String(previousTrack.id)]);
+}
+
+function setDisplayMode(value) {
+  const mode = normalizeDisplayMode(value);
+  const mediaPath = mediaPathForURL(latestFileLoadedURL || core.status.url);
+  if (!mediaPath) return;
+  subtitleSettings.rememberDisplayMode(mediaPath, mode);
+  const selectedSubtitle = subtitleSettings.selectedSubtitle(mediaPath, subtitleLibrary.files);
+  if (selectedSubtitle) loadSubtitle(selectedSubtitle.path);
+  else sendState();
+}
+
 async function revealOutput(filePath) {
   if (!filePath) return;
   try {
@@ -469,19 +529,6 @@ async function revealOutput(filePath) {
     if (result && result.status !== 0) throw new Error(result.stderr || `Finder 退出状态码 ${result.status}。`);
   } catch (error) {
     setJobError(`无法在 Finder 中显示字幕：${error.message || error}`);
-  }
-}
-
-async function chooseSetting(key, chooseDir) {
-  try {
-    const chosen = await utils.chooseFile(chooseDir ? "选择字幕输出文件夹" : "选择 FFmpeg 可执行文件", {
-      chooseDir,
-    });
-    const selected = Array.isArray(chosen) ? chosen[0] : chosen;
-    if (typeof selected === "string" && selected) setSetting(key, selected);
-  } catch (error) {
-    job = { ...job, message: `未能选择路径：${error.message || error}` };
-    send("job", job);
   }
 }
 

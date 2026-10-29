@@ -22,44 +22,31 @@
         <p id="media-error" class="inline-error" role="status"></p>
       </section>
 
-      <section class="automation" aria-labelledby="automation-heading">
-        <div class="automation-row">
-          <label class="toggle-row" for="auto-load">
-            <input id="auto-load" type="checkbox" />
-            <span id="automation-heading">自动加载</span>
-          </label>
-          <div class="help-popover">
-            <button id="auto-load-help" class="help-trigger" type="button" aria-label="自动加载说明" aria-describedby="auto-load-description">
-              <span class="help-icon" aria-hidden="true">?</span>
-            </button>
-            <p id="auto-load-description" class="help-tooltip" role="tooltip">打开视频时加载已有字幕；没有字幕时手动生成。</p>
-          </div>
-        </div>
-      </section>
-
       <section id="existing-subtitles" aria-labelledby="subtitle-heading" hidden>
         <div class="section-heading">
-          <h2 id="subtitle-heading">已有字幕</h2>
-          <span id="subtitle-loaded" class="subtitle-loaded" role="status" hidden>已加载</span>
+          <h2 id="subtitle-heading">字幕列表</h2>
+          <span id="subtitle-loaded" class="subtitle-loaded" role="status" aria-label="字幕已加载" title="字幕已加载" hidden>✓</span>
         </div>
         <div class="subtitle-row">
-          <select id="subtitle-choice" aria-label="选择已有字幕"></select>
+          <select id="subtitle-choice" aria-label="选择字幕"></select>
           <button id="reveal-button" class="secondary" type="button" title="在 Finder 中显示所选字幕">在 Finder 中显示</button>
         </div>
       </section>
 
       <form id="job-form" aria-labelledby="generation-heading">
-        <h2 id="generation-heading">生成设置</h2>
-        <label for="audio-track">音轨</label>
-        <select id="audio-track" name="trackId" required></select>
+        <h2 id="generation-heading">生成字幕</h2>
+        <div class="track-row">
+          <label for="audio-track">音轨</label>
+          <select id="audio-track" name="trackId" required></select>
+        </div>
 
         <div class="language-grid">
           <div>
-            <label for="source-language">转录语言</label>
+            <label for="source-language">源语言</label>
             <select id="source-language" required></select>
           </div>
           <div>
-            <label for="target-language">翻译为</label>
+            <label for="target-language">目标语言</label>
             <select id="target-language" required></select>
           </div>
         </div>
@@ -78,20 +65,30 @@
         </section>
       </form>
 
-      <details class="settings">
-        <summary>路径设置</summary>
-        <label for="ffmpeg-path">FFmpeg 可执行文件</label>
-        <div class="path-row">
-          <input id="ffmpeg-path" type="text" autocomplete="off" spellcheck="false" placeholder="留空时从 PATH 查找" />
-          <button id="choose-ffmpeg" class="secondary" type="button" aria-label="选择 FFmpeg 可执行文件">选择</button>
+      <section class="playback-options" aria-label="播放选项">
+        <div class="automation-row">
+          <label class="toggle-row" for="auto-load">
+            <input id="auto-load" type="checkbox" />
+            <span id="automation-heading">自动加载</span>
+          </label>
+          <div class="help-popover">
+            <button id="auto-load-help" class="help-trigger" type="button" aria-label="自动加载说明" aria-describedby="auto-load-description">
+              <span class="help-icon" aria-hidden="true">?</span>
+            </button>
+            <p id="auto-load-description" class="help-tooltip" role="tooltip">打开视频时加载已有字幕；没有字幕时手动生成。</p>
+          </div>
         </div>
-        <label for="output-directory">字幕库根目录</label>
-        <div class="path-row">
-          <input id="output-directory" type="text" autocomplete="off" spellcheck="false" placeholder="留空时使用 Otoha 字幕库" />
-          <button id="choose-output" class="secondary" type="button" aria-label="选择字幕库根目录">选择</button>
+
+        <div class="display-mode-row">
+          <label for="display-mode">显示</label>
+          <select id="display-mode" aria-label="字幕显示方式">
+            <option value="source">原文</option>
+            <option value="translation">译文</option>
+            <option value="bilingual" selected>双语</option>
+          </select>
         </div>
-        <p id="output-default" class="setting-help"></p>
-      </details>
+      </section>
+
     </main>
   </body>
 </html>
