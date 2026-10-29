@@ -30,21 +30,17 @@ public enum SubtitleLibrary {
     public static func list(
         for mediaURL: URL,
         rootDirectory: URL,
-        legacyDirectories: [URL] = [],
         fileManager: FileManager = .default
     ) throws -> [URL] {
         let directory = mediaDirectory(for: mediaURL, rootDirectory: rootDirectory)
-        var files = Set<URL>()
-        for sourceDirectory in [directory] + legacyDirectories {
-            guard fileManager.fileExists(atPath: sourceDirectory.path) else { continue }
-            let candidates = try fileManager.contentsOfDirectory(
-                at: sourceDirectory,
-                includingPropertiesForKeys: [.contentModificationDateKey, .isRegularFileKey]
-            )
-            for url in candidates where isSubtitle(url, for: mediaURL) {
-                files.insert(url.standardizedFileURL)
-            }
-        }
+        guard fileManager.fileExists(atPath: directory.path) else { return [] }
+        let candidates = try fileManager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey, .isRegularFileKey]
+        )
+        let files = candidates
+            .filter { isSubtitle($0, for: mediaURL) }
+            .map(\.standardizedFileURL)
 
         return files.sorted { lhs, rhs in
             let lhsDate = (try? lhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
@@ -55,7 +51,7 @@ public enum SubtitleLibrary {
     }
 
     private static func isSubtitle(_ url: URL, for mediaURL: URL) -> Bool {
-        guard url.pathExtension.lowercased() == "srt",
+        guard url.pathExtension.lowercased() == "ass",
               (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true else { return false }
         let baseName = mediaURL.deletingPathExtension().lastPathComponent
         let stem = url.deletingPathExtension().lastPathComponent

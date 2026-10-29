@@ -17,12 +17,57 @@
       h2 { margin: 0 0 8px; font-size: 13px; }
       label { display: block; margin-bottom: 5px; font-weight: 600; }
       input { width: 100%; min-height: 32px; padding: 5px 8px; border: 1px solid color-mix(in srgb, CanvasText 24%, transparent); border-radius: 5px; color: CanvasText; background: color-mix(in srgb, CanvasText 4%, Canvas); font: inherit; }
+      select { width: 100%; min-height: 32px; padding: 5px 8px; border: 1px solid color-mix(in srgb, CanvasText 24%, transparent); border-radius: 5px; color: CanvasText; background: color-mix(in srgb, CanvasText 4%, Canvas); font: inherit; }
+      .range-row { display: flex; align-items: center; gap: 10px; }
+      .range-row input { min-height: auto; padding: 0; }
+      output { min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
       .check-row { display: flex; align-items: center; gap: 7px; }
       .check-row input { width: auto; min-height: auto; margin: 0; }
       p { margin: 5px 0 0; color: color-mix(in srgb, CanvasText 62%, transparent); font-size: 12px; }
     </style>
   </head>
   <body>
+    <section>
+      <h2>语言偏好</h2>
+      <label for="default-source-language">默认源语言</label>
+      <select id="default-source-language" data-pref-key="default_source_language">
+        <option value="en">English</option>
+        <option value="zh-Hans">简体中文</option>
+        <option value="zh-Hant">繁體中文</option>
+        <option value="ja">日本語</option>
+        <option value="ko">한국어</option>
+        <option value="fr">Français</option>
+        <option value="de">Deutsch</option>
+        <option value="es">Español</option>
+        <option value="it">Italiano</option>
+        <option value="pt-BR">Português (Brasil)</option>
+        <option value="ru">Русский</option>
+        <option value="ar">العربية</option>
+        <option value="hi">हिन्दी</option>
+        <option value="th">ไทย</option>
+        <option value="vi">Tiếng Việt</option>
+      </select>
+      <label for="default-target-language">默认目标语言</label>
+      <select id="default-target-language" data-pref-key="default_target_language">
+        <option value="">跟随系统语言</option>
+        <option value="en">English</option>
+        <option value="zh-Hans">简体中文</option>
+        <option value="zh-Hant">繁體中文</option>
+        <option value="ja">日本語</option>
+        <option value="ko">한국어</option>
+        <option value="fr">Français</option>
+        <option value="de">Deutsch</option>
+        <option value="es">Español</option>
+        <option value="it">Italiano</option>
+        <option value="pt-BR">Português (Brasil)</option>
+        <option value="ru">Русский</option>
+        <option value="ar">العربية</option>
+        <option value="hi">हिन्दी</option>
+        <option value="th">ไทย</option>
+        <option value="vi">Tiếng Việt</option>
+      </select>
+      <p>新视频使用默认语言；已生成字幕的视频沿用上次成功生成时的语言。可在侧栏为当前视频调整。</p>
+    </section>
     <section>
       <h2>FFmpeg</h2>
       <label for="ffmpeg-path">可执行文件路径</label>
@@ -36,9 +81,34 @@
       <p>留空时使用 ~/Library/Application Support/Otoha/Subtitles。每个视频单独存放，重新生成同一语言配置会覆盖对应字幕，其他版本保留。</p>
     </section>
     <section>
-      <h2>自动处理字幕</h2>
-      <label class="check-row"><input type="checkbox" data-pref-key="auto_load" /> 开启自动加载和转录</label>
-      <p>有已有字幕时自动加载，没有时按当前音轨语言生成；无法识别音轨语言时不会自动启动。</p>
+      <h2>播放</h2>
+      <label class="check-row"><input type="checkbox" data-type="bool" data-pref-key="auto_load" /> 自动加载</label>
+      <p>打开视频时加载已有字幕；没有字幕时手动生成。</p>
     </section>
+    <section>
+      <h2>字幕样式</h2>
+      <label for="subtitle-scale">字号</label>
+      <div class="range-row">
+        <input id="subtitle-scale" type="range" min="80" max="140" step="10" value="100" data-type="int" data-pref-key="subtitle_scale" />
+        <output id="subtitle-scale-value" for="subtitle-scale">100%</output>
+      </div>
+      <p>以 1920×1080 ASS 脚本坐标调整源文和译文大小，源文保持淡化显示；修改后需要重新生成字幕。</p>
+    </section>
+    <script>
+      const scale = document.querySelector("#subtitle-scale");
+      const value = document.querySelector("#subtitle-scale-value");
+      const update = () => { value.value = `${scale.value}%`; value.textContent = value.value; };
+      scale.addEventListener("input", update);
+      scale.addEventListener("change", () => {
+        window.iina.preferences.set("subtitle_scale", Number(scale.value));
+        window.iina.preferences.sync();
+      });
+      update();
+      window.iina.preferences.get("subtitle_scale", (stored) => {
+        const numeric = Number(stored);
+        if (Number.isFinite(numeric)) scale.value = Math.min(140, Math.max(80, numeric));
+        update();
+      });
+    </script>
   </body>
 </html>

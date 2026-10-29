@@ -27,7 +27,7 @@ test("main maps the chosen IINA track to ff-index and loads completed subtitles"
   plugin.sidebarHandlers.get("refresh")();
   const stateMessage = plugin.messages.findLast((message) => message.name === "state");
 
-  assert.equal(stateMessage.payload.sourceLanguage, "ja");
+  assert.equal(stateMessage.payload.sourceLanguage, "en");
   assert.equal(stateMessage.payload.targetLanguage, "zh-Hans");
 
   await plugin.sidebarHandlers.get("start")({
@@ -46,13 +46,25 @@ test("main maps the chosen IINA track to ff-index and loads completed subtitles"
   assert.equal(request.mediaPath, "/Users/test/Anime episode.mkv");
   assert.equal(request.ffmpegPath, "/opt/homebrew/bin/ffmpeg");
   assert.equal(request.backend, "apple");
+  assert.equal(request.subtitleScale, 1);
   assert.equal(request.outputDirectoryPath, "");
-  assert.deepEqual(plugin.loadedTracks, ["/Users/test/Anime episode.otoha.srt"]);
+  assert.deepEqual(plugin.loadedTracks, ["/Users/test/Anime episode.otoha.ass"]);
   assert.equal(plugin.messages.findLast((message) => message.name === "job").payload.status, "completed");
 });
 
+test("main passes the configured subtitle scale to the helper", async () => {
+  const plugin = createPlugin({ subtitleScale: "140" });
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await plugin.sidebarHandlers.get("start")({ trackId: 7, sourceLanguage: "ja", targetLanguage: "zh-Hans" });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const helperCall = plugin.execCalls.find((call) => call.file.endsWith("otoha-helper") && call.args[0] === "--request-json");
+  assert.equal(JSON.parse(helperCall.args[1]).subtitleScale, 1.4);
+});
+
 test("main does not load existing subtitles when automatic loading is disabled", async () => {
-  const subtitlePath = "/Users/test/Library/Application Support/Otoha/Subtitles/video/episode.srt";
+  const subtitlePath = "/Users/test/Library/Application Support/Otoha/Subtitles/video/episode.ass";
   const plugin = createPlugin({ existingSubtitles: [subtitlePath] });
   plugin.runSidebarLoad();
   plugin.sidebarHandlers.get("ready")({ helperPath });
@@ -62,7 +74,7 @@ test("main does not load existing subtitles when automatic loading is disabled",
 });
 
 test("main automatically loads the sole subtitle when automatic loading is enabled", async () => {
-  const subtitlePath = "/Users/test/Library/Application Support/Otoha/Subtitles/video/episode.srt";
+  const subtitlePath = "/Users/test/Library/Application Support/Otoha/Subtitles/video/episode.ass";
   const plugin = createPlugin({ autoLoad: true, existingSubtitles: [subtitlePath] });
   plugin.runSidebarLoad();
   plugin.sidebarHandlers.get("ready")({ helperPath });
@@ -76,8 +88,8 @@ test("main automatically loads the sole subtitle when automatic loading is enabl
   assert.equal(state.payload.availableSubtitles[0].path, subtitlePath);
 });
 
-test("main automatically loads the newest saved subtitle while keeping other versions selectable", async () => {
-  const choices = ["/library/episode.srt", "/library/episode (2).srt"];
+test("main loads multiple ASS subtitles while keeping versions selectable", async () => {
+  const choices = ["/library/episode.ass", "/library/episode (2).ass"];
   const plugin = createPlugin({ autoLoad: true, existingSubtitles: choices });
   plugin.runSidebarLoad();
   plugin.sidebarHandlers.get("ready")({ helperPath });
@@ -91,19 +103,89 @@ test("main automatically loads the newest saved subtitle while keeping other ver
   assert.deepEqual(plugin.loadedTracks, [choices[0], choices[1]]);
 });
 
-test("main automatically starts transcription when no subtitle exists", async () => {
+test("main ignores non-ASS subtitle files", async () => {
+  const plugin = createPlugin({
+    autoLoad: true,
+    existingSubtitles: ["/library/episode.srt", "/library/episode.ass"],
+  });
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const state = plugin.messages.findLast((message) => message.name === "state");
+  assert.deepEqual(Array.from(state.payload.availableSubtitles, (item) => item.path), ["/library/episode.ass"]);
+  assert.deepEqual(plugin.loadedTracks, ["/library/episode.ass"]);
+});
+
+test("main does not start transcription when automatic loading finds no subtitle", async () => {
   const plugin = createPlugin({ autoLoad: true });
   plugin.runSidebarLoad();
   plugin.sidebarHandlers.get("ready")({ helperPath });
   await new Promise((resolve) => setImmediate(resolve));
 
   const helperCall = plugin.execCalls.find((call) => call.file.endsWith("otoha-helper") && call.args[0] === "--request-json");
-  assert.ok(helperCall);
-  const request = JSON.parse(helperCall.args[1]);
-  assert.equal(request.audioStreamIndex, 2);
-  assert.equal(request.sourceLanguage, "ja");
-  assert.equal(request.targetLanguage, "zh-Hans");
-  assert.deepEqual(plugin.loadedTracks, ["/Users/test/Anime episode.otoha.srt"]);
+  assert.equal(helperCall, undefined);
+  assert.deepEqual(plugin.loadedTracks, []);
+});
+
+test("main reloads a saved subtitle when the same video is opened again", async () => {
+  const subtitlePath = "/Users/test/Anime episode.otoha.ass";
+  const plugin = createPlugin({ autoLoad: true, existingSubtitles: [subtitlePath] });
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  plugin.eventHandlers.get("iina.file-loaded")("file:///Users/test/Anime%20episode.mkv");
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(plugin.loadedTracks, [
+    subtitlePath,
+    subtitlePath,
+  ]);
+});
+
+test("main uses the file-loaded URL while core status is still stale", async () => {
+  const subtitlePath = "/library/New episode [en to zh-Hans].ass";
+  const plugin = createPlugin({ autoLoad: true, existingSubtitles: [subtitlePath] });
+  plugin.runSidebarLoad();
+  plugin.setMediaURL("file:///Users/test/Old%20episode.mkv");
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+
+  plugin.eventHandlers.get("iina.file-loaded")("file:///Users/test/New%20episode.mkv");
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const listingCall = plugin.execCalls.findLast(
+    (call) => call.file.endsWith("otoha-helper") && call.args[0] === "--list-subtitles-json",
+  );
+  assert.ok(listingCall);
+  assert.equal(JSON.parse(listingCall.args[1]).mediaPath, "/Users/test/New episode.mkv");
+
+  const requestCall = plugin.execCalls.find(
+    (call) => call.file.endsWith("otoha-helper") && call.args[0] === "--request-json",
+  );
+  assert.equal(requestCall, undefined);
+  assert.ok(plugin.loadedTracks.includes(subtitlePath));
+  assert.equal(plugin.messages.findLast((message) => message.name === "state").payload.media.path, "/Users/test/New episode.mkv");
+});
+
+test("main carries a file-loaded URL into sidebar startup", async () => {
+  const subtitlePath = "/library/Cold start [en to zh-Hans].ass";
+  const plugin = createPlugin({ autoLoad: true, existingSubtitles: [subtitlePath] });
+  plugin.runSidebarLoad();
+  plugin.setMediaURL(null);
+  plugin.eventHandlers.get("iina.file-loaded")("file:///Users/test/Cold%20start.mkv");
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const listingCall = plugin.execCalls.find(
+    (call) => call.file.endsWith("otoha-helper") && call.args[0] === "--list-subtitles-json",
+  );
+  assert.ok(listingCall);
+  assert.equal(JSON.parse(listingCall.args[1]).mediaPath, "/Users/test/Cold start.mkv");
+  assert.deepEqual(plugin.loadedTracks, [subtitlePath]);
 });
 
 test("main uses the configured subtitle library as its root directory", async () => {
@@ -125,7 +207,7 @@ test("main uses the configured subtitle library as its root directory", async ()
 });
 
 test("main clears the previous subtitle when playback has no local media", async () => {
-  const plugin = createPlugin({ existingSubtitles: ["/library/episode.srt"] });
+  const plugin = createPlugin({ existingSubtitles: ["/library/episode.ass"] });
   plugin.runSidebarLoad();
   plugin.sidebarHandlers.get("ready")({ helperPath });
   await new Promise((resolve) => setImmediate(resolve));
@@ -148,8 +230,8 @@ test("main keeps the loaded subtitle path when the library setting changes", asy
   await plugin.sidebarHandlers.get("retryLoad")();
 
   assert.deepEqual(plugin.loadedTracks, [
-    "/Users/test/Anime episode.otoha.srt",
-    "/Users/test/Anime episode.otoha.srt",
+    "/Users/test/Anime episode.otoha.ass",
+    "/Users/test/Anime episode.otoha.ass",
   ]);
 });
 
@@ -162,8 +244,8 @@ test("main reloads an existing subtitle without removing its track", async () =>
 
   assert.equal(plugin.mpvCommands.length, 0);
   assert.deepEqual(plugin.loadedTracks, [
-    "/Users/test/Anime episode.otoha.srt",
-    "/Users/test/Anime episode.otoha.srt",
+    "/Users/test/Anime episode.otoha.ass",
+    "/Users/test/Anime episode.otoha.ass",
   ]);
   assert.equal(plugin.messages.findLast((message) => message.name === "job").payload.status, "completed");
 });
@@ -172,15 +254,15 @@ test("main reveals a subtitle by selecting it in Finder", async () => {
   const plugin = createPlugin();
   plugin.runSidebarLoad();
   plugin.sidebarHandlers.get("ready")({ helperPath });
-  await plugin.sidebarHandlers.get("reveal")("/Users/test/Library/Application Support/Otoha/Subtitles/video.srt");
+  await plugin.sidebarHandlers.get("reveal")("/Users/test/Library/Application Support/Otoha/Subtitles/video.ass");
 
   const revealCall = plugin.execCalls.find((call) => call.file === "/usr/bin/open");
   assert.ok(revealCall);
-  assert.deepEqual(Array.from(revealCall.args), ["-R", "/Users/test/Library/Application Support/Otoha/Subtitles/video.srt"]);
+  assert.deepEqual(Array.from(revealCall.args), ["-R", "/Users/test/Library/Application Support/Otoha/Subtitles/video.ass"]);
 });
 
 test("main preserves previously discovered subtitles when a new library cannot be read", async () => {
-  const subtitlePath = "/old-library/episode.srt";
+  const subtitlePath = "/old-library/episode.ass";
   const plugin = createPlugin({ existingSubtitles: [subtitlePath], failedListingPath: "/Users/test/Captions" });
   plugin.runSidebarLoad();
   plugin.sidebarHandlers.get("ready")({ helperPath });
@@ -247,7 +329,7 @@ test("main rejects a configured FFmpeg path that is not executable", async () =>
   assert.match(plugin.messages.findLast((message) => message.name === "job").payload.message, /可执行|FFmpeg/);
 });
 
-test("main preserves an SRT and exposes retry state when IINA cannot load it", async () => {
+test("main preserves an ASS and exposes retry state when IINA cannot load it", async () => {
   const plugin = createPlugin({ failSubtitleLoad: true });
   plugin.eventHandlers.get("iina.window-loaded")();
   plugin.runSidebarLoad();
@@ -261,7 +343,7 @@ test("main preserves an SRT and exposes retry state when IINA cannot load it", a
 
   const jobMessage = plugin.messages.findLast((message) => message.name === "job");
   assert.equal(jobMessage.payload.status, "load-error");
-  assert.equal(jobMessage.payload.path, "/Users/test/Anime episode.otoha.srt");
+  assert.equal(jobMessage.payload.path, "/Users/test/Anime episode.otoha.ass");
 
   await plugin.sidebarHandlers.get("retryLoad")();
   await new Promise((resolve) => setImmediate(resolve));
@@ -303,7 +385,7 @@ test("main keeps output but does not load it after playback changes to another v
   const jobMessage = plugin.messages.findLast((message) => message.name === "job");
   assert.equal(jobMessage.payload.status, "completed");
   assert.match(jobMessage.payload.message, /当前视频已更换/);
-  assert.equal(jobMessage.payload.path, "/Users/test/Anime episode.otoha.srt");
+  assert.equal(jobMessage.payload.path, "/Users/test/Anime episode.otoha.ass");
   assert.deepEqual(plugin.loadedTracks, []);
 });
 

@@ -94,10 +94,17 @@ enum SpeechTranscriptionService {
                 guard result.isFinal else { continue }
                 let start = CMTimeGetSeconds(result.range.start)
                 let end = CMTimeGetSeconds(CMTimeRangeGetEnd(result.range))
-                let text = String(result.text.characters).trimmingCharacters(in: .whitespacesAndNewlines)
-                if !text.isEmpty {
-                    cues.append(TranscribedCue(start: start, end: end, source: text))
+                let tokens = result.text.runs.map { run in
+                    let timeRange: CMTimeRange? = run[AttributeScopes.SpeechAttributes.TimeRangeAttribute.self]
+                    return TimedTranscriptToken(
+                        text: String(result.text[run.range].characters),
+                        start: timeRange.map { CMTimeGetSeconds($0.start) },
+                        end: timeRange.map { CMTimeGetSeconds(CMTimeRangeGetEnd($0)) }
+                    )
                 }
+                cues.append(contentsOf: TimedTranscriptCueBuilder.build(tokens: tokens, fallbackStart: start, fallbackEnd: end).map {
+                    TranscribedCue(start: $0.start, end: $0.end, source: $0.text)
+                })
             }
             return cues
         }

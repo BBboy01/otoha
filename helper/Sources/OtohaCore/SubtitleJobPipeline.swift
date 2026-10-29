@@ -54,13 +54,14 @@ public enum SubtitleJobPipeline {
             let end = max(start + 0.05, cue.end + transcription.sourceTimeOffset)
             return SubtitleCue(start: start, end: end, source: cue.source, translation: translations[index])
         }
-        emit(.phase(.saving, message: "正在保存双语字幕"))
+        emit(.phase(.saving, message: "正在保存双语 ASS 字幕"))
         let baseName = configuration.mediaURL.deletingPathExtension().lastPathComponent
-        return try SRTOutput.publish(
+        return try ASSOutput.publish(
             cues,
             baseName: "\(baseName) [\(configuration.sourceLanguage) to \(configuration.targetLanguage)]",
             directory: configuration.outputDirectory,
             overwriteExisting: true,
+            subtitleScale: configuration.subtitleScale,
             cancellationFileURL: cancellationFileURL
         )
     }

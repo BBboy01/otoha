@@ -15,22 +15,37 @@
       </header>
 
       <section class="media" aria-labelledby="media-heading">
-        <h2 id="media-heading">当前视频</h2>
-        <p id="media-name" class="media-name">未打开视频</p>
+        <div class="media-row">
+          <h2 id="media-heading">当前视频</h2>
+          <p id="media-name" class="media-name" title="未打开视频">未打开视频</p>
+        </div>
         <p id="media-error" class="inline-error" role="status"></p>
       </section>
 
       <section class="automation" aria-labelledby="automation-heading">
-        <label class="toggle-row" for="auto-load">
-          <input id="auto-load" type="checkbox" />
-          <span id="automation-heading">自动处理字幕</span>
-        </label>
-        <p class="setting-help">有字幕时自动加载，没有时按当前音轨语言自动生成。</p>
+        <div class="automation-row">
+          <label class="toggle-row" for="auto-load">
+            <input id="auto-load" type="checkbox" />
+            <span id="automation-heading">自动加载</span>
+          </label>
+          <div class="help-popover">
+            <button id="auto-load-help" class="help-trigger" type="button" aria-label="自动加载说明" aria-describedby="auto-load-description">
+              <span class="help-icon" aria-hidden="true">?</span>
+            </button>
+            <p id="auto-load-description" class="help-tooltip" role="tooltip">打开视频时加载已有字幕；没有字幕时手动生成。</p>
+          </div>
+        </div>
       </section>
 
       <section id="existing-subtitles" aria-labelledby="subtitle-heading" hidden>
-        <h2 id="subtitle-heading">已有字幕</h2>
-        <select id="subtitle-choice" aria-label="选择已有字幕"></select>
+        <div class="section-heading">
+          <h2 id="subtitle-heading">已有字幕</h2>
+          <span id="subtitle-loaded" class="subtitle-loaded" role="status" hidden>已加载</span>
+        </div>
+        <div class="subtitle-row">
+          <select id="subtitle-choice" aria-label="选择已有字幕"></select>
+          <button id="reveal-button" class="secondary" type="button" title="在 Finder 中显示所选字幕">在 Finder 中显示</button>
+        </div>
       </section>
 
       <form id="job-form" aria-labelledby="generation-heading">
@@ -50,17 +65,18 @@
         </div>
 
         <button id="start-button" class="primary" type="submit">生成</button>
+        <section id="job-status" class="job-status" aria-live="polite" aria-atomic="true" hidden>
+          <div class="job-summary">
+            <span id="job-icon" class="job-icon" aria-hidden="true" hidden>!</span>
+            <p id="job-message"></p>
+            <button id="job-detail-toggle" class="status-action" type="button" aria-expanded="false" aria-controls="job-detail-message" hidden>详情</button>
+            <button id="retry-button" class="status-action" type="button" hidden>重试</button>
+            <button id="cancel-button" class="status-action cancel-action" type="button" title="取消生成" aria-label="取消生成" hidden>&times;</button>
+          </div>
+          <progress id="translation-progress" max="1" hidden></progress>
+          <p id="job-detail-message" class="job-detail" hidden></p>
+        </section>
       </form>
-
-      <section id="job-status" class="job-status" aria-live="polite" aria-atomic="true">
-        <p id="job-message">选择音轨和语言后开始</p>
-        <progress id="translation-progress" max="1" hidden></progress>
-        <div class="job-actions">
-          <button id="cancel-button" type="button" hidden>取消</button>
-          <button id="retry-button" type="button" hidden>重试加载</button>
-          <button id="reveal-button" type="button" hidden>在 Finder 中显示</button>
-        </div>
-      </section>
 
       <details class="settings">
         <summary>路径设置</summary>

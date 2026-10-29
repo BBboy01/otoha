@@ -54,8 +54,7 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
             let request = try JSONDecoder().decode(SubtitleListingRequest.self, from: Data(json.utf8))
             let files = try SubtitleLibrary.list(
                 for: request.mediaURL,
-                rootDirectory: request.rootDirectory,
-                legacyDirectories: request.legacyDirectories
+                rootDirectory: request.rootDirectory
             )
                 .map { SubtitleListingResponse.Entry(path: $0.path) }
             let response = SubtitleListingResponse(rootDirectoryPath: request.rootDirectory.path, files: files)

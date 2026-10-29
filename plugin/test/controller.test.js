@@ -64,12 +64,12 @@ test("JSONL parser accepts split chunks and reports malformed records", () => {
   const parser = createJsonLineParser((event) => events.push(event), (error) => errors.push(error));
 
   parser.push('{"type":"phase","phase":"transcribing"}\n{"type":"com');
-  parser.push('pleted","path":"/tmp/a.srt"}\nnot json\n');
+  parser.push('pleted","path":"/tmp/a.ass"}\nnot json\n');
   parser.flush();
 
   assert.deepEqual(events, [
     { type: "phase", phase: "transcribing" },
-    { type: "completed", path: "/tmp/a.srt" },
+    { type: "completed", path: "/tmp/a.ass" },
   ]);
   assert.equal(errors.length, 1);
 });

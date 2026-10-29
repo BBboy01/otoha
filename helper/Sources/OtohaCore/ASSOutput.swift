@@ -1,15 +1,16 @@
 import Darwin
 import Foundation
 
-public enum SRTOutput {
+public enum ASSOutput {
     public static func publish(
         _ cues: [SubtitleCue],
         baseName: String,
         directory: URL,
         overwriteExisting: Bool = false,
+        subtitleScale: Double = 1.0,
         cancellationFileURL: URL? = nil
     ) throws -> URL {
-        try publish(cues, baseName: baseName, directory: directory, overwriteExisting: overwriteExisting) {
+        try publish(cues, baseName: baseName, directory: directory, overwriteExisting: overwriteExisting, subtitleScale: subtitleScale) {
             cancellationFileURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
         }
     }
@@ -19,10 +20,11 @@ public enum SRTOutput {
         baseName: String,
         directory: URL,
         overwriteExisting: Bool = false,
+        subtitleScale: Double = 1.0,
         isCancelled: () -> Bool
     ) throws -> URL {
         try checkCancellation(isCancelled)
-        let content = Data(try SRTWriter.serialize(cues).utf8)
+        let content = Data(try ASSWriter.serialize(cues, scale: subtitleScale).utf8)
         let safeBaseName = sanitizedBaseName(baseName)
         let temporaryURL = directory.appendingPathComponent(".otoha-\(UUID().uuidString).tmp")
         try writeExclusive(content, to: temporaryURL)
@@ -31,10 +33,10 @@ public enum SRTOutput {
         for index in 1...10_000 {
             try checkCancellation(isCancelled)
             let suffix = index == 1 ? "" : " (\(index))"
-            let destination = directory.appendingPathComponent("\(safeBaseName)\(suffix).srt")
+            let destination = directory.appendingPathComponent("\(safeBaseName)\(suffix).ass")
             if overwriteExisting {
                 guard rename(temporaryURL.path, destination.path) == 0 else {
-                    throw SRTOutputError.publishFailed(String(cString: strerror(errno)))
+                    throw ASSOutputError.publishFailed(String(cString: strerror(errno)))
                 }
                 syncDirectory(directory)
                 return destination
@@ -42,21 +44,21 @@ public enum SRTOutput {
             if link(temporaryURL.path, destination.path) == 0 {
                 if isCancelled() {
                     guard unlink(destination.path) == 0 else {
-                        throw SRTOutputError.publishFailed(String(cString: strerror(errno)))
+                        throw ASSOutputError.publishFailed(String(cString: strerror(errno)))
                     }
                     syncDirectory(directory)
-                    throw SRTOutputError.cancelled
+                    throw ASSOutputError.cancelled
                 }
                 syncDirectory(directory)
                 return destination
             }
-            if errno != EEXIST { throw SRTOutputError.publishFailed(String(cString: strerror(errno))) }
+            if errno != EEXIST { throw ASSOutputError.publishFailed(String(cString: strerror(errno))) }
         }
-        throw SRTOutputError.tooManyCollisions
+        throw ASSOutputError.tooManyCollisions
     }
 
     private static func checkCancellation(_ isCancelled: () -> Bool) throws {
-        if isCancelled() { throw SRTOutputError.cancelled }
+        if isCancelled() { throw ASSOutputError.cancelled }
     }
 
     private static func sanitizedBaseName(_ value: String) -> String {
@@ -69,7 +71,7 @@ public enum SRTOutput {
 
     private static func writeExclusive(_ data: Data, to url: URL) throws {
         let descriptor = open(url.path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR)
-        guard descriptor >= 0 else { throw SRTOutputError.publishFailed(String(cString: strerror(errno))) }
+        guard descriptor >= 0 else { throw ASSOutputError.publishFailed(String(cString: strerror(errno))) }
         var writeSucceeded = false
         defer { _ = close(descriptor) }
         defer {
@@ -83,12 +85,12 @@ public enum SRTOutput {
                 let result = write(descriptor, baseAddress.advanced(by: written), bytes.count - written)
                 if result < 0 {
                     if errno == EINTR { continue }
-                    throw SRTOutputError.publishFailed(String(cString: strerror(errno)))
+                    throw ASSOutputError.publishFailed(String(cString: strerror(errno)))
                 }
                 written += result
             }
         }
-        guard fsync(descriptor) == 0 else { throw SRTOutputError.publishFailed(String(cString: strerror(errno))) }
+        guard fsync(descriptor) == 0 else { throw ASSOutputError.publishFailed(String(cString: strerror(errno))) }
         writeSucceeded = true
     }
 
@@ -100,7 +102,7 @@ public enum SRTOutput {
     }
 }
 
-public enum SRTOutputError: Error, Equatable, LocalizedError {
+public enum ASSOutputError: Error, Equatable, LocalizedError {
     case cancelled
     case publishFailed(String)
     case tooManyCollisions

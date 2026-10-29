@@ -11,6 +11,7 @@ public struct JobConfiguration: Codable, Sendable {
     public let audioStreamIndex: Int
     public let sourceLanguage: String
     public let targetLanguage: String
+    public let subtitleScale: Double
     public let outputDirectory: URL
 
     public init(
@@ -20,6 +21,7 @@ public struct JobConfiguration: Codable, Sendable {
         audioStreamIndex: Int,
         sourceLanguage: String,
         targetLanguage: String,
+        subtitleScale: Double = 1.0,
         outputDirectory: URL
     ) {
         self.backend = backend
@@ -28,6 +30,7 @@ public struct JobConfiguration: Codable, Sendable {
         self.audioStreamIndex = audioStreamIndex
         self.sourceLanguage = sourceLanguage
         self.targetLanguage = targetLanguage
+        self.subtitleScale = subtitleScale
         self.outputDirectory = outputDirectory
     }
 
@@ -45,6 +48,9 @@ public struct JobConfiguration: Codable, Sendable {
               Self.isLanguageIdentifier(targetLanguage),
               sourceLanguage != targetLanguage else {
             throw JobConfigurationError.invalidLanguages
+        }
+        guard subtitleScale.isFinite, (0.8...1.4).contains(subtitleScale) else {
+            throw JobConfigurationError.invalidSubtitleScale
         }
         var isDirectory = ObjCBool(false)
         guard outputDirectory.isFileURL,
@@ -102,6 +108,7 @@ public enum JobConfigurationError: Error, Equatable, LocalizedError {
     case ffmpegNotExecutable
     case invalidAudioStream
     case invalidLanguages
+    case invalidSubtitleScale
     case outputDirectoryNotWritable
 
     public var errorDescription: String? {
@@ -110,6 +117,7 @@ public enum JobConfigurationError: Error, Equatable, LocalizedError {
         case .ffmpegNotExecutable: "找不到可执行的 FFmpeg。"
         case .invalidAudioStream: "所选音频流索引无效。"
         case .invalidLanguages: "请选择两个不同的有效语言。"
+        case .invalidSubtitleScale: "字幕字号比例无效。"
         case .outputDirectoryNotWritable: "字幕输出文件夹不存在或不可写。"
         }
     }

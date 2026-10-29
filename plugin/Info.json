@@ -16,6 +16,10 @@
     "backend": "apple",
     "ffmpeg_path": "",
     "output_directory": "",
-    "auto_load": false
+    "auto_load": false,
+    "default_source_language": "en",
+    "default_target_language": "",
+    "video_settings": "{}",
+    "subtitle_scale": 100
   }
 }

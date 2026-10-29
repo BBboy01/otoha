@@ -17,9 +17,16 @@ function createPlugin({
   ffmpegSearchPath = "/opt/homebrew/bin/ffmpeg",
   configuredFFmpegValid = true,
   subtitleTrackVisible = true,
+  audioLanguage = "ja-JP",
   exposesCoreOpen = false,
   outputDirectory = "",
   autoLoad = false,
+  defaultSourceLanguage = "en",
+  defaultTargetLanguage = "",
+  savedPreferences = {},
+  helperTerminal = "completed",
+  fileLoadedBeforeCompletion = "",
+  subtitleScale = 100,
   existingSubtitles = [],
   failedListingPath = "",
 } = {}) {
@@ -37,9 +44,13 @@ function createPlugin({
   let clock = 1000;
   let windowReady = windowReadyAtStart;
   let remainingLoadFileFailures = loadFileFailures;
-  const preferenceValues = { ffmpeg_path: ffmpegPath, output_directory: outputDirectory, auto_load: autoLoad };
+  const preferenceValues = {
+    ffmpeg_path: ffmpegPath, output_directory: outputDirectory, auto_load: autoLoad,
+    default_source_language: defaultSourceLanguage, default_target_language: defaultTargetLanguage,
+    subtitle_scale: subtitleScale, ...savedPreferences,
+  };
   const tracks = [
-    { type: "audio", id: 7, "ff-index": 2, lang: "ja-JP", title: "Japanese", selected: true },
+    { type: "audio", id: 7, "ff-index": 2, lang: audioLanguage, title: "Japanese", selected: true },
     { type: "audio", id: 8, "ff-index": 4, lang: "en-US", title: "English" },
   ];
   const iina = {
@@ -139,11 +150,16 @@ function createPlugin({
               stderr: "",
             };
           }
+          const request = JSON.parse(args[1]);
+          const mediaPath = typeof request.mediaPath === "string" ? request.mediaPath : "/Users/test/Anime episode.mkv";
+          const outputPath = mediaPath.replace(/\.[^/.]+$/, ".otoha.ass");
           stdoutHook('{"type":"phase","phase":"transcribing","message":"正在转录"}\n');
           if (changeMediaBeforeCompletion) {
             iina.core.status.url = "file:///Users/test/Another%20video.mkv";
           }
-          stdoutHook('{"type":"completed","path":"/Users/test/Anime episode.otoha.srt"}\n');
+          if (fileLoadedBeforeCompletion) eventHandlers.get("iina.file-loaded")(fileLoadedBeforeCompletion);
+          if (helperTerminal === "completed" && !existingSubtitles.includes(outputPath)) existingSubtitles.push(outputPath);
+          stdoutHook(`${JSON.stringify({ type: helperTerminal, path: outputPath, message: "fixture generation failure" })}\n`);
           return { status: 0, stdout: "", stderr: "" };
         }
         return { status: 0, stdout: "", stderr: "" };
@@ -161,8 +177,9 @@ function createPlugin({
     setTimeout(callback, delay = 0) { pendingTimers.push({ callback, delay }); },
     iina,
     require(id) {
-      if (id !== "./controller.js") throw new Error(`Unexpected plugin module: ${id}`);
-      return controller;
+      if (id === "./controller.js") return controller;
+      if (id === "./subtitle-settings.js") return require("../subtitle-settings.js");
+      throw new Error(`Unexpected plugin module: ${id}`);
     },
   });
 
@@ -178,11 +195,13 @@ function createPlugin({
     consoleErrors,
     coreOpenCalls,
     mpvCommands,
+    preferenceValues,
     setWindowReady(value) {
       windowReady = value;
       iina.core.window.loaded = value;
     },
     setMediaURL(value) { iina.core.status.url = value; },
+    setAudioLanguage(value) { tracks[0].lang = value; },
     runSidebarLoad() {
       this.runPendingTimers();
       this.runPendingTimers();

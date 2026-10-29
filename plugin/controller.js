@@ -89,13 +89,6 @@ function audioTracks(rawTracks) {
     });
 }
 
-function automaticJobPayload(rawTracks, selectedAudioId, targetLanguage) {
-  const track = audioTracks(rawTracks).find((item) => String(item.id) === String(selectedAudioId));
-  const sourceLanguage = track ? defaultLanguage(track.lang) : "";
-  if (!track || !sourceLanguage || !targetLanguage || sourceLanguage === targetLanguage) return null;
-  return { trackId: track.id, sourceLanguage, targetLanguage };
-}
-
 function resolveAudioStreamIndex(tracks, id) {
   const track = tracks.find((item) => String(item.id) === String(id));
   if (!track) throw new Error("所选音轨已不可用，请重新选择音轨。");
@@ -211,7 +204,6 @@ async function assertExecutableFile(exec, filePath, message) {
 module.exports = {
   LANGUAGES,
   audioTracks,
-  automaticJobPayload,
   createJsonLineParser,
   defaultLanguage,
   localMedia,

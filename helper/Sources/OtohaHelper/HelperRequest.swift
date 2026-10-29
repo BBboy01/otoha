@@ -8,6 +8,7 @@ struct HelperRequest: Decodable {
     let audioStreamIndex: Int
     let sourceLanguage: String
     let targetLanguage: String
+    let subtitleScale: Double?
     let outputDirectoryPath: String?
     let cancellationFilePath: String
 
@@ -21,6 +22,7 @@ struct HelperRequest: Decodable {
             audioStreamIndex: audioStreamIndex,
             sourceLanguage: sourceLanguage,
             targetLanguage: targetLanguage,
+            subtitleScale: subtitleScale ?? 1.0,
             outputDirectory: SubtitleLibrary.mediaDirectory(for: mediaURL, rootDirectory: rootDirectory)
         )
     }
@@ -37,13 +39,6 @@ struct SubtitleListingRequest: Decodable {
 
     var mediaURL: URL { URL(fileURLWithPath: mediaPath) }
     var rootDirectory: URL { SubtitleLibrary.rootDirectory(configuredPath: outputDirectoryPath) }
-    var legacyDirectories: [URL] {
-        let mediaDirectory = mediaURL.deletingLastPathComponent()
-        let configuredPath = outputDirectoryPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !configuredPath.isEmpty else { return [mediaDirectory] }
-        let configuredDirectory = SubtitleLibrary.rootDirectory(configuredPath: configuredPath)
-        return configuredDirectory == mediaDirectory.standardizedFileURL ? [mediaDirectory] : [mediaDirectory, configuredDirectory]
-    }
 }
 
 struct SubtitleListingResponse: Encodable {
