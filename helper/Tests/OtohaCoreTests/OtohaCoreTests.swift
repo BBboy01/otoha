@@ -360,6 +360,54 @@ final class OtohaCoreTests: XCTestCase {
         XCTAssertFalse(files.contains("movie ; $ input [ja-JP to en-US].ass"))
     }
 
+    func testSubtitleJobRunnerHonorsCancellationBeforeStartingDependencies() async throws {
+        let fixture = try Fixture()
+        let cancellationURL = fixture.directory.appendingPathComponent("cancel")
+        try Data("cancel".utf8).write(to: cancellationURL)
+        let runner = SubtitleJobRunner(dependencies: .init(
+            prepareTranslation: { throw FixtureError.unexpectedDependencyCall },
+            transcribe: { throw FixtureError.unexpectedDependencyCall },
+            translate: { _ in throw FixtureError.unexpectedDependencyCall }
+        ))
+
+        do {
+            _ = try await runner.run(
+                configuration: fixture.configuration(),
+                cancellation: JobCancellationToken(cancellationFileURL: cancellationURL)
+            )
+            XCTFail("Expected cancellation")
+        } catch is CancellationError {
+        }
+
+        let files = try FileManager.default.contentsOfDirectory(atPath: fixture.directory.path)
+        XCTAssertFalse(files.contains(where: { $0.hasSuffix(".ass") }))
+    }
+
+    func testSubtitleJobRunnerCancelsBeforePublishingAfterTranscription() async throws {
+        let fixture = try Fixture()
+        let cancellationURL = fixture.directory.appendingPathComponent("cancel")
+        let runner = SubtitleJobRunner(dependencies: .init(
+            prepareTranslation: {},
+            transcribe: {
+                try Data("cancel".utf8).write(to: cancellationURL)
+                return TranscriptionOutput(cues: [TranscribedCue(start: 0, end: 1, source: "Hello")], sourceTimeOffset: 0)
+            },
+            translate: { _ in ["你好"] }
+        ))
+
+        do {
+            _ = try await runner.run(
+                configuration: fixture.configuration(),
+                cancellation: JobCancellationToken(cancellationFileURL: cancellationURL)
+            )
+            XCTFail("Expected cancellation")
+        } catch is CancellationError {
+        }
+
+        let files = try FileManager.default.contentsOfDirectory(atPath: fixture.directory.path)
+        XCTAssertFalse(files.contains(where: { $0.hasSuffix(".ass") }))
+    }
+
     func testSubtitleJobPipelineDoesNotPublishWhenTranslationProviderFails() async throws {
         let fixture = try Fixture()
         let cancellationURL = fixture.directory.appendingPathComponent("cancel")
@@ -417,6 +465,7 @@ final class OtohaCoreTests: XCTestCase {
 
 private enum FixtureError: Error {
     case translationFailed
+    case unexpectedDependencyCall
 }
 
 private struct Fixture {

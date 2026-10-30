@@ -19,6 +19,9 @@ final class HelperModel: ObservableObject {
     private var hasStarted = false
     private var startupErrorReported = false
     private var cancelSpeechOperation: (@MainActor () -> Void)?
+    private let speechClient = SpeechTranscriberClient()
+    private let ffmpegRunner = FFmpegProcessRunner()
+    private let translationProvider = TranslationProvider()
 
     init(request: HelperRequest?, startupError: String?, jobId: String? = nil) {
         self.request = request
@@ -69,38 +72,36 @@ final class HelperModel: ObservableObject {
         defer { cancellationWatcher.cancel() }
 
         do {
-            let subtitleURL = try await SubtitleJobPipeline.run(
-                configuration: configuration,
-                cancellationFileURL: cancellationFileURL,
+            let runner = SubtitleJobRunner(dependencies: .init(
                 prepareTranslation: {
-                    do {
-                        try await sessionHandle.value.prepareTranslation()
-                    } catch is CancellationError {
-                        throw CancellationError()
-                    } catch {
-                        throw TranslationTaskError.failed(error.localizedDescription)
-                    }
+                    try await self.translationProvider.prepare(using: sessionHandle)
                 },
                 transcribe: { [weak self] in
                     guard let self else { throw CancellationError() }
                     let preparedTranscriber = try await self.runSpeechOperation {
-                        try await self.prepareTranscriber(request: request, cancellationFileURL: cancellationFileURL)
+                        try await self.speechClient.prepare(
+                            sourceLanguage: request.sourceLanguage,
+                            cancellationFileURL: cancellationFileURL,
+                            emit: { event in
+                                Task { @MainActor [self] in receive(event) }
+                            }
+                        )
                     }
                     let workDirectory = FileManager.default.temporaryDirectory
                         .appendingPathComponent("otoha-\(UUID().uuidString)", isDirectory: true)
                     try FileManager.default.createDirectory(at: workDirectory, withIntermediateDirectories: true)
                     defer { try? FileManager.default.removeItem(at: workDirectory) }
                     let audioURL = workDirectory.appendingPathComponent("audio.wav")
-                    let sourceTimeOffset = try await FFmpegExtractor.extract(
+                    let sourceTimeOffset = try await self.ffmpegRunner.extract(
                         configuration: configuration,
                         outputURL: audioURL,
                         cancellationFileURL: cancellationFileURL,
                         audioFormat: preparedTranscriber.ffmpegFormat
                     ) { event in
-                        Task { @MainActor [weak self] in self?.receive(event) }
+                        Task { @MainActor [self] in receive(event) }
                     }
                     let recognized = try await self.runSpeechOperation {
-                        try await SpeechTranscriptionService.transcribe(
+                        try await self.speechClient.transcribe(
                             audioURL: audioURL,
                             using: preparedTranscriber,
                             cancellationFileURL: cancellationFileURL
@@ -112,12 +113,18 @@ final class HelperModel: ObservableObject {
                 },
                 translate: { [weak self] cues in
                     guard let self else { throw CancellationError() }
-                    return try await self.translate(
+                    return try await self.translationProvider.translate(
                         cues,
-                        using: sessionHandle.value,
+                        using: sessionHandle,
                         cancellationFileURL: cancellationFileURL
-                    )
-                },
+                    ) { event in
+                        Task { @MainActor [self] in receive(event) }
+                    }
+                }
+            ))
+            let subtitleURL = try await runner.run(
+                configuration: configuration,
+                cancellation: JobCancellationToken(cancellationFileURL: cancellationFileURL),
                 emit: { [weak self] event in
                     Task { @MainActor [weak self] in self?.receive(event) }
                 }
@@ -139,15 +146,6 @@ final class HelperModel: ObservableObject {
         terminateAfterShowingResult()
     }
 
-    private func prepareTranscriber(request: HelperRequest, cancellationFileURL: URL) async throws -> PreparedSpeechTranscriber {
-        try await SpeechTranscriptionService.prepare(
-            sourceLanguage: request.sourceLanguage,
-            cancellationFileURL: cancellationFileURL
-        ) { [weak self] event in
-            Task { @MainActor [weak self] in self?.receive(event) }
-        }
-    }
-
     private func runSpeechOperation<T>(
         _ operation: @escaping @MainActor () async throws -> T
     ) async throws -> T {
@@ -162,45 +160,6 @@ final class HelperModel: ObservableObject {
             }
             cancelSpeechOperation = { task.cancel() }
         }
-    }
-
-    private func translate(
-        _ cues: [TranscribedCue],
-        using session: TranslationSession,
-        cancellationFileURL: URL
-    ) async throws -> [String] {
-        message = "正在翻译字幕"
-        var translated = try TranslationAccumulator(count: cues.count)
-        let batchSize = 64
-
-        do {
-            for start in stride(from: 0, to: cues.count, by: batchSize) {
-                try checkCancellation(cancellationFileURL)
-                let end = min(start + batchSize, cues.count)
-                let requests = (start..<end).map { index in
-                    TranslationSession.Request(sourceText: cues[index].source, clientIdentifier: String(index))
-                }
-                for try await response in session.translate(batch: requests) {
-                    try translated.record(
-                        clientIdentifier: response.clientIdentifier,
-                        targetText: response.targetText,
-                        batchRange: start..<end
-                    )
-                    progress = translated.progress
-                    emit(.phase(.translating, message: "正在翻译字幕", progress: progress))
-                }
-            }
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            throw TranslationTaskError.failed(error.localizedDescription)
-        }
-
-        return try translated.finish()
-    }
-
-    private func checkCancellation(_ url: URL) throws {
-        if FileManager.default.fileExists(atPath: url.path) { throw CancellationError() }
     }
 
     private func isCancelled(_ url: URL) -> Bool {
@@ -259,7 +218,7 @@ final class HelperModel: ObservableObject {
             .translationFailed
         case TranslationAccumulatorError.incompleteTranslation:
             .subtitleIncompleteTranslation
-        case is TranslationTaskError:
+        case is TranslationProviderError:
             .translationFailed
         case is ASSOutputError:
             .subtitlePublishFailed
@@ -273,23 +232,5 @@ final class HelperModel: ObservableObject {
             try? await Task.sleep(for: .seconds(1.2))
             NSApplication.shared.terminate(nil)
         }
-    }
-}
-
-private enum TranslationTaskError: Error, LocalizedError {
-    case failed(String)
-
-    var errorDescription: String? {
-        switch self {
-        case let .failed(reason): "Apple 翻译失败：\(reason)"
-        }
-    }
-}
-
-private final class TranslationSessionHandle: @unchecked Sendable {
-    let value: TranslationSession
-
-    init(_ value: TranslationSession) {
-        self.value = value
     }
 }
