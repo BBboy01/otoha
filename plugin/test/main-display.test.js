@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { createPlugin, helperPath } = require("./main-fixture");
 
 const canonicalPath = "/Users/test/Anime episode [ja to zh-Hans].ass";
-const canonicalContent = `[Script Info]\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour\nStyle: OtohaSource,Arial,28,&H80FFFFFF\nStyle: OtohaTranslation,Arial,36,&H00FFFFFF\n\n[Events]\nFormat: Layer, Start, End, Style, Name, Text\nDialogue: 0,0:00:01.00,0:00:02.00,OtohaTranslation,,Hello\\N你好\nDialogue: 0,0:00:01.00,0:00:02.00,OtohaSource,,こんにちは\n`;
+const canonicalContent = `[Script Info]\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: OtohaSource,Arial,42,&H50FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3.5,1.5,2,48,48,74,1\nStyle: OtohaTranslation,Arial,54,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3.5,1.5,2,48,48,20,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, Text\nDialogue: 0,0:00:01.00,0:00:02.00,OtohaTranslation,,Hello\\N你好\nDialogue: 0,0:00:01.00,0:00:02.00,OtohaSource,,こんにちは\n`;
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 async function openPlugin(options = {}) {

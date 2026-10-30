@@ -150,8 +150,8 @@ final class OtohaCoreTests: XCTestCase {
         let ass = try ASSWriter.serialize(cues)
 
         XCTAssertTrue(ass.hasPrefix("[Script Info]\n"))
-        XCTAssertTrue(ass.contains("Style: OtohaSource,Arial,28,&H80FFFFFF,&H00FFFFFF,&H80000000,&H80000000,0,0,0,0,100,100,0,0,1,1.25,0,2,32,32,24,1"))
-        XCTAssertTrue(ass.contains("Style: OtohaTranslation,Arial,36,&H00FFFFFF,&H00FFFFFF,&H80000000,&H80000000,0,0,0,0,100,100,0,0,1,1.25,0,2,32,32,10,1"))
+        XCTAssertTrue(ass.contains("Style: OtohaSource,Arial,42,&H50FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3.5,1.5,2,48,48,74,1"))
+        XCTAssertTrue(ass.contains("Style: OtohaTranslation,Arial,54,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3.5,1.5,2,48,48,20,1"))
         XCTAssertTrue(ass.contains("Dialogue: 0,0:00:00.00,0:00:01.25,OtohaSource,,0,0,0,,First"))
         XCTAssertTrue(ass.contains("Dialogue: 0,0:00:00.00,0:00:01.25,OtohaTranslation,,0,0,0,,第一句"))
         XCTAssertTrue(ass.contains("Dialogue: 0,0:00:01.23,0:00:02.00,OtohaSource,,0,0,0,,Hello"))
@@ -175,8 +175,8 @@ final class OtohaCoreTests: XCTestCase {
             SubtitleCue(start: 0, end: 1, source: "Hello", translation: "你好"),
         ], scale: 1.2)
 
-        XCTAssertTrue(ass.contains("Style: OtohaSource,Arial,34,"))
-        XCTAssertTrue(ass.contains("Style: OtohaTranslation,Arial,43,"))
+        XCTAssertTrue(ass.contains("Style: OtohaSource,Arial,50,"))
+        XCTAssertTrue(ass.contains("Style: OtohaTranslation,Arial,65,"))
     }
 
     func testTimedTranscriptCueBuilderUsesWordTimingAndSplitsPhrases() {
