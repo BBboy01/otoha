@@ -1,3 +1,4 @@
+# Files shipped at the plugin root. Keep tests and local package metadata out.
 Info.json
 main.js
 controller.js

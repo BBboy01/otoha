@@ -38,6 +38,7 @@ while IFS= read -r relative_path || [[ -n "$relative_path" ]]; do
     printf 'Invalid or missing plugin resource: %s\n' "$relative_path" >&2
     exit 1
   fi
+  mkdir -p "$PACKAGE_DIR/$(dirname "$relative_path")"
   cp "$PLUGIN_DIR/$relative_path" "$PACKAGE_DIR/$relative_path"
 done < "$PLUGIN_FILES_MANIFEST"
 cp "$HELPER_BIN" "$HELPER_APP_DIR/Contents/MacOS/otoha-helper"
@@ -53,5 +54,9 @@ chmod u+x "$HELPER_APP_DIR/Contents/MacOS/otoha-helper"
     done
   }
 ) > "$HELPER_APP_DIR/Contents/Resources/helper-source.sha256"
+shasum -a 256 "$HELPER_APP_DIR/Contents/MacOS/otoha-helper" \
+  > "$HELPER_APP_DIR/Contents/Resources/helper-binary.sha256"
+file -b "$HELPER_APP_DIR/Contents/MacOS/otoha-helper" \
+  > "$HELPER_APP_DIR/Contents/Resources/helper-architecture.txt"
 
 printf 'Packaged current Mac plugin: %s\n' "$PACKAGE_DIR"
