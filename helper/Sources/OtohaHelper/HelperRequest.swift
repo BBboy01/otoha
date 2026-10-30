@@ -48,15 +48,32 @@ struct HelperRequest: Decodable {
         }
         self.protocolVersion = protocolVersion
         self.jobId = jobId
+        let mediaPath = try values.decode(String.self, forKey: .mediaPath)
+        let ffmpegPath = try values.decode(String.self, forKey: .ffmpegPath)
+        let outputDirectoryPath = try values.decodeIfPresent(String.self, forKey: .outputDirectoryPath)
+        let cancellationFilePath = try values.decode(String.self, forKey: .cancellationFilePath)
+        let outputPathIsValid = outputDirectoryPath.map { $0.isEmpty || Self.isAbsolutePath($0) } ?? true
+        guard Self.isAbsolutePath(mediaPath), Self.isAbsolutePath(ffmpegPath), Self.isAbsolutePath(cancellationFilePath),
+              outputPathIsValid else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .mediaPath,
+                in: values,
+                debugDescription: "Media, FFmpeg, cancellation, and output paths must be absolute."
+            )
+        }
         backend = try values.decode(TranscriptionBackend.self, forKey: .backend)
-        mediaPath = try values.decode(String.self, forKey: .mediaPath)
-        ffmpegPath = try values.decode(String.self, forKey: .ffmpegPath)
+        self.mediaPath = mediaPath
+        self.ffmpegPath = ffmpegPath
         audioStreamIndex = try values.decode(Int.self, forKey: .audioStreamIndex)
         sourceLanguage = try values.decode(String.self, forKey: .sourceLanguage)
         targetLanguage = try values.decode(String.self, forKey: .targetLanguage)
         subtitleScale = try values.decodeIfPresent(Double.self, forKey: .subtitleScale)
-        outputDirectoryPath = try values.decodeIfPresent(String.self, forKey: .outputDirectoryPath)
-        cancellationFilePath = try values.decode(String.self, forKey: .cancellationFilePath)
+        self.outputDirectoryPath = outputDirectoryPath
+        self.cancellationFilePath = cancellationFilePath
+    }
+
+    private static func isAbsolutePath(_ value: String) -> Bool {
+        value.hasPrefix("/") && !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var configuration: JobConfiguration {

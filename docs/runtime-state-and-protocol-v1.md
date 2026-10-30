@@ -8,14 +8,21 @@
 
 ```json
 {
+  "title": "episode.mkv",
   "media": { "path": "/Videos/episode.mkv", "name": "episode.mkv" },
+  "mediaError": "",
   "tracks": [{ "id": 7, "streamIndex": 2, "lang": "ja", "title": "Japanese", "available": true }],
-  "subtitleLibrary": {
-    "rootDirectoryPath": "/Users/me/Library/Application Support/Otoha/Subtitles",
-    "files": [{ "path": "/.../episode [ja to zh-Hans].ass" }],
-    "loading": false
-  },
-  "subtitle": { "selectedPath": "/.../episode [ja to zh-Hans].ass", "loaded": true },
+  "selectedTrackId": 7,
+  "sourceLanguage": "ja",
+  "targetLanguage": "zh-Hans",
+  "selectedSubtitlePath": "/.../episode [ja to zh-Hans].ass",
+  "displayMode": "bilingual",
+  "autoLoad": true,
+  "outputDirectory": "",
+  "effectiveOutputDirectory": "/Users/me/Library/Application Support/Otoha/Subtitles",
+  "availableSubtitles": [{ "path": "/.../episode [ja to zh-Hans].ass", "sourceLanguage": "ja", "targetLanguage": "zh-Hans" }],
+  "subtitleLibraryLoading": false,
+  "ffmpegPath": "/opt/homebrew/bin/ffmpeg",
   "job": {
     "jobId": "1760000000000-abcd",
     "status": "completed",
@@ -25,23 +32,17 @@
     "errorCode": null,
     "message": "双语字幕已加载"
   },
-  "settings": {
-    "autoLoad": true,
-    "sourceLanguage": "ja",
-    "targetLanguage": "zh-Hans",
-    "displayMode": "bilingual"
-  },
-  "ui": { "sidebarLoaded": true, "canGenerate": true, "canCancel": false }
+  "hasOutput": true
 }
 ```
 
 ### 状态枚举
 
-`job.status` 使用 `idle`、`checking`、`running`、`canceling`、`loading`、`completed`、`cancelled`、`error`。当前侧栏为保留“重试加载”动作仍会把 `subtitle.loadFailed` 映射为 `load-error` 展示状态；后续状态 store 会统一为 `error + errorCode`。`job.phase` 使用 `checkingEnvironment`、`preparingLanguageResources`、`extractingAudio`、`transcribing`、`translating`、`saving`、`loading`。
+`job.status` 使用 `idle`、`checking`、`running`、`canceling`、`loading`、`completed`、`cancelled`、`available`、`error` 和 `load-error`。`available` 表示已有字幕或字幕库警告；`load-error` 是当前侧栏为保留“重试加载”动作对 `subtitle.loadFailed` 的展示状态，后续状态 store 会统一为 `error + errorCode`。`job.phase` 使用 `checkingEnvironment`、`preparingLanguageResources`、`extractingAudio`、`transcribing`、`translating`、`saving`、`loading`。
 
-播放媒体、字幕库、任务和偏好设置属于插件运行时真相；侧栏只负责渲染和发送用户意图。`settings` 中的全局偏好来自 IINA preference，语言和显示方式的每视频记忆由插件按媒体路径保存。helper 只拥有当前任务的处理状态，不修改插件偏好或字幕选中状态。
+播放媒体、字幕库、任务和偏好设置属于插件运行时真相；侧栏只负责渲染和发送用户意图。上面的平面字段是当前 `sendState` 的传输形状，后续 state store 可以在内部规范化，但不能改变字段语义。全局偏好来自 IINA preference，语言和显示方式的每视频记忆由插件按媒体路径保存。helper 只拥有当前任务的处理状态，不修改插件偏好或字幕选中状态。
 
-每次媒体切换、字幕查找、字幕加载和转录任务都生成单调递增的 operation token。异步结果只有在 token、媒体路径和 `jobId` 同时仍匹配时才能提交到状态；过期结果必须丢弃。
+当前实现分别使用 `fileLoadedSequence`、`subtitleLookupId`、`displayLoadSequence` 和 active `jobId` 过滤异步结果；模块化时应收敛为统一的 operation token。异步结果只有在 token、媒体路径和 `jobId` 同时仍匹配时才能提交到状态；过期结果必须丢弃。
 
 ## 2. 请求 JSON
 
@@ -85,6 +86,8 @@ helper 只向 stdout 写 JSONL，每行一个对象；日志写 stderr。所有�
 插件遇到未知版本、事件类型、阶段或错误码时丢弃该行并保留当前任务状态。不能用中文 message 作为程序分支条件。
 
 ## 4. 稳定错误码
+
+`helper.*`、`ffmpeg.*`、`speech.*` 和 `translation.*` 由 Swift helper 产生；`subtitle.libraryFailed` 与 `subtitle.loadFailed` 由插件在字幕库/IINA 加载边界产生，但共用同一 registry 和展示语义。
 
 | code | 适用情况 |
 | --- | --- |

@@ -1,4 +1,4 @@
-const { parseHelperEvent } = require("./protocol.js");
+const { parseHelperEvent, PROTOCOL_VERSION } = require("./protocol.js");
 
 const LANGUAGES = [
   ["en", "English"],
@@ -201,6 +201,7 @@ async function assertExecutableFile(exec, filePath, message) {
 
 module.exports = {
   LANGUAGES,
+  PROTOCOL_VERSION,
   audioTracks,
   createJsonLineParser,
   defaultLanguage,

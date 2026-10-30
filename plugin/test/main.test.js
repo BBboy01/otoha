@@ -391,6 +391,22 @@ test("main keeps output but does not load it after playback changes to another v
   assert.deepEqual(plugin.loadedTracks, []);
 });
 
+test("main drops stale terminal errors after playback changes", async () => {
+  const plugin = createPlugin({
+    fileLoadedBeforeCompletion: "file:///Users/test/Next%20episode.mkv",
+    helperTerminal: "error",
+  });
+  plugin.eventHandlers.get("iina.window-loaded")();
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await plugin.sidebarHandlers.get("start")({ trackId: 7, sourceLanguage: "ja", targetLanguage: "zh-Hans" });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const jobMessages = plugin.messages.filter((message) => message.name === "job").map((message) => message.payload);
+  assert.equal(jobMessages.some((payload) => payload.status === "error"), false);
+  assert.equal(jobMessages.some((payload) => payload.message === "字幕 helper 已退出，但没有返回完成事件。"), false);
+});
+
 test("main does not launch helper when the chosen track has no ff-index", async () => {
   const plugin = createPlugin({ windowReadyAtStart: true });
   plugin.runPendingTimers();

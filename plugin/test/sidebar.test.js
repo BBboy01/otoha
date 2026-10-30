@@ -299,12 +299,12 @@ test("sidebar keeps error details open across polling and resets them for a new 
 });
 
 test("sidebar summarizes recognition and generation failures without discarding the reason", () => {
-  for (const [message, summary] of [
-    ["所选音轨中没有识别到语音。", "未识别到语音"],
-    ["FFmpeg 读取音频失败：文件无法访问。", "字幕生成失败"],
+  for (const [message, summary, errorCode] of [
+    ["所选音轨中没有识别到语音。", "未识别到语音", "speech.noSpeech"],
+    ["FFmpeg 读取音频失败：文件无法访问。", "字幕生成失败", "ffmpeg.extractionFailed"],
   ]) {
     const sidebar = createSidebar();
-    const current = videoState({ job: { status: "error", message } });
+    const current = videoState({ job: { status: "error", message, errorCode } });
     sidebar.handlers.get("state")(current);
     assert.equal(sidebar.elements.get("#job-status").hidden, false);
     assert.equal(sidebar.elements.get("#job-icon").hidden, false);
@@ -343,14 +343,14 @@ test("sidebar hides ordinary available feedback but preserves subtitle library w
   sidebar.handlers.get("state")(videoState({ job: { status: "available", message: "" } }));
   assert.equal(sidebar.elements.get("#job-status").hidden, true);
   const warning = "新字幕库读取失败，仍可使用已发现的字幕：目录无法读取";
-  sidebar.handlers.get("state")(videoState({ job: { status: "available", message: warning } }));
+  sidebar.handlers.get("state")(videoState({ job: { status: "available", message: warning, errorCode: "subtitle.libraryFailed" } }));
   assert.equal(sidebar.elements.get("#job-status").hidden, false);
 });
 
 test("sidebar identifies library errors before any subtitle has been generated", () => {
   const sidebar = createSidebar();
   const message = "无法读取字幕列表：目录无法读取";
-  sidebar.handlers.get("state")(videoState({ job: { status: "error", message } }));
+  sidebar.handlers.get("state")(videoState({ job: { status: "error", message, errorCode: "subtitle.libraryFailed" } }));
   assert.equal(sidebar.elements.get("#job-message").textContent, "字幕库读取失败");
   assert.equal(sidebar.elements.get("#job-detail-message").textContent, message);
   assert.equal(sidebar.elements.get("#job-status").dataset.kind, "warning");

@@ -32,20 +32,23 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let parsed = Self.parseRequest()
-        let model = HelperModel(request: parsed.request, startupError: parsed.error)
+        let model = HelperModel(request: parsed.request, startupError: parsed.error, jobId: parsed.jobId)
         windowController = HelperWindowController(model: model)
     }
 
-    private static func parseRequest() -> (request: HelperRequest?, error: String?) {
+    private static func parseRequest() -> (request: HelperRequest?, error: String?, jobId: String?) {
         guard let index = CommandLine.arguments.firstIndex(of: "--request-json"),
               CommandLine.arguments.indices.contains(index + 1) else {
-            return (nil, "缺少任务配置，无法启动 Otoha。")
+            return (nil, "缺少任务配置，无法启动 Otoha。", nil)
         }
+        let rawJSON = CommandLine.arguments[index + 1]
+        let rawJobId = (try? JSONSerialization.jsonObject(with: Data(rawJSON.utf8))) as? [String: Any]
+        let jobId = rawJobId?["jobId"] as? String
         do {
-            let request = try JSONDecoder().decode(HelperRequest.self, from: Data(CommandLine.arguments[index + 1].utf8))
-            return (request, nil)
+            let request = try JSONDecoder().decode(HelperRequest.self, from: Data(rawJSON.utf8))
+            return (request, nil, request.jobId)
         } catch {
-            return (nil, "任务配置无效：\(error.localizedDescription)")
+            return (nil, "任务配置无效：\(error.localizedDescription)", jobId)
         }
     }
 
