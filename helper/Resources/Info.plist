@@ -17,7 +17,7 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>26.0</string>
+	<string>26.4</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Otoha 需要在本机将视频语音转录为字幕。</string>
 	<key>NSHighResolutionCapable</key>

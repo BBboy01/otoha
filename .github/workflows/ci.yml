@@ -20,7 +20,7 @@ jobs:
     name: Test and package plugin
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
 
@@ -35,6 +35,19 @@ jobs:
           package_path="$RUNNER_TEMP/Otoha.iinaplugin"
           bash scripts/package-plugin.sh "$package_path"
           bash scripts/verify-plugin-package.sh "$package_path"
+          tampered_path="$RUNNER_TEMP/Otoha-tampered.iinaplugin"
+          cp -R "$package_path" "$tampered_path"
+          mkdir -p "$tampered_path/assets"
+          printf 'unexpected resource\n' > "$tampered_path/assets/unlisted.js"
+          if bash scripts/verify-plugin-package.sh "$tampered_path"; then
+            printf 'Verifier accepted an unlisted package resource.\n' >&2
+            exit 1
+          fi
+          cp /usr/bin/true "$tampered_path/bin/OtohaHelper.app/Contents/MacOS/otoha-helper"
+          if bash scripts/verify-plugin-package.sh "$tampered_path"; then
+            printf 'Verifier accepted a replaced helper binary.\n' >&2
+            exit 1
+          fi
 
       - name: Smoke test helper background CLI
         run: |
@@ -67,7 +80,7 @@ jobs:
 
       - name: Upload release plugin artifact
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: otoha-plugin-${{ github.ref_name }}
           path: ${{ runner.temp }}/Otoha-${{ github.ref_name }}-macos-arm64.iinaplgz
@@ -77,13 +90,13 @@ jobs:
     name: Validate git-cliff configuration
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Generate unreleased notes
-        uses: orhun/git-cliff-action@v4.9.1
+        uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff # v4.9.1
         with:
           config: cliff.toml
           version: v2.14.2
@@ -100,13 +113,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Download release plugin artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: otoha-plugin-${{ github.ref_name }}
           path: ${{ runner.temp }}/release-assets
@@ -134,7 +147,7 @@ jobs:
 
       - name: Generate release notes
         id: git-cliff
-        uses: orhun/git-cliff-action@v4.9.1
+        uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff # v4.9.1
         with:
           config: cliff.toml
           version: v2.14.2
@@ -144,7 +157,7 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
 
       - name: Publish release notes
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@5113cdc90fd4d541c801c55356214017bf5ae34b # v3
         with:
           name: ${{ github.ref_name }}
           body_path: ${{ steps.git-cliff.outputs.changelog }}
