@@ -214,6 +214,14 @@ function createPlugin({
     iina,
     require(id) {
       if (id === "./controller.js") return controller;
+      if (id === "./iina-adapter.js") return require("../iina-adapter.js");
+      if (id === "./job-controller.js") return require("../job-controller.js");
+      if (id === "./runtime-store.js") return require("../runtime-store.js");
+      if (id === "./subtitle-track-manager.js") return require("../subtitle-track-manager.js");
+      if (id === "./sidebar-lifecycle.js") return require("../sidebar-lifecycle.js");
+      if (id === "./settings-controller.js") return require("../settings-controller.js");
+      if (id === "./settings-schema.js") return require("../settings-schema.js");
+      if (id === "./subtitle-library-client.js") return require("../subtitle-library-client.js");
       if (id === "./subtitle-settings.js") return require("../subtitle-settings.js");
       if (id === "./subtitle-display.js") return subtitleDisplay;
       throw new Error(`Unexpected plugin module: ${id}`);
