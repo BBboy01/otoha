@@ -225,8 +225,7 @@ public enum FFmpegExtractor {
 
         while process.isRunning {
             if Task.isCancelled || FileManager.default.fileExists(atPath: cancellationFileURL.path) {
-                process.terminate()
-                while process.isRunning { try? await Task.sleep(for: .milliseconds(50)) }
+                terminate(process)
                 throw FFmpegExtractionError.cancelled
             }
             try? await Task.sleep(for: .milliseconds(100))
@@ -243,5 +242,17 @@ public enum FFmpegExtractor {
             throw FFmpegExtractionError.emptyOutput
         }
         return sourceTimeOffset
+    }
+
+    private static func terminate(_ process: Process) {
+        guard process.isRunning else {
+            process.waitUntilExit()
+            return
+        }
+        process.terminate()
+        let deadline = Date().addingTimeInterval(0.2)
+        while process.isRunning && Date() < deadline { usleep(10_000) }
+        if process.isRunning { kill(process.processIdentifier, SIGKILL) }
+        process.waitUntilExit()
     }
 }
