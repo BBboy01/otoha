@@ -10,6 +10,8 @@ function createJobController() {
         mediaPath: input.mediaPath || null,
         parser: null,
         terminal: false,
+        cancelRequested: false,
+        completion: null,
         fileLoadedSequence: input.fileLoadedSequence ?? null,
         mediaOperation: input.mediaOperation || null,
         languages: input.languages || null,
@@ -27,6 +29,15 @@ function createJobController() {
     },
     markTerminal() {
       if (active) active.terminal = true;
+    },
+    requestCancel() {
+      if (!active) return null;
+      active.cancelRequested = true;
+      return active;
+    },
+    setCompletion(promise) {
+      if (active) active.completion = promise;
+      return promise;
     },
     reset() {
       active = null;

@@ -79,3 +79,28 @@ test("subtitle library client reports when the active media is cleared", () => {
   assert.equal(mediaChanges, 1);
   assert.equal(client.state().mediaPath, null);
 });
+
+test("subtitle library client retries a failed listing for the same media", async () => {
+  const requests = [];
+  let currentOperation = null;
+  const client = createSubtitleLibraryClient({
+    exec: (_helper, args) => new Promise((resolve) => requests.push({ args, resolve })),
+    mediaPathForURL: () => "/video.mkv",
+    subtitleLanguages: () => ({}),
+    beginOperation: () => (currentOperation = {}),
+    isCurrentOperation: (operation) => operation === currentOperation,
+    isAutoLoadEnabled: () => false,
+    onAutoLoad: () => {},
+    onError: () => {},
+  });
+
+  client.update({ helperPath: "/helper", media: { path: "/video.mkv" } });
+  requests[0].resolve({ status: 1, stdout: "", stderr: "permission denied" });
+  await new Promise((resolve) => setImmediate(resolve));
+  client.update({ helperPath: "/helper", media: { path: "/video.mkv" } });
+  requests[1].resolve({ status: 0, stdout: JSON.stringify({ files: [{ path: "/video.ass" }] }) });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(requests.length, 2);
+  assert.deepEqual(client.state().files, [{ path: "/video.ass" }]);
+});

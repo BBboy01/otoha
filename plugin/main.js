@@ -45,6 +45,7 @@ let sidebarShowRequested = false;
 let sidebarLifecycle;
 let helperPath = null;
 let lastOutputPath = null;
+let pendingAutoLoad = null;
 let mediaOperation = runtimeStore.begin("media");
 const subtitleLibraryClient = createSubtitleLibraryClient({
   exec: (...args) => utils.exec(...args),
@@ -62,10 +63,11 @@ const subtitleLibraryClient = createSubtitleLibraryClient({
   },
   onUpdated: (mediaURLOverride) => sendState(mediaURLOverride),
   onAutoLoad: (files, mediaPathOverride) => {
-    if (!currentJob()) {
-      const selected = subtitleSettings.selectedSubtitle(mediaPathOverride || mediaPathForURL(latestFileLoadedURL || core.status.url), files);
-      if (selected) loadSubtitle(selected.path, mediaPathOverride);
-    }
+    const mediaPath = mediaPathOverride || mediaPathForURL(latestFileLoadedURL || core.status.url);
+    const selected = subtitleSettings.selectedSubtitle(mediaPath, files);
+    if (!selected) return;
+    if (currentJob()) return void (pendingAutoLoad = { mediaPath, path: selected.path });
+    loadSubtitle(selected.path, mediaPathOverride);
   },
   onError: ({ previousFiles, error }) => {
     replaceJob({
@@ -212,6 +214,8 @@ event.on("iina.window-loaded", () => {
 });
 event.on("iina.file-loaded", (url) => {
   const eventMediaPath = mediaPathForURL(url);
+  const activeJob = currentJob();
+  if (activeJob && (!eventMediaPath || activeJob.mediaPath !== eventMediaPath)) cancelJob();
   latestFileLoadedURL = eventMediaPath ? url : null;
   mediaOperation = runtimeStore.begin("media");
   runtimeStore.begin("display");
@@ -290,6 +294,7 @@ async function startJob(payload = {}, mediaOverride = null) {
   if (currentJob()) return;
   runtimeStore.begin("display");
   const jobFileLoadedSequence = fileLoadedSequence;
+  let jobId = null;
   try {
     if (!helperPath) throw new Error("Otoha 侧栏尚未完成初始化，请重新打开侧栏。");
     const media = mediaOverride || localMedia(latestFileLoadedURL || core.status.url);
@@ -300,15 +305,21 @@ async function startJob(payload = {}, mediaOverride = null) {
     if (!sourceLanguage || !targetLanguage || sourceLanguage === targetLanguage) {
       throw new Error("请选择不同的转录语言和翻译语言。");
     }
+    jobId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const cancelPath = utils.resolvePath(`@tmp/otoha-${jobId}.cancel`);
+    if (!cancelPath) throw new Error("无法创建字幕任务取消标记。");
+    const claimedJob = jobController.begin({ id: jobId, cancelPath, mediaPath: media.path, languages: { sourceLanguage, targetLanguage }, fileLoadedSequence: jobFileLoadedSequence, mediaOperation });
+    if (!claimedJob) return;
+    replaceJob({ jobId, status: "running", phase: "checkingEnvironment", message: "正在启动", progress: null, path: null, loaded: false, errorCode: null });
+    sendState(mediaOverride ? media.path : undefined);
+
     const ffmpegPath = await resolveFFmpegPath(preferences, (...args) => utils.exec(...args));
-    if (jobFileLoadedSequence !== fileLoadedSequence || mediaPathForURL(latestFileLoadedURL || core.status.url) !== media.path) {
-      throw new Error("生成前视频已更换，请重新选择当前视频的字幕语言。");
+    if (claimedJob.cancelRequested || jobFileLoadedSequence !== fileLoadedSequence || mediaPathForURL(latestFileLoadedURL || core.status.url) !== media.path) {
+      jobController.markTerminal(); replaceJob({ ...jobState(), status: "cancelled", phase: "", message: "视频已切换，任务已取消", progress: null, path: null, loaded: false, errorCode: "job.cancelled" }); send("job", jobState()); return;
     }
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const cancelPath = utils.resolvePath(`@tmp/otoha-${id}.cancel`);
     const request = {
       protocolVersion: PROTOCOL_VERSION,
-      jobId: id,
+      jobId,
       backend: "apple",
       mediaPath: media.path,
       ffmpegPath,
@@ -320,22 +331,10 @@ async function startJob(payload = {}, mediaOverride = null) {
       cancellationFilePath: cancelPath,
     };
 
-    const jobMediaOperation = mediaOperation;
-    jobController.begin({
-      id,
-      cancelPath,
-      mediaPath: media.path,
-      languages: { sourceLanguage, targetLanguage },
-      fileLoadedSequence: jobFileLoadedSequence,
-      mediaOperation: jobMediaOperation,
-    });
-    replaceJob({ jobId: id, status: "running", phase: "checkingEnvironment", message: "正在启动", progress: null, path: null, loaded: false, errorCode: null });
-    sendState(mediaOverride ? media.path : undefined);
-
     const parser = createJsonLineParser(handleHelperEvent, (error) => {
       hostConsole.error(`Otoha: 忽略无效 helper 事件：${error.message}`);
     });
-    currentJob().parser = parser;
+    claimedJob.parser = parser;
     let stderr = "";
     const args = ["--request-json", JSON.stringify(request)];
     const result = await utils.exec(
@@ -348,7 +347,8 @@ async function startJob(payload = {}, mediaOverride = null) {
       },
     );
     parser.flush();
-    if (!currentJob().terminal) {
+    if (claimedJob.completion) await claimedJob.completion;
+    if (!claimedJob.terminal) {
       if (result.status !== 0) {
         setJobError(stderr.trim() || `字幕 helper 退出，状态码 ${result.status}。`);
       } else {
@@ -359,8 +359,12 @@ async function startJob(payload = {}, mediaOverride = null) {
     setJobError(error.message || String(error));
   } finally {
     const runningJob = currentJob();
-    if (runningJob && runningJob.cancelPath) {
+    if (runningJob && runningJob.id === jobId && runningJob.cancelPath) {
       utils.exec("/bin/rm", ["-f", runningJob.cancelPath]).catch(() => {});
+    }
+    if (runningJob && runningJob.id === jobId && pendingAutoLoad) {
+      const deferred = pendingAutoLoad; pendingAutoLoad = null;
+      if (mediaPathForURL(latestFileLoadedURL || core.status.url) === deferred.mediaPath) await loadSubtitle(deferred.path);
     }
     jobController.reset();
     sendState(mediaOverride ? mediaOverride.path : undefined);
@@ -372,12 +376,9 @@ function handleHelperEvent(helperEvent) {
   if (!runningJob || (helperEvent.jobId !== runningJob.id && !(helperEvent.type === "error" && helperEvent.jobId === "unknown"))) return;
   if (runningJob.terminal) return;
   const currentMediaPath = mediaPathForURL(latestFileLoadedURL || core.status.url);
-  const staleForPlayback = !runtimeStore.isCurrent(runningJob.mediaOperation)
-    || runningJob.fileLoadedSequence !== fileLoadedSequence
-    || (currentMediaPath && currentMediaPath !== runningJob.mediaPath);
+  const staleForPlayback = !runtimeStore.isCurrent(runningJob.mediaOperation) || runningJob.fileLoadedSequence !== fileLoadedSequence || (currentMediaPath && currentMediaPath !== runningJob.mediaPath);
   if (staleForPlayback && helperEvent.type !== "completed") {
-    if (["error", "cancelled"].includes(helperEvent.type)) jobController.markTerminal();
-    return;
+    if (["error", "cancelled"].includes(helperEvent.type)) jobController.markTerminal(); return;
   }
 
   if (helperEvent.type === "phase") {
@@ -417,7 +418,7 @@ function handleHelperEvent(helperEvent) {
     lastOutputPath = helperEvent.path;
     replaceJob({ jobId: runningJob.id, status: "loading", phase: "loading", message: "字幕已生成，正在加载", progress: null, path: helperEvent.path, loaded: false, errorCode: null });
     send("job", jobState());
-    loadSubtitle(helperEvent.path, runningJob.mediaPath);
+    jobController.setCompletion(loadSubtitle(helperEvent.path, runningJob.mediaPath));
     return;
   }
 
@@ -444,6 +445,7 @@ function setJobError(message, errorCode = "helper.unknown") {
 async function cancelJob() {
   const runningJob = currentJob();
   if (!runningJob || !runningJob.cancelPath) return;
+  jobController.requestCancel();
   replaceJob({ ...jobState(), status: "canceling", message: "正在取消" });
   send("job", jobState());
   try {
@@ -460,10 +462,7 @@ async function loadSubtitle(filePath, mediaURLOverride = null, rememberSelection
   const loadMediaOperation = mediaOperation;
   const loadDisplayOperation = runtimeStore.begin("display");
   const displayMode = subtitleSettings.displayMode(mediaPath);
-  const isCurrentMedia = () => runtimeStore.isCurrent(loadMediaOperation)
-    && runtimeStore.isCurrent(loadDisplayOperation)
-    && loadFileLoadedSequence === fileLoadedSequence
-    && mediaPathForURL(latestFileLoadedURL || core.status.url) === mediaPath;
+  const isCurrentMedia = () => runtimeStore.isCurrent(loadMediaOperation) && runtimeStore.isCurrent(loadDisplayOperation) && loadFileLoadedSequence === fileLoadedSequence && mediaPathForURL(latestFileLoadedURL || core.status.url) === mediaPath;
   let loadedPath = filePath;
   const runningJob = currentJob();
   replaceJob({ ...jobState(), jobId: runningJob ? runningJob.id : null, status: "loading", phase: "loading", message: "正在加载字幕", path: filePath, loaded: false, errorCode: null });

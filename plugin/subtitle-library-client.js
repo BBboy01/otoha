@@ -4,6 +4,7 @@ const EMPTY_LIBRARY = Object.freeze({
   rootDirectoryPath: "",
   files: [],
   loading: false,
+  failed: false,
 });
 
 function createSubtitleLibraryClient({
@@ -55,7 +56,7 @@ function createSubtitleLibraryClient({
       return;
     }
     if (!helperPath) return;
-    if (!force && library.mediaPath === media.path && library.outputDirectoryPath === outputDirectoryPath) return;
+    if (!force && !library.failed && library.mediaPath === media.path && library.outputDirectoryPath === outputDirectoryPath) return;
 
     const operation = beginOperation();
     const mediaChanged = library.mediaPath !== null && library.mediaPath !== media.path;
@@ -68,6 +69,7 @@ function createSubtitleLibraryClient({
       rootDirectoryPath: previousRootDirectoryPath,
       files: previousFiles,
       loading: true,
+      failed: false,
     });
     const request = { mediaPath: media.path, outputDirectoryPath };
 
@@ -90,6 +92,7 @@ function createSubtitleLibraryClient({
           rootDirectoryPath: typeof listing.rootDirectoryPath === "string" ? listing.rootDirectoryPath : "",
           files,
           loading: false,
+          failed: false,
         });
         if (files.length > 0 && isAutoLoadEnabled()) onAutoLoad(files, mediaURLOverride ? media.path : null);
         if (typeof onUpdated === "function") onUpdated(mediaURLOverride);
@@ -102,6 +105,7 @@ function createSubtitleLibraryClient({
           rootDirectoryPath: previousRootDirectoryPath,
           files: previousFiles,
           loading: false,
+          failed: true,
         });
         onError({ mediaChanged, previousFiles, error });
       });

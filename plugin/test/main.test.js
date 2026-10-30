@@ -65,6 +65,63 @@ test("main passes the configured subtitle scale to the helper", async () => {
   assert.equal(JSON.parse(helperCall.args[1]).subtitleScale, 1.4);
 });
 
+test("main reserves the generation job before asynchronous environment lookup", async () => {
+  const plugin = createPlugin();
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  const payload = { trackId: 7, sourceLanguage: "ja", targetLanguage: "zh-Hans" };
+  const first = plugin.sidebarHandlers.get("start")(payload);
+  const second = plugin.sidebarHandlers.get("start")(payload);
+  await Promise.all([first, second]);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const helperRequests = plugin.execCalls.filter(
+    (call) => call.file.endsWith("otoha-helper") && call.args[0] === "--request-json",
+  );
+  assert.equal(helperRequests.length, 1);
+});
+
+test("main keeps the generation job active until generated subtitle loading finishes", async () => {
+  const plugin = createPlugin({ subtitleTrackVisible: false });
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  const payload = { trackId: 7, sourceLanguage: "ja", targetLanguage: "zh-Hans" };
+  const first = plugin.sidebarHandlers.get("start")(payload);
+  await new Promise((resolve) => setImmediate(resolve));
+  const second = plugin.sidebarHandlers.get("start")(payload);
+  plugin.runAllPendingTimers();
+  await Promise.all([first, second]);
+
+  const helperRequests = plugin.execCalls.filter(
+    (call) => call.file.endsWith("otoha-helper") && call.args[0] === "--request-json",
+  );
+  assert.equal(helperRequests.length, 1);
+  assert.equal(plugin.messages.findLast((message) => message.name === "job").payload.status, "load-error");
+});
+
+test("main cancels an old video job and loads the current video's existing subtitle", async () => {
+  const subtitlePath = "/library/Next [en to zh-Hans].ass";
+  const existingSubtitles = [];
+  const plugin = createPlugin({ autoLoad: true, waitForCancel: true, existingSubtitles });
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  const start = plugin.sidebarHandlers.get("start")({
+    trackId: 7,
+    sourceLanguage: "ja",
+    targetLanguage: "zh-Hans",
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  existingSubtitles.push(subtitlePath);
+  plugin.eventHandlers.get("iina.file-loaded")("file:///Users/test/Next%20episode.mkv");
+  plugin.finishHelper();
+  await start;
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.ok(plugin.execCalls.some((call) => call.file === "/usr/bin/touch"));
+  assert.ok(plugin.loadedTracks.includes(subtitlePath));
+});
+
 test("main does not load existing subtitles when automatic loading is disabled", async () => {
   const subtitlePath = "/Users/test/Library/Application Support/Otoha/Subtitles/video/episode.ass";
   const plugin = createPlugin({ existingSubtitles: [subtitlePath] });
