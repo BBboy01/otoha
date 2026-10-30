@@ -99,6 +99,47 @@ final class SubtitleCoreRegressionTests: XCTestCase {
         }
     }
 
+    func testFFmpegExtractionCancellationKillsProcessThatIgnoresTermination() async throws {
+        let fixture = try Fixture()
+        let ffmpeg = fixture.directory.appendingPathComponent("ffmpeg")
+        let ffprobe = fixture.directory.appendingPathComponent("ffprobe")
+        try fixture.writeExecutable(
+            "#!/bin/sh\ntrap '' TERM\nwhile :; do :; done\n",
+            to: ffmpeg
+        )
+        try fixture.writeExecutable(
+            "#!/bin/sh\nprintf '%s' '{\"streams\":[{\"index\":0,\"codec_type\":\"audio\",\"start_time\":\"0\"}],\"format\":{\"start_time\":\"0\"}}'\n",
+            to: ffprobe
+        )
+        let cancellationURL = fixture.directory.appendingPathComponent("cancel")
+        let task = Task {
+            try await FFmpegExtractor.extract(
+                configuration: JobConfiguration(
+                    mediaURL: fixture.mediaURL,
+                    ffmpegPath: ffmpeg.path,
+                    audioStreamIndex: 0,
+                    sourceLanguage: "ja-JP",
+                    targetLanguage: "en-US",
+                    outputDirectory: fixture.directory
+                ),
+                outputURL: fixture.audioURL,
+                cancellationFileURL: cancellationURL,
+                emit: { event in
+                    if event.phase == JobPhase.extractingAudio.rawValue {
+                        try? Data("cancel".utf8).write(to: cancellationURL)
+                    }
+                }
+            )
+        }
+
+        do {
+            _ = try await task.value
+            XCTFail("Expected FFmpeg cancellation")
+        } catch let error as FFmpegExtractionError {
+            XCTAssertEqual(error, .cancelled)
+        }
+    }
+
     func testInvalidConfigurationDoesNotCreateOutputDirectory() async throws {
         let fixture = try Fixture()
         let missingDirectory = fixture.directory.appendingPathComponent("new-output")
