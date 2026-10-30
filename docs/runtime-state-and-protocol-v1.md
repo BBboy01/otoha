@@ -1,6 +1,6 @@
 # Otoha 运行时状态与 helper protocol v1
 
-本文定义插件与随包 Swift helper 之间的稳定边界。它是 issue #2 的实现契约，后续模块化工作应先遵守这里的字段和状态语义，再扩展实现。
+本文定义插件与随包 Swift helper 之间的稳定边界。它是 protocol v1 的实现契约；修改字段、阶段或错误码时，必须同步更新 JavaScript 校验、Swift 事件和测试。架构背景见 [architecture.md](architecture.md)。
 
 ## 1. 状态快照
 
@@ -38,7 +38,7 @@
 
 ### 状态枚举
 
-`job.status` 使用 `idle`、`checking`、`running`、`canceling`、`loading`、`completed`、`cancelled`、`available`、`error` 和 `load-error`。`available` 表示已有字幕或字幕库警告；`load-error` 是当前侧栏为保留“重试加载”动作对 `subtitle.loadFailed` 的展示状态，后续状态 store 会统一为 `error + errorCode`。`job.phase` 使用 `checkingEnvironment`、`preparingLanguageResources`、`extractingAudio`、`transcribing`、`translating`、`saving`、`loading`。
+`job.status` 使用 `idle`、`running`、`canceling`、`loading`、`completed`、`cancelled`、`available`、`error` 和 `load-error`；侧栏在字幕库查询尚未完成时还会临时合成 `checking` 展示状态。生成任务的 `running` 通过 `job.phase` 表示细阶段。`available` 表示字幕库中已有字幕；`load-error` 是侧栏为保留“重试加载”动作对 `subtitle.loadFailed` 的展示状态。`job.phase` 使用 `checkingEnvironment`、`preparingLanguageResources`、`extractingAudio`、`transcribing`、`translating`、`saving`、`loading`。
 
 播放媒体、字幕库、任务和偏好设置属于插件运行时真相；侧栏只负责渲染和发送用户意图。上面的平面字段是当前 `sendState` 的传输形状，后续 state store 可以在内部规范化，但不能改变字段语义。全局偏好来自 IINA preference，语言和显示方式的每视频记忆由插件按媒体路径保存。helper 只拥有当前任务的处理状态，不修改插件偏好或字幕选中状态。
 
@@ -90,6 +90,8 @@ helper 只向 stdout 写 JSONL，每行一个对象；日志写 stderr。所有�
 正常任务不创建或前置原生窗口。helper 以后台模式启动，所有进度、取消、完成和错误通过上述 JSONL 事件回到 IINA 侧栏。只有显式传入 `--ui` 的调试启动才创建 Otoha 原生窗口；该入口不属于插件正常任务协议。
 
 首次使用 Apple Speech 或 Translation 时，macOS 可能要求授予语音识别权限、下载语言模型或准备翻译资源。这些系统级提示由 macOS 管理，后台 helper 不能保证将它们静默化；出现提示时，用户应完成系统提示后等待当前任务继续。资源准备完成后，后续任务复用本机资源，不应重复打开 Otoha 窗口。
+
+字幕列表查询使用同一个 helper 的 `--list-subtitles-json` 参数，输入 `{ "mediaPath": "...", "outputDirectoryPath": "..." }`，输出 `{ "rootDirectoryPath": "...", "files": [{ "path": "..." }] }`。列表查询不会启动语音或翻译任务，也不会修改字幕文件。
 
 ## 5. 稳定错误码
 

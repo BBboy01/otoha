@@ -1,102 +1,97 @@
-# IINA 双语字幕转录翻译插件 V1 方案
+# Otoha 产品与技术决策
 
-**状态：** 方案已确认，协议契约 v1 已落地，后续按 GitHub 父子 issue 分阶段实现。本文记录产品边界、技术结构、交互和验收项。
+**状态：** V1 实现已落地，本文记录当前产品边界、用户体验和仍需实机验收的项目。协议字段见 [runtime-state-and-protocol-v1.md](runtime-state-and-protocol-v1.md)，代码结构见 [architecture.md](architecture.md)。
 
-## 目标
+## 用户目标
 
-在 IINA 中按下按钮后，对当前本地视频的指定音轨进行后台语音转录和翻译，生成双语 ASS 并自动加载。用户只安装一个 `.iinaplugin`；无需另行安装插件 helper。FFmpeg 是单独的运行依赖，用户可以从 `PATH` 提供，也可以在插件设置中指定可执行文件路径。
+用户在观看没有字幕的非母语视频时，可以在 IINA 侧栏选择音轨、明确源语言和目标语言，按一次“生成”，等待后台任务生成双语 ASS 并自动加载。用户也可以只显示原文、只显示译文或显示双语对照。
 
-首版面向用户自己的当前 Mac，不承诺兼容其他 macOS 版本或硬件。首版最低系统要求按 macOS 26 设计，以使用 Apple 的本机语音转录和翻译能力。
+```mermaid
+flowchart TD
+    A[打开本地视频] --> B{字幕库有 ASS 且自动加载开启?}
+    B -- 是 --> C[选择记忆的字幕并自动加载]
+    B -- 否 --> D[侧栏选择音轨与语言]
+    D --> E[点击“生成”]
+    E --> F[后台转录与翻译]
+    F --> G[保存 ASS]
+    G --> H[加载并确认 IINA 字幕轨道]
+    H --> I[选择原文 / 译文 / 双语]
+```
 
-## 已确认的产品决策
+## 已确认决策
 
-- 操作方式：用户主动发起任务；不做播放期间实时转录。
-- 转录与翻译：首版只实现 Apple 本机能力。保留后端配置入口，V1 界面只提供可用的“Apple 本机”选项，不展示尚未实现的后端。
-- 音频输入：处理当前媒体，并允许用户选定要处理的音轨。插件把媒体与音轨信息交给 helper，由 helper 用 FFmpeg 提取音频。
-- 语言默认值：根据所选音轨的语言信息预填转录语言；根据 macOS 首选语言预填翻译目标语言。两项都允许用户修改。
-- 输出：生成源语言在前、目标语言在后的双语 ASS cue。默认保存到 `~/Library/Application Support/Otoha/Subtitles`；同一视频和语言对重新生成时覆盖对应文件，其他语言对和历史版本保留。输出目录可在设置中更改。
-- 完成行为：成功保存后，插件自动把 ASS 加载为 IINA 外挂字幕；已有字幕在自动加载开启时直接加载，同时提供在 Finder 中显示字幕目录的操作。
-- 权限与安装：插件包包含 JavaScript 插件和 Swift helper，用户只安装一次插件。插件声明所需的文件系统权限，并在运行时检查媒体可读、输出目录可写。
-
-## 技术方案
-
-### 组件边界
-
-| 组件 | 职责 |
-| --- | --- |
-| IINA JavaScript 插件 | 侧边栏界面、读取当前媒体信息、呈现可选音轨、语言与输出设置、任务状态、启动 helper、完成后加载 ASS。可选音轨和当前选中音轨的插件 API 能力需原型验证。 |
-| 随包 Swift helper | 校验输入和语言资源、调用 FFmpeg 提取指定音轨、调用 Apple 本机转录与翻译 API、写入 ASS、报告 protocol v1 任务结果。 |
-| 用户提供的 FFmpeg | 解码媒体并提取所选音轨；不随插件分发。插件先从 `PATH` 查找，也允许配置绝对路径。 |
-
-IINA 插件 API 提供执行本地命令、插件偏好设置和加载外挂字幕的入口；插件侧没有可直接读取已解码音频帧的 API。因此采用“插件控制流程、helper 处理媒体与语言任务”的边界。FFmpeg 缺失或不可执行时，在开始任务前提示用户修复路径。
-
-Khuaplayer 使用自己的 MediaCore/FFmpeg 音频读取封装；本方案沿用它的本机转录和翻译方向，但按用户决定改为调用环境中的 FFmpeg 命令行程序，不复制其私有音频封装层。
-
-### 单次安装包
-
-`.iinaplugin` 包中包含插件清单、JavaScript 代码、侧边栏资源以及为当前 Mac 构建的 Swift helper。插件使用 IINA 的命令执行能力启动包内 helper；helper 不要求用户执行单独安装步骤。FFmpeg 不打包，避免重复分发或管理用户已有的共享工具。helper 与插件通过带 `protocolVersion`、`jobId` 和稳定错误码的 JSONL v1 通信；正常任务不依赖可见原生窗口。
-
-插件需要声明 IINA 文件系统访问权限。运行时仍需验证 IINA 插件权限、macOS 文件访问状态和目标目录写权限；路径不可读写时给出可操作的错误，不尝试绕过系统权限。
-
-### 任务流程
-
-1. 用户打开侧边栏，插件显示当前媒体，选择音轨、转录语言、翻译目标语言和输出位置。
-2. 用户点击“生成”。插件检查媒体路径、输出路径、FFmpeg 路径和音轨选择；检查通过后用 protocol v1 请求启动 helper。
-3. helper 检查 Apple 语言资源。资源未就绪时在后台准备；若系统 API 强制要求用户交互，才显示原生准备界面并在完成后继续任务。
-4. helper 调用 FFmpeg 提取所选音轨，再调用 Apple 本机转录和翻译能力。翻译结果与对应的转录片段共用时间戳。
-5. helper 将完整 ASS 写入临时文件，成功后原子替换当前视频和语言对的目标文件；取消或失败不发布半成品。
-6. helper 返回生成文件路径；插件加载该文件为 IINA 外挂字幕，并更新为完成状态。加载失败时保留 ASS，显示文件位置和重试入口。
-
-插件与 helper 的长任务进度传递、取消信号和子进程生命周期需要通过原型确认 IINA API 的实际能力；在验证之前，不把某一种 IPC 方式视为已落定。
-
-### 配置项
-
-| 设置 | 初始行为 | 用户可配置行为 |
+| 主题 | 决策 | 原因 |
 | --- | --- | --- |
-| 后端 | Apple 本机 | 显示当前唯一可用选项；后续后端加入时再扩展。 |
-| FFmpeg 可执行文件 | 从 `PATH` 查找 | 可指定绝对路径；启动前检查文件存在且可执行。 |
-| 输出目录 | `~/Library/Application Support/Otoha/Subtitles` | 可指定固定目录。 |
-| 转录语言 | 依据所选音轨元数据预填 | 可手动选择。 |
-| 翻译目标语言 | 依据 macOS 首选语言预填 | 可手动选择。 |
+| 后端 | 首版只实现 Apple 本机 Speech + Translation；保留 backend 配置入口 | 保持本机隐私，同时为后续后端留边界 |
+| helper | Swift helper 放在插件包内，用户只安装一次 | 不增加额外安装器和版本管理负担 |
+| FFmpeg | 用户自行安装，插件从 PATH 查找，也允许配置绝对路径 | 让其他本机程序复用同一 FFmpeg |
+| 触发方式 | 手动点击“生成”，后台执行 | 避免打开视频就消耗资源或误转录 |
+| 自动加载 | 仅加载已有字幕，不在缺少字幕时猜语言和转录 | 源语言无法可靠自动判断，避免无声失败或错误语言 |
+| 存储 | 默认 `~/Library/Application Support/Otoha/Subtitles`，每个视频哈希目录 | 对用户可见但不污染视频目录，且能保留多个语言版本 |
+| 覆盖策略 | 同一媒体和语言对成功生成后覆盖；其他语言对保留 | 重生成结果可预测，历史选择不互相覆盖 |
+| 显示方式 | 原文、译文、双语三选一，按视频记忆，默认双语 | 同一视频的学习/阅读需求通常稳定 |
+| 输出 | ASS，源文在前、译文在后，源文较小且淡化 | 支持双语排版和单语显示缓存 |
+| 焦点 | helper 正常运行不激活窗口；只有系统级权限/资源提示可能打断 | 尽量不影响用户观看 |
+| 兼容性 | 当前只验收 Apple Silicon + macOS 26.4+ | Apple Translation API 和打包校验以当前设备为目标 |
 
-配置由 IINA 插件偏好设置保存。媒体文件和音频内容不上传云端；首版不接入云服务。
+## UI/UX 结构
 
-## UI/UX
+侧栏保持从当前视频到操作再到反馈的阅读顺序：
 
-在 IINA 侧边栏提供紧凑的“字幕转录”面板，围绕当前视频和一次任务组织信息：
+1. **当前视频**：单行省略，悬停显示完整名称。
+2. **字幕列表**：存在字幕时显示下拉选择；已加载状态用标题后的图标表示；Finder 操作紧邻选择框。
+3. **生成字幕**：音轨、源语言、目标语言集中在表单；主按钮只使用“生成”。
+4. **任务反馈**：阶段和错误详情折叠，进度有可靠数值时才显示；失败保留重试和取消边界。
+5. **播放选项**：自动加载和问号帮助图标；显示方式使用紧凑下拉框。
 
-- 顶部显示当前媒体名称；无本地媒体时禁用生成操作并提示先打开视频。
-- 音轨、转录语言、目标语言使用选择控件；语言默认值可见且可修改。
-- 主操作为“生成”。输出目录和 FFmpeg 路径放在设置入口中，避免挤占主要任务流程。
-- 运行时显示当前阶段：检查环境、准备语言资源、提取音轨、转录、翻译、保存、加载。能取得可靠百分比时再显示百分比；否则显示阶段状态，不制造虚假精度。
-- 任务期间提供取消操作。取消后清理临时音频和临时字幕，不发布不完整的最终 ASS。
-- 完成后显示文件名、自动加载结果和“在 Finder 中显示”操作。重新生成时覆盖当前语言对的文件，其他版本仍可从字幕列表选择。
-- 错误状态说明失败阶段和下一步操作，例如配置 FFmpeg、选择其他语言、检查目录权限或重试字幕加载。
-- 语言资源未准备好时，侧边栏显示等待状态；只有系统明确要求前台准备交互时才显示原生窗口，正常转录不抢焦点。
+全局低频配置放在 Preferences：默认语言、FFmpeg 路径、字幕库根目录、自动加载和字号。侧栏只保留当前视频需要即时决定的控件。
 
-## V1 范围
+## 任务状态
 
-**包含：** 本地视频、单次处理一个用户选定的音轨、Apple 本机转录与翻译、可配置 FFmpeg 路径与输出目录、可修改的语言选择、双语 ASS、protocol v1 阶段状态、取消任务、自动加载和单插件包安装。
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> running: 点击生成
+    running --> canceling: 用户取消/切换视频
+    canceling --> cancelled: helper 返回 cancelled
+    running --> loading: helper 返回 completed
+    loading --> completed: IINA 确认外挂轨道
+    loading --> loadError: 超时或加载失败
+    running --> error: helper error / 进程异常
+    completed --> running: 重新生成
+    error --> running: 重试
+    loadError --> loading: 重试加载
+```
 
-**不包含：** 播放中实时转录、云端转录或翻译、自动搜索字幕网站、字幕编辑器、批量视频队列、多音轨同时输出、helper 单独安装器，以及面向其他设备或 macOS 版本的兼容承诺。
+`running` 的细阶段由 `checkingEnvironment`、`preparingLanguageResources`、`extractingAudio`、`transcribing`、`translating`、`saving` 表示；完成后才进入 `loading`。媒体切换会取消旧任务，并通过 operation token 丢弃迟到事件。
 
-## 原型验证与验收
+## V1 明确不做
 
-以下项目是进入完整实现前的技术验证门槛，不应仅凭 API 文档推断为已通过：
+- 播放期间实时转录、批量任务、多音轨同时处理。
+- 自动识别源语言、自动选择最佳音轨或从字幕网站下载字幕。
+- 云端转录/翻译、字幕编辑器、同步到视频目录。
+- 独立 helper 安装器、Intel/Universal 兼容包。
 
-1. **FFmpeg 音轨映射：** 用 IINA 当前选中的音轨标识，在至少一个多音轨 MKV 和一个 MP4 样本上提取正确轨道；确认语言/标题元数据到 FFmpeg stream index 的映射。验证 `PATH` 查找、手动路径和缺失/不可执行提示。
-2. **Apple 资源准备：** 在目标 Mac 和目标语言组合上验证 macOS 26 的转录、翻译 API 可用性、所需语言资源下载，以及首次准备 UI 能否从 helper 发起并返回任务。确认本机处理边界。
-3. **取消与进度：** 验证 helper 长任务的进度能回到 IINA 侧边栏；取消时能终止 FFmpeg 和当前语言任务、清理临时文件，并且不留下最终 ASS。若 IINA 执行 API 无法支持所需进程控制，先确定兼容的本机进程/状态通信方案再进入完整 UI 实现。
-4. **字幕自动加载：** 从插件生成并加载一份有效 ASS，确认 IINA 显示外挂字幕且时间轴匹配；再单独验证已有字幕自动加载、加载失败时文件保留、可定位并可重试。
-5. **包与权限：** 从一个 `.iinaplugin` 安装并运行包内 helper；验证插件文件系统授权、媒体可读、输出目录可写，以及 helper 缺失/启动失败时的明确报错。
-6. **输出可靠性：** 验证同一视频和语言对只在成功后替换对应 ASS；取消和转录/翻译/写入失败不发布部分文件；成功输出为有效 ASS，源文在前、译文在后，时间戳非空且顺序合理。
+## 验收清单
 
-## 参考依据
+### 已由自动化覆盖
 
-- IINA 插件命令执行 API：<https://docs.iina.io/interfaces/IINA.API.Utils.html>
-- IINA 插件字幕 API：<https://docs.iina.io/interfaces/IINA.API.SubtitleAPI.html>
-- IINA 插件偏好设置 API：<https://docs.iina.io/interfaces/IINA.API.Preferences.html>
-- IINA 插件开发指南与权限：<https://docs.iina.io/pages/dev-guide.html>
-- Khuaplayer 转录实现：<https://github.com/nake13/khuaplayer/blob/main/Modules/Captions/CaptionTranscriber.swift>
-- Khuaplayer 翻译实现：<https://github.com/nake13/khuaplayer/blob/main/Apps/Mac/CaptionsHost/CaptionTranslator.swift>
-- Khuaplayer FFmpeg 音频读取实现：<https://github.com/nake13/khuaplayer/blob/main/Modules/MediaCore/Bridge/SPCaptionAudioReader.mm>
+- JavaScript 状态、协议解析、字幕显示模式、语言记忆和媒体切换。
+- Swift 字幕流水线、取消/超时、FFmpeg 错误、ASS 原子发布和文件命名。
+- 插件包资源白名单、helper 版本、源码/二进制哈希和 arm64 Mach-O。
+- Release tag 版本匹配、归档上传和发布后重新校验。
+
+### 仍需目标 Mac 实机确认
+
+- Apple Speech/Translation 首次资源准备和系统权限提示。
+- 多容器、多音轨下 `ff-index` 与实际音轨对应关系。
+- IINA 加载 ASS 后 `track-list` 的确认时序和超时处理。
+- 深色模式、VoiceOver、窄侧栏和长文件名的最终体验。
+
+## 参考
+
+- [IINA Creating Plugins](https://docs.iina.io/pages/creating-plugins.html)
+- [IINA Developer Guide](https://docs.iina.io/pages/dev-guide.html)
+- [Khuaplayer CaptionTranscriber](https://github.com/nake13/khuaplayer/blob/main/Modules/Captions/CaptionTranscriber.swift)
+- [Khuaplayer CaptionTranslator](https://github.com/nake13/khuaplayer/blob/main/Apps/Mac/CaptionsHost/CaptionTranslator.swift)
+- [Khuaplayer MediaCore audio reader](https://github.com/nake13/khuaplayer/blob/main/Modules/MediaCore/Bridge/SPCaptionAudioReader.mm)
