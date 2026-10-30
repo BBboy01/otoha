@@ -34,10 +34,12 @@ const elements = {
   reveal: document.querySelector("#reveal-button"),
   retry: document.querySelector("#retry-button"),
   sourceLanguage: document.querySelector("#source-language"),
+  sourceLanguageError: document.querySelector("#source-language-error"),
   start: document.querySelector("#start-button"),
   subtitleChoice: document.querySelector("#subtitle-choice"),
   subtitleLoaded: document.querySelector("#subtitle-loaded"),
   targetLanguage: document.querySelector("#target-language"),
+  targetLanguageError: document.querySelector("#target-language-error"),
 };
 
 let state = null;
@@ -50,12 +52,28 @@ let lastPlayerTrackId;
 let lastResolvedLanguages = "";
 let lastResolvedSubtitlePath;
 let lastFeedbackKey = "";
+let languageValidationRequested = false;
 
 function post(name, payload) {
   iina.postMessage(name, payload);
 }
 
-elements.autoLoadHelp.addEventListener("click", () => elements.autoLoadHelp.focus());
+function setHelpExpanded(expanded) {
+  elements.autoLoadHelp.setAttribute("aria-expanded", String(expanded));
+}
+
+setHelpExpanded(false);
+elements.autoLoadHelp.addEventListener("click", () => {
+  const expanded = elements.autoLoadHelp.getAttribute("aria-expanded") === "true";
+  setHelpExpanded(!expanded);
+  elements.autoLoadHelp.focus();
+});
+elements.autoLoadHelp.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  setHelpExpanded(false);
+  elements.autoLoadHelp.focus();
+});
 
 function fillLanguages(select, selected) {
   select.replaceChildren(new Option("选择语言", ""));
@@ -70,6 +88,24 @@ function trackLabel(track) {
   return track.available ? title : `${title}（不可读取）`;
 }
 
+function updateLanguageErrors() {
+  const sameLanguage = selectedSourceLanguage && selectedSourceLanguage === selectedTargetLanguage;
+  const sourceMessage = !selectedSourceLanguage
+    ? "请选择源语言。"
+    : sameLanguage ? "源语言和目标语言不能相同。" : "";
+  const targetMessage = !selectedTargetLanguage
+    ? "请选择目标语言。"
+    : sameLanguage ? "请选择不同的转录语言和翻译语言。" : "";
+  for (const [field, error, message] of [
+    [elements.sourceLanguage, elements.sourceLanguageError, sourceMessage],
+    [elements.targetLanguage, elements.targetLanguageError, targetMessage],
+  ]) {
+    field.setAttribute("aria-invalid", String(languageValidationRequested && Boolean(message)));
+    error.textContent = languageValidationRequested ? message : "";
+    error.hidden = !languageValidationRequested || !message;
+  }
+}
+
 function renderState(nextState) {
   const previousMediaPath = currentMediaPath;
   state = nextState;
@@ -77,6 +113,7 @@ function renderState(nextState) {
   const mediaName = state.media ? (state.title || state.media.name) : (state.title || "未打开视频");
   elements.mediaName.textContent = mediaName;
   elements.mediaName.title = mediaName;
+  elements.mediaName.setAttribute("aria-label", mediaName);
   elements.mediaError.textContent = state.mediaError || (state.title && !state.media ? "仅支持本地文件视频。" : "");
 
   const audioTracks = Array.isArray(state.tracks) ? state.tracks : [];
@@ -92,7 +129,10 @@ function renderState(nextState) {
   }
 
   const mediaChanged = previousMediaPath !== currentMediaPath;
-  if (mediaChanged) selectedSubtitlePath = "";
+  if (mediaChanged) {
+    selectedSubtitlePath = "";
+    languageValidationRequested = false;
+  }
   const selectedTrackChanged = String(lastPlayerTrackId) !== String(state.selectedTrackId);
   if (mediaChanged || selectedTrackChanged || selectedTrackId === null) {
     selectedTrackId = state.selectedTrackId;
@@ -128,7 +168,14 @@ function renderState(nextState) {
   for (const subtitle of subtitles) {
     const path = subtitle.path;
     const name = typeof path === "string" ? path.split("/").pop() : "字幕文件";
-    elements.subtitleChoice.add(new Option(name || "字幕文件", path));
+    const languagePair = subtitle.sourceLanguage && subtitle.targetLanguage
+      ? `（${subtitle.sourceLanguage} → ${subtitle.targetLanguage}）`
+      : "";
+    const option = new Option(`${name || "字幕文件"}${languagePair}`, path);
+    if (typeof option.setAttribute === "function") {
+      option.setAttribute("aria-label", `${name || "字幕文件"}${languagePair}`);
+    }
+    elements.subtitleChoice.add(option);
   }
   if ((mediaChanged || state.selectedSubtitlePath !== lastResolvedSubtitlePath)
     && subtitles.some((subtitle) => subtitle.path === state.selectedSubtitlePath)) {
@@ -140,6 +187,11 @@ function renderState(nextState) {
   }
   elements.subtitleChoice.value = selectedSubtitlePath;
   elements.subtitleChoice.disabled = subtitles.length === 0 || busy;
+  elements.reveal.setAttribute(
+    "aria-label",
+    selectedSubtitlePath ? `在 Finder 中显示 ${selectedSubtitlePath.split("/").pop()}` : "在 Finder 中显示所选字幕",
+  );
+  updateLanguageErrors();
   updateGeneration();
   renderJob(checkingSubtitles && (!state.job || state.job.status === "idle")
     ? { status: "checking", message: "正在检查字幕列表" }
@@ -193,7 +245,18 @@ function renderJob(job) {
   elements.cancel.disabled = current.status === "canceling";
   elements.retry.hidden = current.status !== "load-error";
   elements.progress.hidden = current.phase !== "translating" || !Number.isFinite(current.progress);
-  if (!elements.progress.hidden) elements.progress.value = current.progress;
+  if (!elements.progress.hidden) {
+    const progress = Math.min(Math.max(current.progress, 0), 1);
+    const percentage = Math.round(progress * 100);
+    elements.progress.value = progress;
+    elements.progress.setAttribute("aria-valuenow", String(progress));
+    elements.progress.setAttribute("aria-valuetext", `${percentage}%`);
+  } else {
+    if (typeof elements.progress.removeAttribute === "function") {
+      elements.progress.removeAttribute("aria-valuenow");
+      elements.progress.removeAttribute("aria-valuetext");
+    }
+  }
 }
 
 elements.jobDetailToggle.addEventListener("click", () => {
@@ -208,11 +271,13 @@ elements.audioTrack.addEventListener("change", () => {
 
 elements.sourceLanguage.addEventListener("change", () => {
   selectedSourceLanguage = elements.sourceLanguage.value;
+  updateLanguageErrors();
   updateGeneration();
 });
 
 elements.targetLanguage.addEventListener("change", () => {
   selectedTargetLanguage = elements.targetLanguage.value;
+  updateLanguageErrors();
   updateGeneration();
 });
 
@@ -230,6 +295,8 @@ elements.displayMode.addEventListener("change", () => setDisplayMode(elements.di
 
 elements.jobForm.addEventListener("submit", (event) => {
   event.preventDefault();
+  languageValidationRequested = true;
+  updateLanguageErrors();
   if (!selectedSourceLanguage || !selectedTargetLanguage) {
     renderJob({ status: "validation", message: "请选择转录语言和翻译语言。" });
     return;
