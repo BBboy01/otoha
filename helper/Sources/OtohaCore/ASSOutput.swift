@@ -25,7 +25,7 @@ public enum ASSOutput {
     ) throws -> URL {
         try checkCancellation(isCancelled)
         let content = Data(try ASSWriter.serialize(cues, scale: subtitleScale).utf8)
-        let safeBaseName = sanitizedBaseName(baseName)
+        let safeBaseName = SubtitleFilename.sanitizedBaseName(baseName)
         let temporaryURL = directory.appendingPathComponent(".otoha-\(UUID().uuidString).tmp")
         try writeExclusive(content, to: temporaryURL)
         defer { _ = unlink(temporaryURL.path) }
@@ -59,14 +59,6 @@ public enum ASSOutput {
 
     private static func checkCancellation(_ isCancelled: () -> Bool) throws {
         if isCancelled() { throw ASSOutputError.cancelled }
-    }
-
-    private static func sanitizedBaseName(_ value: String) -> String {
-        let cleaned = value
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: ":", with: "_")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return cleaned.isEmpty || cleaned == "." || cleaned == ".." ? "Subtitle" : cleaned
     }
 
     private static func writeExclusive(_ data: Data, to url: URL) throws {

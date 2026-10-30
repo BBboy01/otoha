@@ -87,13 +87,58 @@ public enum FFprobeReader {
         guard process.terminationStatus == 0 else {
             throw FFprobeError.failed("ffprobe exited with status \(process.terminationStatus).")
         }
-        let result = try JSONDecoder().decode(ProbeResult.self, from: data)
-        guard let stream = result.streams.first(where: { $0.index == configuration.audioStreamIndex && $0.codec_type == "audio" }) else {
-            throw JobConfigurationError.invalidAudioStream
+        return try parseStartTime(data, configuration: configuration)
+    }
+
+    public static func audioStreamStartTime(
+        configuration: JobConfiguration,
+        cancellationFileURL: URL,
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        timeout: Duration = .seconds(30)
+    ) async throws -> Double {
+        guard let ffmpegURL = FFmpegLocator.resolve(configuredPath: configuration.ffmpegPath, environment: environment),
+              let ffprobeURL = FFmpegLocator.resolveProbe(beside: ffmpegURL, environment: environment) else {
+            throw FFprobeError.notFound
         }
-        let streamStart = try parseTime(stream.start_time)
-        let formatStart = try parseTime(result.format?.start_time)
-        return streamStart - formatStart
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = ffprobeURL
+        process.arguments = probeArguments(mediaPath: configuration.mediaURL.path)
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        try Task.checkCancellation()
+        if FileManager.default.fileExists(atPath: cancellationFileURL.path) {
+            throw CancellationError()
+        }
+        do {
+            try process.run()
+        } catch {
+            throw FFprobeError.failed(error.localizedDescription)
+        }
+
+        do {
+            let deadline = ContinuousClock.now.advanced(by: timeout)
+            while process.isRunning {
+                if Task.isCancelled || FileManager.default.fileExists(atPath: cancellationFileURL.path) {
+                    terminate(process)
+                    throw CancellationError()
+                }
+                if ContinuousClock.now >= deadline {
+                    terminate(process)
+                    throw FFprobeError.timedOut
+                }
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else {
+                throw FFprobeError.failed("ffprobe exited with status \(process.terminationStatus).")
+            }
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            return try parseStartTime(data, configuration: configuration)
+        } catch {
+            if process.isRunning { terminate(process) }
+            throw error
+        }
     }
 
     static func probeArguments(mediaPath: String) -> [String] {
@@ -108,18 +153,42 @@ public enum FFprobeReader {
         guard let seconds = Double(value), seconds.isFinite else { throw FFprobeError.invalidStartTime }
         return seconds
     }
+
+    private static func parseStartTime(_ data: Data, configuration: JobConfiguration) throws -> Double {
+        let result = try JSONDecoder().decode(ProbeResult.self, from: data)
+        guard let stream = result.streams.first(where: { $0.index == configuration.audioStreamIndex && $0.codec_type == "audio" }) else {
+            throw JobConfigurationError.invalidAudioStream
+        }
+        let streamStart = try parseTime(stream.start_time)
+        let formatStart = try parseTime(result.format?.start_time)
+        return streamStart - formatStart
+    }
+
+    private static func terminate(_ process: Process) {
+        guard process.isRunning else {
+            process.waitUntilExit()
+            return
+        }
+        process.terminate()
+        let deadline = Date().addingTimeInterval(0.2)
+        while process.isRunning && Date() < deadline { usleep(10_000) }
+        if process.isRunning { kill(process.processIdentifier, SIGKILL) }
+        process.waitUntilExit()
+    }
 }
 
 public enum FFprobeError: Error, Equatable, LocalizedError {
     case notFound
     case failed(String)
     case invalidStartTime
+    case timedOut
 
     public var errorDescription: String? {
         switch self {
         case .notFound: "找不到 FFprobe，请将它放在 FFmpeg 旁边，或检查 FFmpeg 路径。"
         case let .failed(reason): "FFprobe 无法检查所选音轨：\(reason)"
         case .invalidStartTime: "FFprobe 返回了无效的音频流起始时间。"
+        case .timedOut: "FFprobe 检查音轨超时。"
         }
     }
 }
@@ -137,7 +206,10 @@ public enum FFmpegExtractor {
             throw JobConfigurationError.ffmpegNotExecutable
         }
         if FileManager.default.fileExists(atPath: cancellationFileURL.path) { throw FFmpegExtractionError.cancelled }
-        let sourceTimeOffset = try FFprobeReader.audioStreamStartTime(configuration: configuration)
+        let sourceTimeOffset = try await FFprobeReader.audioStreamStartTime(
+            configuration: configuration,
+            cancellationFileURL: cancellationFileURL
+        )
 
         let process = Process()
         process.executableURL = ffmpegURL

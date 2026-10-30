@@ -95,36 +95,6 @@ final class OtohaCoreTests: XCTestCase {
         )
     }
 
-    func testFFprobeUsesSelectedGlobalAudioIndexAndNormalizesStartTime() throws {
-        let fixture = try Fixture()
-        let ffmpeg = fixture.directory.appendingPathComponent("ffmpeg")
-        let ffprobe = fixture.directory.appendingPathComponent("ffprobe")
-        try fixture.writeExecutable("#!/bin/sh\nexit 0\n", to: ffmpeg)
-        try fixture.writeExecutable(
-            "#!/bin/sh\nprintf '%s' '{\"streams\":[{\"index\":0,\"codec_type\":\"video\",\"start_time\":\"0.000000\"},{\"index\":1,\"codec_type\":\"audio\",\"start_time\":\"2.500000\"},{\"index\":2,\"codec_type\":\"audio\",\"start_time\":\"4.000000\"}],\"format\":{\"start_time\":\"0.500000\"}}'\n",
-            to: ffprobe
-        )
-
-        let configuration = fixture.configuration(audioStreamIndex: 2)
-        let startTime = try FFprobeReader.audioStreamStartTime(
-            configuration: JobConfiguration(
-                mediaURL: configuration.mediaURL,
-                ffmpegPath: ffmpeg.path,
-                audioStreamIndex: configuration.audioStreamIndex,
-                sourceLanguage: configuration.sourceLanguage,
-                targetLanguage: configuration.targetLanguage,
-                outputDirectory: configuration.outputDirectory
-            ),
-            environment: ["PATH": fixture.directory.path]
-        )
-
-        XCTAssertEqual(startTime, 3.5, accuracy: 0.000_001)
-        XCTAssertEqual(FFprobeReader.probeArguments(mediaPath: configuration.mediaURL.path), [
-            "-v", "error", "-show_entries", "stream=index,codec_type,start_time:format=start_time", "-of", "json",
-            configuration.mediaURL.path,
-        ])
-    }
-
     func testFFmpegArgumentsMapSelectedGlobalStreamWithoutShellParsing() throws {
         let fixture = try Fixture()
         let config = fixture.configuration(audioStreamIndex: 3)
@@ -477,12 +447,12 @@ final class OtohaCoreTests: XCTestCase {
     }
 }
 
-private enum FixtureError: Error {
+enum FixtureError: Error {
     case translationFailed
     case unexpectedDependencyCall
 }
 
-private struct Fixture {
+struct Fixture {
     let directory: URL
     let mediaURL: URL
     let audioURL: URL
@@ -499,7 +469,8 @@ private struct Fixture {
 
     func configuration(
         audioStreamIndex: Int = 0,
-        sourceLanguage: String = "ja-JP"
+        sourceLanguage: String = "ja-JP",
+        outputDirectory: URL? = nil
     ) -> JobConfiguration {
         JobConfiguration(
             mediaURL: mediaURL,
@@ -507,7 +478,7 @@ private struct Fixture {
             audioStreamIndex: audioStreamIndex,
             sourceLanguage: sourceLanguage,
             targetLanguage: "en-US",
-            outputDirectory: directory
+            outputDirectory: outputDirectory ?? directory
         )
     }
 

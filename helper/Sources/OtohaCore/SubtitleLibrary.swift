@@ -21,9 +21,7 @@ public enum SubtitleLibrary {
     public static func mediaDirectory(for mediaURL: URL, rootDirectory: URL) -> URL {
         let mediaPath = mediaURL.standardizedFileURL.path
         let digest = SHA256.hash(data: Data(mediaPath.utf8)).map { String(format: "%02x", $0) }.joined()
-        let baseName = mediaURL.deletingPathExtension().lastPathComponent
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: ":", with: "_")
+        let baseName = SubtitleFilename.mediaBaseName(for: mediaURL)
         return rootDirectory.appendingPathComponent("\(baseName)-\(digest.prefix(16))", isDirectory: true)
     }
 
@@ -51,19 +49,7 @@ public enum SubtitleLibrary {
     }
 
     private static func isSubtitle(_ url: URL, for mediaURL: URL) -> Bool {
-        guard url.pathExtension.lowercased() == "ass",
-              (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true else { return false }
-        let baseName = mediaURL.deletingPathExtension().lastPathComponent
-        let stem = url.deletingPathExtension().lastPathComponent
-        if stem == baseName || stem == "\(baseName).otoha" { return true }
-        let generatedPrefix = "\(baseName) ["
-        if stem.hasPrefix(generatedPrefix), stem.hasSuffix("]") {
-            let languagePair = stem.dropFirst(generatedPrefix.count).dropLast()
-            if languagePair.contains(" to ") { return true }
-        }
-        let prefixes = ["\(baseName) (", "\(baseName).otoha ("]
-        guard let prefix = prefixes.first(where: { stem.hasPrefix($0) }), stem.hasSuffix(")") else { return false }
-        let number = stem.dropFirst(prefix.count).dropLast()
-        return !number.isEmpty && number.allSatisfy(\.isNumber)
+        SubtitleFilename.isSubtitle(url, for: mediaURL)
+            && (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
     }
 }

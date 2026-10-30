@@ -52,12 +52,26 @@ public struct JobConfiguration: Codable, Sendable {
         guard subtitleScale.isFinite, (0.8...1.4).contains(subtitleScale) else {
             throw JobConfigurationError.invalidSubtitleScale
         }
-        var isDirectory = ObjCBool(false)
         guard outputDirectory.isFileURL,
-              fileManager.fileExists(atPath: outputDirectory.path, isDirectory: &isDirectory),
-              isDirectory.boolValue,
-              fileManager.isWritableFile(atPath: outputDirectory.path) else {
+              !outputDirectory.path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              Self.nearestWritableDirectory(for: outputDirectory, fileManager: fileManager) != nil else {
             throw JobConfigurationError.outputDirectoryNotWritable
+        }
+    }
+
+    private static func nearestWritableDirectory(
+        for outputDirectory: URL,
+        fileManager: FileManager
+    ) -> URL? {
+        var candidate = outputDirectory.standardizedFileURL
+        while true {
+            var isDirectory = ObjCBool(false)
+            if fileManager.fileExists(atPath: candidate.path, isDirectory: &isDirectory) {
+                return isDirectory.boolValue && fileManager.isWritableFile(atPath: candidate.path) ? candidate : nil
+            }
+            let parent = candidate.deletingLastPathComponent()
+            if parent.path == candidate.path { return nil }
+            candidate = parent
         }
     }
 
