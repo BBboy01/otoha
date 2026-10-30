@@ -15,7 +15,7 @@ function createSidebar() {
     "#job-detail-toggle", "#job-detail-message", "#subtitle-loaded", "#media-error",
     "#media-name", "#subtitle-choice", "#translation-progress",
     "#reveal-button", "#retry-button", "#source-language", "#start-button", "#target-language",
-    "#display-mode",
+    "#display-mode", "#source-language-error", "#target-language-error", "#generation-error",
   ];
   const elements = new Map(selectors.map((selector) => [selector, {
     children: [],
@@ -90,6 +90,7 @@ test("sidebar keeps the current video summary on one line and preserves its full
     media: { path: "/Users/test/video.mp4", name: "video.mp4" },
   }));
   assert.equal(sidebar.elements.get("#media-name").title, "A very long video title that should stay available to inspect");
+  assert.equal(sidebar.elements.get("#media-name").getAttribute("aria-label"), "A very long video title that should stay available to inspect");
 });
 
 test("sidebar uses a compact hover and click explanation for automatic loading", () => {
@@ -105,6 +106,38 @@ test("sidebar uses a compact hover and click explanation for automatic loading",
   const help = sidebar.elements.get("#auto-load-help");
   help.listeners.get("click")();
   assert.equal(help.focused, true);
+});
+
+test("sidebar exposes an explicit help state and closes it with Escape", () => {
+  assert.match(sidebarMarkup, /id="auto-load-help"[^>]*aria-expanded="false"/);
+  const sidebar = createSidebar();
+  const help = sidebar.elements.get("#auto-load-help");
+  assert.equal(help.getAttribute("aria-expanded"), "false");
+  help.listeners.get("click")({});
+  assert.equal(help.getAttribute("aria-expanded"), "true");
+  help.listeners.get("keydown")({ key: "Escape", preventDefault() {} });
+  assert.equal(help.getAttribute("aria-expanded"), "false");
+  assert.equal(help.focused, true);
+});
+
+test("sidebar exposes progress text and field-level language errors", () => {
+  assert.match(sidebarMarkup, /<progress id="translation-progress"[^>]*aria-label="翻译进度"/);
+  assert.match(sidebarMarkup, /id="source-language-error"[^>]*role="alert"/);
+  assert.match(sidebarMarkup, /id="target-language-error"[^>]*role="alert"/);
+  const sidebar = createSidebar();
+  sidebar.handlers.get("state")(videoState({
+    sourceLanguage: "en",
+    targetLanguage: "zh-Hans",
+    job: { status: "running", phase: "translating", message: "正在翻译", progress: 0.42 },
+  }));
+  assert.equal(sidebar.elements.get("#translation-progress").getAttribute("aria-valuenow"), "0.42");
+  assert.equal(sidebar.elements.get("#translation-progress").getAttribute("aria-valuetext"), "42%");
+  assert.equal(sidebar.elements.get("#source-language").getAttribute("aria-invalid"), "false");
+  sidebar.handlers.get("state")(videoState({ sourceLanguage: "", targetLanguage: "en" }));
+  sidebar.elements.get("#job-form").listeners.get("submit")({ preventDefault() {} });
+  assert.equal(sidebar.elements.get("#source-language").getAttribute("aria-invalid"), "true");
+  assert.equal(sidebar.elements.get("#source-language-error").hidden, false);
+  assert.equal(sidebar.elements.get("#source-language-error").textContent, "请选择源语言。");
 });
 
 test("sidebar leaves global path settings to plugin preferences", () => {
@@ -124,6 +157,7 @@ test("sidebar gives generation a clear primary hierarchy", () => {
   assert.match(sidebarStyles, /form \{[\s\S]*padding-top: 11px;[\s\S]*border-top: 1px solid var\(--quiet-border\);/);
   assert.match(sidebarStyles, /\.track-row \{[\s\S]*grid-template-columns: auto minmax\(0, 1fr\);/);
   assert.match(sidebarStyles, /button\.primary \{[\s\S]*min-height: 34px;/);
+  assert.match(sidebarStyles, /@media \(max-width: 280px\)[\s\S]*\.language-grid,[\s\S]*\.subtitle-row/);
 });
 
 test("sidebar places the Finder action beside the selected subtitle", () => {
@@ -184,7 +218,7 @@ test("sidebar shows multiple saved versions to load and keeps regeneration avail
   });
 
   assert.equal(sidebar.elements.get("#existing-subtitles").hidden, false);
-  assert.deepEqual(sidebar.elements.get("#subtitle-choice").children.map((option) => option.text), ["video.ass", "video (2).ass"]);
+  assert.deepEqual(sidebar.elements.get("#subtitle-choice").children.map((option) => option.text), ["video.ass（ja → zh-Hans）", "video (2).ass"]);
   assert.equal(sidebar.elements.get("#start-button").textContent, "重新生成");
 
   const subtitleChoice = sidebar.elements.get("#subtitle-choice");
