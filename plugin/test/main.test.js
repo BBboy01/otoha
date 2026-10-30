@@ -353,6 +353,42 @@ test("main preserves an ASS and exposes retry state when IINA cannot load it", a
   assert.equal(plugin.messages.findLast((message) => message.name === "job").payload.status, "load-error");
 });
 
+test("main ignores duplicate helper terminal events after completion", async () => {
+  const plugin = createPlugin({ duplicateTerminal: "error" });
+  plugin.eventHandlers.get("iina.window-loaded")();
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await plugin.sidebarHandlers.get("start")({
+    trackId: 7,
+    sourceLanguage: "ja",
+    targetLanguage: "zh-Hans",
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const jobMessages = plugin.messages.filter((message) => message.name === "job").map((message) => message.payload);
+  assert.equal(jobMessages.some((payload) => payload.status === "error"), false);
+  assert.equal(jobMessages.at(-1).status, "completed");
+});
+
+test("main sends cancellation to a waiting fake helper and keeps its terminal state", async () => {
+  const plugin = createPlugin({ waitForCancel: true, helperTerminal: "cancelled" });
+  plugin.eventHandlers.get("iina.window-loaded")();
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  const start = plugin.sidebarHandlers.get("start")({
+    trackId: 7,
+    sourceLanguage: "ja",
+    targetLanguage: "zh-Hans",
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  await plugin.sidebarHandlers.get("cancel")();
+  await start;
+
+  assert.equal(plugin.messages.some((message) => message.name === "job" && message.payload.phase === "transcribing"), true);
+  assert.equal(plugin.execCalls.some((call) => call.file === "/usr/bin/touch"), true);
+  assert.equal(plugin.messages.findLast((message) => message.name === "job").payload.status, "cancelled");
+});
+
 test("main reports subtitle loading only after mpv exposes the external track", async () => {
   const plugin = createPlugin({ subtitleTrackVisible: false });
   plugin.eventHandlers.get("iina.window-loaded")();

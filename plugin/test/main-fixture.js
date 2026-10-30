@@ -26,6 +26,8 @@ function createPlugin({
   defaultTargetLanguage = "",
   savedPreferences = {},
   helperTerminal = "completed",
+  duplicateTerminal = "",
+  waitForCancel = false,
   fileLoadedBeforeCompletion = "",
   subtitleScale = 100,
   existingSubtitles = [],
@@ -48,6 +50,7 @@ function createPlugin({
   let clock = 1000;
   let windowReady = windowReadyAtStart;
   let remainingLoadFileFailures = loadFileFailures;
+  let resumeHelper;
   const preferenceValues = {
     ffmpeg_path: ffmpegPath, output_directory: outputDirectory, auto_load: autoLoad,
     default_source_language: defaultSourceLanguage, default_target_language: defaultTargetLanguage,
@@ -183,21 +186,31 @@ function createPlugin({
             phase: "transcribing",
             message: "正在转录",
           }) + "\n");
+          if (waitForCancel) await new Promise((resolve) => { resumeHelper = resolve; });
           if (changeMediaBeforeCompletion) {
             iina.core.status.url = "file:///Users/test/Another%20video.mkv";
           }
           if (fileLoadedBeforeCompletion) eventHandlers.get("iina.file-loaded")(fileLoadedBeforeCompletion);
           if (helperTerminal === "completed" && !existingSubtitles.includes(outputPath)) existingSubtitles.push(outputPath);
-          stdoutHook(`${JSON.stringify({
+          const terminalEvent = {
             protocolVersion: 1,
             type: helperTerminal,
             jobId: request.jobId,
             path: outputPath,
             ...(helperTerminal === "error" ? { code: "helper.unknown" } : {}),
             message: "fixture generation failure",
-          })}\n`);
+          };
+          stdoutHook(`${JSON.stringify(terminalEvent)}\n`);
+          if (duplicateTerminal) {
+            stdoutHook(`${JSON.stringify({
+              ...terminalEvent,
+              type: duplicateTerminal,
+              ...(duplicateTerminal === "error" ? { code: "helper.unknown" } : {}),
+            })}\n`);
+          }
           return { status: 0, stdout: "", stderr: "" };
         }
+        if (file === "/usr/bin/touch" && waitForCancel) resumeHelper?.();
         return { status: 0, stdout: "", stderr: "" };
       },
       async chooseFile() { return null; },
@@ -267,6 +280,7 @@ function createPlugin({
       }
       assert.ok(runs < 100, "timer queue should settle");
     },
+    finishHelper() { resumeHelper?.(); },
   };
 }
 

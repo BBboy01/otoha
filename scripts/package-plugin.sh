@@ -6,6 +6,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PLUGIN_DIR="$ROOT_DIR/plugin"
 HELPER_DIR="$ROOT_DIR/helper"
 HELPER_INFO_PLIST="$HELPER_DIR/Resources/Info.plist"
+PLUGIN_FILES_MANIFEST="$SCRIPT_DIR/plugin-files.txt"
 PACKAGE_DIR="${1:-$ROOT_DIR/dist/Otoha.iinaplugin}"
 
 if [[ -e "$PACKAGE_DIR" ]]; then
@@ -24,14 +25,21 @@ if [[ ! -f "$HELPER_INFO_PLIST" ]]; then
   printf 'Helper bundle metadata is missing: %s\n' "$HELPER_INFO_PLIST" >&2
   exit 1
 fi
+if [[ ! -f "$PLUGIN_FILES_MANIFEST" ]]; then
+  printf 'Plugin resource manifest is missing: %s\n' "$PLUGIN_FILES_MANIFEST" >&2
+  exit 1
+fi
 
 HELPER_APP_DIR="$PACKAGE_DIR/bin/OtohaHelper.app"
 mkdir -p "$HELPER_APP_DIR/Contents/MacOS" "$HELPER_APP_DIR/Contents/Resources"
-cp "$PLUGIN_DIR/Info.json" "$PLUGIN_DIR/main.js" "$PLUGIN_DIR/controller.js" "$PLUGIN_DIR/protocol.js" "$PLUGIN_DIR/subtitle-settings.js" "$PLUGIN_DIR/subtitle-display.js" \
-  "$PLUGIN_DIR/iina-adapter.js" "$PLUGIN_DIR/job-controller.js" "$PLUGIN_DIR/runtime-store.js" "$PLUGIN_DIR/settings-controller.js" \
-  "$PLUGIN_DIR/sidebar-lifecycle.js" "$PLUGIN_DIR/settings-schema.js" "$PLUGIN_DIR/subtitle-library-client.js" "$PLUGIN_DIR/subtitle-track-manager.js" \
-  "$PLUGIN_DIR/sidebar.html" "$PLUGIN_DIR/sidebar.css" "$PLUGIN_DIR/sidebar.js" \
-  "$PLUGIN_DIR/preferences.html" "$PACKAGE_DIR/"
+while IFS= read -r relative_path || [[ -n "$relative_path" ]]; do
+  [[ -z "$relative_path" || "$relative_path" == \#* ]] && continue
+  if [[ "$relative_path" == /* || "$relative_path" == *..* || ! -f "$PLUGIN_DIR/$relative_path" ]]; then
+    printf 'Invalid or missing plugin resource: %s\n' "$relative_path" >&2
+    exit 1
+  fi
+  cp "$PLUGIN_DIR/$relative_path" "$PACKAGE_DIR/$relative_path"
+done < "$PLUGIN_FILES_MANIFEST"
 cp "$HELPER_BIN" "$HELPER_APP_DIR/Contents/MacOS/otoha-helper"
 cp "$HELPER_INFO_PLIST" "$HELPER_APP_DIR/Contents/Info.plist"
 chmod u+x "$HELPER_APP_DIR/Contents/MacOS/otoha-helper"
