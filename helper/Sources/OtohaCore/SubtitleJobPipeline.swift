@@ -31,43 +31,16 @@ public enum SubtitleJobPipeline {
         translate: @escaping @Sendable ([TranscribedCue]) async throws -> [String],
         emit: @escaping @Sendable (HelperEvent) -> Void = { _ in }
     ) async throws -> URL {
-        emit(.phase(.checkingEnvironment, message: "正在检查环境"))
-        try FileManager.default.createDirectory(at: configuration.outputDirectory, withIntermediateDirectories: true)
-        try configuration.validate()
-        try checkCancellation(cancellationFileURL)
-
-        emit(.phase(.preparingLanguageResources, message: "正在准备翻译语言资源"))
-        try await prepareTranslation()
-        try checkCancellation(cancellationFileURL)
-
-        let transcription = try await transcribe()
-        try checkCancellation(cancellationFileURL)
-
-        let translations = try await translate(transcription.cues)
-        try checkCancellation(cancellationFileURL)
-        guard translations.count == transcription.cues.count else {
-            throw SubtitleJobPipelineError.incompleteTranslation
-        }
-
-        let cues = transcription.cues.enumerated().map { index, cue in
-            let start = max(0, cue.start + transcription.sourceTimeOffset)
-            let end = max(start + 0.05, cue.end + transcription.sourceTimeOffset)
-            return SubtitleCue(start: start, end: end, source: cue.source, translation: translations[index])
-        }
-        emit(.phase(.saving, message: "正在保存双语 ASS 字幕"))
-        let baseName = configuration.mediaURL.deletingPathExtension().lastPathComponent
-        return try ASSOutput.publish(
-            cues,
-            baseName: "\(baseName) [\(configuration.sourceLanguage) to \(configuration.targetLanguage)]",
-            directory: configuration.outputDirectory,
-            overwriteExisting: true,
-            subtitleScale: configuration.subtitleScale,
-            cancellationFileURL: cancellationFileURL
+        let runner = SubtitleJobRunner(dependencies: .init(
+            prepareTranslation: prepareTranslation,
+            transcribe: transcribe,
+            translate: translate
+        ))
+        return try await runner.run(
+            configuration: configuration,
+            cancellation: JobCancellationToken(cancellationFileURL: cancellationFileURL),
+            emit: emit
         )
-    }
-
-    private static func checkCancellation(_ url: URL) throws {
-        if FileManager.default.fileExists(atPath: url.path) { throw CancellationError() }
     }
 }
 
