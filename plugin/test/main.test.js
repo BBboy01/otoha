@@ -42,6 +42,8 @@ test("main maps the chosen IINA track to ff-index and loads completed subtitles"
   assert.equal(helperCall.file, helperPath);
   const request = JSON.parse(helperCall.args[1]);
   assert.equal(helperCall.args[0], "--request-json");
+  assert.equal(request.protocolVersion, 1);
+  assert.match(request.jobId, /^\d+-[a-z0-9]+$/);
   assert.equal(request.audioStreamIndex, 4);
   assert.equal(request.mediaPath, "/Users/test/Anime episode.mkv");
   assert.equal(request.ffmpegPath, "/opt/homebrew/bin/ffmpeg");

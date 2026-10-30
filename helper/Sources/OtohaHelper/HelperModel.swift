@@ -36,7 +36,7 @@ final class HelperModel: ObservableObject {
         guard let startupError, !startupErrorReported else { return }
         startupErrorReported = true
         message = startupError
-        emit(.failure(message: startupError))
+        emit(.failure(code: .invalidRequest, message: startupError))
         terminateAfterShowingResult()
     }
 
@@ -44,7 +44,7 @@ final class HelperModel: ObservableObject {
         guard !startupErrorReported else { return }
         startupErrorReported = true
         message = "Apple 翻译需要 macOS 26.4 或更新版本。"
-        emit(.failure(message: message))
+        emit(.failure(code: .unsupportedSystem, message: message))
         terminateAfterShowingResult()
     }
 
@@ -125,7 +125,7 @@ final class HelperModel: ObservableObject {
                 emit(.cancelled())
             } else {
                 message = Self.describe(error)
-                emit(.failure(message: message))
+                emit(.failure(code: Self.errorCode(for: error), message: message))
             }
         }
         terminateAfterShowingResult()
@@ -201,7 +201,7 @@ final class HelperModel: ObservableObject {
 
     private func emit(_ event: HelperEvent) {
         do {
-            let line = try event.jsonLine() + "\n"
+            let line = try event.with(jobId: request?.jobId ?? "unknown").jsonLine() + "\n"
             FileHandle.standardOutput.write(Data(line.utf8))
         } catch {
             FileHandle.standardError.write(Data("Otoha event encoding failed: \(error)\n".utf8))
@@ -213,6 +213,31 @@ final class HelperModel: ObservableObject {
         guard ProcessInfo.processInfo.environment["OTOHA_DEBUG_ERRORS"] == "1" else { return message }
         let nsError = error as NSError
         return "\(message) [domain=\(nsError.domain), code=\(nsError.code), userInfo=\(nsError.userInfo)]"
+    }
+
+    private static func errorCode(for error: Error) -> HelperErrorCode {
+        switch error {
+        case JobConfigurationError.ffmpegNotExecutable, FFprobeError.notFound:
+            .ffmpegNotFound
+        case JobConfigurationError.invalidAudioStream:
+            .ffmpegInvalidAudioStream
+        case is FFmpegExtractionError:
+            .ffmpegExtractionFailed
+        case SpeechTranscriptionError.unsupportedLanguage:
+            .speechUnsupportedLanguage
+        case SpeechTranscriptionError.noAudio:
+            .speechNoAudio
+        case SpeechTranscriptionError.noSpeech:
+            .speechNoSpeech
+        case SpeechTranscriptionError.missingAudioFormat:
+            .speechMissingFormat
+        case SubtitleJobPipelineError.incompleteTranslation:
+            .subtitleIncompleteTranslation
+        case is ASSOutputError:
+            .subtitlePublishFailed
+        default:
+            .helperUnknown
+        }
     }
 
     private func terminateAfterShowingResult() {

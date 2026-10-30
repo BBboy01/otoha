@@ -1,3 +1,5 @@
+const { parseHelperEvent } = require("./protocol.js");
+
 const LANGUAGES = [
   ["en", "English"],
   ["zh-Hans", "简体中文"],
@@ -135,11 +137,7 @@ function createJsonLineParser(onEvent, onError = () => {}) {
     const trimmed = line.trim();
     if (!trimmed) return;
     try {
-      const event = JSON.parse(trimmed);
-      if (!event || typeof event !== "object" || typeof event.type !== "string") {
-        throw new Error("事件缺少 type 字段");
-      }
-      onEvent(event);
+      onEvent(parseHelperEvent(JSON.parse(trimmed)));
     } catch (error) {
       onError(error);
     }
