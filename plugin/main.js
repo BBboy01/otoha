@@ -370,6 +370,7 @@ async function startJob(payload = {}, mediaOverride = null) {
 function handleHelperEvent(helperEvent) {
   const runningJob = currentJob();
   if (!runningJob || (helperEvent.jobId !== runningJob.id && !(helperEvent.type === "error" && helperEvent.jobId === "unknown"))) return;
+  if (runningJob.terminal) return;
   const currentMediaPath = mediaPathForURL(latestFileLoadedURL || core.status.url);
   const staleForPlayback = !runtimeStore.isCurrent(runningJob.mediaOperation)
     || runningJob.fileLoadedSequence !== fileLoadedSequence

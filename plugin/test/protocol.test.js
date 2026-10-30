@@ -39,6 +39,32 @@ test("helper protocol v1 rejects unsupported versions and unstable errors", () =
   );
 });
 
+test("helper protocol v1 rejects malformed event payloads", () => {
+  for (const value of [null, [], "event", 42]) {
+    assert.throws(() => parseHelperEvent(value), /event must be an object/);
+  }
+  assert.throws(
+    () => parseHelperEvent({ protocolVersion: 1, type: "unknown", jobId: "job-123" }),
+    /event type/
+  );
+  assert.throws(
+    () => parseHelperEvent({ protocolVersion: 1, type: "phase", jobId: "job-123", phase: "finished" }),
+    /phase/
+  );
+  assert.throws(
+    () => parseHelperEvent({ protocolVersion: 1, type: "phase", jobId: "job-123", phase: "transcribing", progress: 2 }),
+    /progress/
+  );
+  assert.throws(
+    () => parseHelperEvent({ protocolVersion: 1, type: "completed", jobId: "job-123", path: "relative.ass" }),
+    /absolute path/
+  );
+  assert.throws(
+    () => parseHelperEvent({ protocolVersion: 1, type: "error", jobId: "job-123", code: "helper.unknown", message: " " }),
+    /message/
+  );
+});
+
 test("helper protocol exports the state machine vocabulary", () => {
   assert.deepEqual(EVENT_TYPES, ["phase", "completed", "cancelled", "error"]);
   assert.ok(JOB_PHASES.includes("saving"));

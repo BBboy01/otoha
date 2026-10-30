@@ -18,32 +18,42 @@ const packagePath = path.resolve(process.argv[2]);
 const sourcePath = path.resolve(process.argv[3]);
 const manifestPath = path.join(packagePath, "Info.json");
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-const sourceFiles = [
-  "Info.json",
-  manifest.entry,
-  manifest.preferencesPage,
-  "controller.js",
-  "protocol.js",
-  "subtitle-settings.js",
-  "subtitle-display.js",
-  "iina-adapter.js",
-  "job-controller.js",
-  "runtime-store.js",
-  "settings-controller.js",
-  "sidebar-lifecycle.js",
-  "settings-schema.js",
-  "subtitle-library-client.js",
-  "subtitle-track-manager.js",
-  "sidebar.html",
-  "sidebar.css",
-  "sidebar.js",
-];
+const sourceFiles = fs.readFileSync(
+  path.join(sourcePath, "..", "scripts/plugin-files.txt"),
+  "utf8",
+).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+if (new Set(sourceFiles).size !== sourceFiles.length || sourceFiles.some((filePath) => filePath.startsWith("/") || filePath.includes(".."))) {
+  throw new Error("Plugin resource allowlist contains duplicate or unsafe paths.");
+}
+if (!sourceFiles.includes(manifest.entry) || !sourceFiles.includes(manifest.preferencesPage)) {
+  throw new Error("Plugin manifest entry points are missing from the resource allowlist.");
+}
+const pluginRootFiles = walk(sourcePath)
+  .filter((filePath) => path.dirname(filePath) === sourcePath)
+  .map((filePath) => path.basename(filePath));
+const unlistedPluginFiles = pluginRootFiles.filter((filePath) => filePath !== "package.json" && !sourceFiles.includes(filePath));
+if (unlistedPluginFiles.length) {
+  throw new Error(`Plugin resources are not in the allowlist: ${unlistedPluginFiles.join(", ")}`);
+}
 const requiredFiles = [
   ...sourceFiles,
   "bin/OtohaHelper.app/Contents/Info.plist",
   "bin/OtohaHelper.app/Contents/MacOS/otoha-helper",
   "bin/OtohaHelper.app/Contents/Resources/helper-source.sha256",
 ];
+
+const allowedPackageFiles = new Set([
+  ...sourceFiles,
+  "bin/OtohaHelper.app/Contents/Info.plist",
+  "bin/OtohaHelper.app/Contents/MacOS/otoha-helper",
+  "bin/OtohaHelper.app/Contents/Resources/helper-source.sha256",
+]);
+const packageFiles = walk(packagePath)
+  .map((filePath) => path.relative(packagePath, filePath));
+const unlistedPackageFiles = packageFiles.filter((relativePath) => !allowedPackageFiles.has(relativePath));
+if (unlistedPackageFiles.length) {
+  throw new Error(`Package contains unlisted plugin resources: ${unlistedPackageFiles.join(", ")}`);
+}
 
 for (const relativePath of requiredFiles) {
   const absolutePath = path.join(packagePath, relativePath);

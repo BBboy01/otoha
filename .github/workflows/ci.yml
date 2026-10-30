@@ -36,6 +36,22 @@ jobs:
           bash scripts/package-plugin.sh "$package_path"
           bash scripts/verify-plugin-package.sh "$package_path"
 
+      - name: Smoke test helper background CLI
+        run: |
+          helper_bin="$(swift build -c release --package-path helper --show-bin-path)/otoha-helper"
+          invalid_output="$("$helper_bin" --request-json '{}')"
+          printf '%s\n' "$invalid_output" | node -e '
+            const fs = require("node:fs");
+            const event = JSON.parse(fs.readFileSync(0, "utf8"));
+            if (event.type !== "error" || event.code !== "helper.invalidRequest" || event.jobId !== "unknown") process.exit(1);
+          '
+          list_output="$("$helper_bin" --list-subtitles-json '{"mediaPath":"/tmp/otoha-sample.mkv","outputDirectoryPath":"/tmp/otoha-subtitles"}')"
+          printf '%s\n' "$list_output" | node -e '
+            const fs = require("node:fs");
+            const response = JSON.parse(fs.readFileSync(0, "utf8"));
+            if (response.rootDirectoryPath !== "/tmp/otoha-subtitles" || !Array.isArray(response.files)) process.exit(1);
+          '
+
       - name: Archive release plugin
         if: startsWith(github.ref, 'refs/tags/v')
         env:
@@ -95,6 +111,16 @@ jobs:
           name: otoha-plugin-${{ github.ref_name }}
           path: ${{ runner.temp }}/release-assets
 
+      - name: Verify downloaded release plugin
+        run: |
+          archive_path="$(find "$RUNNER_TEMP/release-assets" -type f -name '*.iinaplgz' -print -quit)"
+          test -n "$archive_path"
+          unzip -t "$archive_path"
+          package_path="$RUNNER_TEMP/release-package"
+          mkdir -p "$package_path"
+          unzip -q "$archive_path" -d "$package_path"
+          bash scripts/verify-plugin-package.sh "$package_path"
+
       - name: Check tag version
         env:
           RELEASE_TAG: ${{ github.ref_name }}
@@ -124,3 +150,28 @@ jobs:
           body_path: ${{ steps.git-cliff.outputs.changelog }}
           files: ${{ runner.temp }}/release-assets/*.iinaplgz
           fail_on_unmatched_files: true
+
+      - name: Re-download and verify published release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          published_dir="$RUNNER_TEMP/published-release"
+          mkdir -p "$published_dir"
+          for attempt in {1..10}; do
+            gh release download "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --pattern '*.iinaplgz' \
+              --dir "$published_dir" \
+              --clobber || true
+            if find "$published_dir" -type f -name '*.iinaplgz' -print -quit | grep -q .; then
+              break
+            fi
+            sleep 3
+          done
+          archive_path="$(find "$published_dir" -type f -name '*.iinaplgz' -print -quit)"
+          test -n "$archive_path"
+          unzip -t "$archive_path"
+          package_path="$RUNNER_TEMP/published-package"
+          mkdir -p "$package_path"
+          unzip -q "$archive_path" -d "$package_path"
+          bash scripts/verify-plugin-package.sh "$package_path"
