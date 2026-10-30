@@ -162,11 +162,10 @@ function renderJob(job) {
   const current = job || { status: "idle", message: "" };
   const message = current.message || "";
   const failed = ["error", "load-error"].includes(current.status);
-  const noSpeech = failed && message.includes("没有识别到语音");
-  const libraryWarning = (current.status === "available" && message.includes("失败"))
-    || (current.status === "error" && message.startsWith("无法读取字幕列表："));
+  const noSpeech = current.errorCode === "speech.noSpeech";
+  const libraryWarning = current.errorCode === "subtitle.libraryFailed";
   const hasDetails = (failed || libraryWarning) && Boolean(message);
-  const feedbackKey = JSON.stringify([currentMediaPath, current.status, message]);
+  const feedbackKey = JSON.stringify([currentMediaPath, current.status, current.errorCode, message]);
   if (feedbackKey !== lastFeedbackKey) {
     elements.jobDetailMessage.hidden = true;
     elements.jobDetailToggle.setAttribute("aria-expanded", "false");

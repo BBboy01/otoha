@@ -27,7 +27,7 @@ fi
 
 HELPER_APP_DIR="$PACKAGE_DIR/bin/OtohaHelper.app"
 mkdir -p "$HELPER_APP_DIR/Contents/MacOS" "$HELPER_APP_DIR/Contents/Resources"
-cp "$PLUGIN_DIR/Info.json" "$PLUGIN_DIR/main.js" "$PLUGIN_DIR/controller.js" "$PLUGIN_DIR/subtitle-settings.js" "$PLUGIN_DIR/subtitle-display.js" \
+cp "$PLUGIN_DIR/Info.json" "$PLUGIN_DIR/main.js" "$PLUGIN_DIR/controller.js" "$PLUGIN_DIR/protocol.js" "$PLUGIN_DIR/subtitle-settings.js" "$PLUGIN_DIR/subtitle-display.js" \
   "$PLUGIN_DIR/sidebar.html" "$PLUGIN_DIR/sidebar.css" "$PLUGIN_DIR/sidebar.js" \
   "$PLUGIN_DIR/preferences.html" "$PACKAGE_DIR/"
 cp "$HELPER_BIN" "$HELPER_APP_DIR/Contents/MacOS/otoha-helper"

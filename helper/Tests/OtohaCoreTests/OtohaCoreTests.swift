@@ -137,14 +137,25 @@ final class OtohaCoreTests: XCTestCase {
     }
 
     func testHelperEventEncodesAsSingleJSONLine() throws {
-        let event = HelperEvent.phase(.transcribing, message: "Listening")
+        let event = HelperEvent.phase(.transcribing, jobId: "job-123", message: "Listening")
         let line = try event.jsonLine()
         let decoded = try JSONDecoder().decode(HelperEventPayload.self, from: Data(line.utf8))
 
+        XCTAssertEqual(decoded.protocolVersion, 1)
         XCTAssertEqual(decoded.type, "phase")
+        XCTAssertEqual(decoded.jobId, "job-123")
         XCTAssertEqual(decoded.phase, "transcribing")
         XCTAssertEqual(decoded.message, "Listening")
         XCTAssertFalse(line.contains("\n"))
+    }
+
+    func testHelperFailureCarriesStableErrorCode() throws {
+        let event = HelperEvent.failure(code: .speechNoSpeech, jobId: "job-123", message: "没有识别到语音")
+        let decoded = try JSONDecoder().decode(HelperEventPayload.self, from: Data(try event.jsonLine().utf8))
+
+        XCTAssertEqual(decoded.type, "error")
+        XCTAssertEqual(decoded.code?.rawValue, HelperErrorCode.speechNoSpeech.rawValue)
+        XCTAssertEqual(decoded.jobId, "job-123")
     }
 
     func testASSWriterSortsCuesAndFormatsBilingualTextWithStyles() throws {

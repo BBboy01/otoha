@@ -4,6 +4,7 @@ const {
   createJsonLineParser,
   localMedia,
   phaseLabel,
+  PROTOCOL_VERSION,
   resolveFFmpegPath,
   resolveAudioStreamIndex,
   waitForSubtitleTrack,
@@ -28,7 +29,7 @@ let subtitleLibrary = { mediaPath: null, outputDirectoryPath: null, rootDirector
 let subtitleLookupId = 0;
 let displayLoadSequence = 0;
 let activeDisplayTrackPath = null;
-let job = { status: "idle", phase: "", message: "", progress: null, path: null, loaded: false };
+let job = { jobId: null, status: "idle", phase: "", message: "", progress: null, path: null, loaded: false, errorCode: null };
 const sidebarRetryDelays = [0, 100, 250, 500, 1000, 2000, 4000, 8000];
 const sidebarReadyTimeout = 2000;
 const sidebarPageLoadDelay = 500;
@@ -217,7 +218,7 @@ function updateSubtitleLibrary(media, mediaURLOverride = null, forceLibraryRefre
     }
     if (!activeJob.id) {
       lastOutputPath = null;
-      job = { status: "idle", phase: "", message: "", progress: null, path: null, loaded: false };
+      job = { jobId: null, status: "idle", phase: "", message: "", progress: null, path: null, loaded: false, errorCode: null };
     }
     return;
   }
@@ -229,7 +230,7 @@ function updateSubtitleLibrary(media, mediaURLOverride = null, forceLibraryRefre
   const mediaChanged = subtitleLibrary.mediaPath !== null && subtitleLibrary.mediaPath !== media.path;
   if (mediaChanged && !activeJob.id) {
     lastOutputPath = null;
-    job = { status: "idle", phase: "", message: "", progress: null, path: null, loaded: false };
+    job = { jobId: null, status: "idle", phase: "", message: "", progress: null, path: null, loaded: false, errorCode: null };
   }
   const previousFiles = subtitleLibrary.mediaPath === media.path ? subtitleLibrary.files : [];
   const previousRootDirectoryPath = subtitleLibrary.mediaPath === media.path ? subtitleLibrary.rootDirectoryPath : "";
@@ -287,6 +288,7 @@ function updateSubtitleLibrary(media, mediaURLOverride = null, forceLibraryRefre
         progress: null,
         path: lastOutputPath,
         loaded: false,
+        errorCode: "subtitle.libraryFailed",
       };
       sendState(mediaURLOverride);
     });
@@ -312,6 +314,8 @@ async function startJob(payload = {}, mediaOverride = null) {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const cancelPath = utils.resolvePath(`@tmp/otoha-${id}.cancel`);
     const request = {
+      protocolVersion: PROTOCOL_VERSION,
+      jobId: id,
       backend: "apple",
       mediaPath: media.path,
       ffmpegPath,
@@ -329,7 +333,7 @@ async function startJob(payload = {}, mediaOverride = null) {
     activeJob.languages = { sourceLanguage, targetLanguage };
     activeJob.terminal = false;
     activeJob.fileLoadedSequence = jobFileLoadedSequence;
-    job = { status: "running", phase: "checkingEnvironment", message: "正在启动", progress: null, path: null, loaded: false };
+    job = { jobId: id, status: "running", phase: "checkingEnvironment", message: "正在启动", progress: null, path: null, loaded: false, errorCode: null };
     sendState(mediaOverride ? media.path : undefined);
 
     const parser = createJsonLineParser(handleHelperEvent, (error) => {
@@ -372,6 +376,15 @@ async function startJob(payload = {}, mediaOverride = null) {
 }
 
 function handleHelperEvent(helperEvent) {
+  if (!activeJob.id || (helperEvent.jobId !== activeJob.id && !(helperEvent.type === "error" && helperEvent.jobId === "unknown"))) return;
+  const currentMediaPath = mediaPathForURL(latestFileLoadedURL || core.status.url);
+  const staleForPlayback = activeJob.fileLoadedSequence !== fileLoadedSequence
+    || (currentMediaPath && currentMediaPath !== activeJob.mediaPath);
+  if (staleForPlayback && helperEvent.type !== "completed") {
+    if (["error", "cancelled"].includes(helperEvent.type)) activeJob.terminal = true;
+    return;
+  }
+
   if (helperEvent.type === "phase") {
     job = {
       ...job,
@@ -397,18 +410,20 @@ function handleHelperEvent(helperEvent) {
     const statusMediaIsCurrent = !currentStatusMediaPath || currentStatusMediaPath === activeJob.mediaPath;
     if (!fileLoadedMediaIsCurrent || !statusMediaIsCurrent) {
       job = {
+        jobId: activeJob.id,
         status: "completed",
         phase: "",
         message: "字幕已保存；当前视频已更换，因此未自动加载。",
         progress: null,
         path: helperEvent.path,
         loaded: false,
+        errorCode: null,
       };
       send("job", job);
       return;
     }
     lastOutputPath = helperEvent.path;
-    job = { status: "loading", phase: "loading", message: "字幕已生成，正在加载", progress: null, path: helperEvent.path, loaded: false };
+    job = { jobId: activeJob.id, status: "loading", phase: "loading", message: "字幕已生成，正在加载", progress: null, path: helperEvent.path, loaded: false, errorCode: null };
     send("job", job);
     loadSubtitle(helperEvent.path, activeJob.mediaPath);
     return;
@@ -416,20 +431,20 @@ function handleHelperEvent(helperEvent) {
 
   if (helperEvent.type === "cancelled") {
     activeJob.terminal = true;
-    job = { status: "cancelled", phase: "", message: "已取消", progress: null, path: null, loaded: false };
+    job = { jobId: activeJob.id, status: "cancelled", phase: "", message: "已取消", progress: null, path: null, loaded: false, errorCode: "job.cancelled" };
     send("job", job);
     return;
   }
 
   if (helperEvent.type === "error") {
     activeJob.terminal = true;
-    setJobError(helperEvent.message || "字幕生成失败。");
+    setJobError(helperEvent.message || "字幕生成失败。", helperEvent.code || "helper.unknown");
   }
 }
 
-function setJobError(message) {
+function setJobError(message, errorCode = "helper.unknown") {
   activeJob.terminal = true;
-  job = { status: "error", phase: "", message, progress: null, path: lastOutputPath, loaded: false };
+  job = { jobId: activeJob.id, status: "error", phase: "", message, progress: null, path: lastOutputPath, loaded: false, errorCode };
   send("job", job);
 }
 
@@ -454,7 +469,7 @@ async function loadSubtitle(filePath, mediaURLOverride = null, rememberSelection
     && loadDisplaySequence === displayLoadSequence
     && mediaPathForURL(latestFileLoadedURL || core.status.url) === mediaPath;
   let loadedPath = filePath;
-  job = { ...job, status: "loading", phase: "loading", message: "正在加载字幕", path: filePath, loaded: false };
+  job = { ...job, jobId: activeJob.id, status: "loading", phase: "loading", message: "正在加载字幕", path: filePath, loaded: false, errorCode: null };
   send("job", job);
   try {
     loadedPath = prepareDisplaySubtitle(filePath, mediaPath, displayMode);
@@ -466,11 +481,11 @@ async function loadSubtitle(filePath, mediaURLOverride = null, rememberSelection
     removePreviousDisplayTrack(loadedPath);
     if (rememberSelection) subtitleSettings.rememberSelection(mediaPath, filePath);
     lastOutputPath = filePath;
-    job = { status: "completed", phase: "", message: "双语字幕已加载", progress: null, path: filePath, loaded: true, displayMode };
+    job = { ...job, status: "completed", phase: "", message: "双语字幕已加载", progress: null, path: filePath, loaded: true, displayMode, errorCode: null };
   } catch (error) {
     if (!isCurrentMedia()) return;
     lastOutputPath = filePath;
-    job = { status: "load-error", phase: "", message: `字幕已生成，但 IINA 加载失败：${error.message || error}`, progress: null, path: filePath, loaded: false };
+    job = { ...job, status: "load-error", phase: "", message: `字幕已生成，但 IINA 加载失败：${error.message || error}`, progress: null, path: filePath, loaded: false, errorCode: "subtitle.loadFailed" };
   }
   send("job", job);
   sendState(mediaURLOverride);

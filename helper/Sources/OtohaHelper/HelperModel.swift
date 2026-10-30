@@ -14,13 +14,15 @@ final class HelperModel: ObservableObject {
     @Published private(set) var outputURL: URL?
 
     let request: HelperRequest?
+    let jobId: String
     let startupError: String?
     private var hasStarted = false
     private var startupErrorReported = false
     private var cancelSpeechOperation: (@MainActor () -> Void)?
 
-    init(request: HelperRequest?, startupError: String?) {
+    init(request: HelperRequest?, startupError: String?, jobId: String? = nil) {
         self.request = request
+        self.jobId = request?.jobId ?? jobId ?? "unknown"
         self.startupError = startupError
     }
 
@@ -36,7 +38,7 @@ final class HelperModel: ObservableObject {
         guard let startupError, !startupErrorReported else { return }
         startupErrorReported = true
         message = startupError
-        emit(.failure(message: startupError))
+        emit(.failure(code: .invalidRequest, message: startupError))
         terminateAfterShowingResult()
     }
 
@@ -44,7 +46,7 @@ final class HelperModel: ObservableObject {
         guard !startupErrorReported else { return }
         startupErrorReported = true
         message = "Apple 翻译需要 macOS 26.4 或更新版本。"
-        emit(.failure(message: message))
+        emit(.failure(code: .unsupportedSystem, message: message))
         terminateAfterShowingResult()
     }
 
@@ -71,7 +73,13 @@ final class HelperModel: ObservableObject {
                 configuration: configuration,
                 cancellationFileURL: cancellationFileURL,
                 prepareTranslation: {
-                    try await sessionHandle.value.prepareTranslation()
+                    do {
+                        try await sessionHandle.value.prepareTranslation()
+                    } catch is CancellationError {
+                        throw CancellationError()
+                    } catch {
+                        throw TranslationTaskError.failed(error.localizedDescription)
+                    }
                 },
                 transcribe: { [weak self] in
                     guard let self else { throw CancellationError() }
@@ -125,7 +133,7 @@ final class HelperModel: ObservableObject {
                 emit(.cancelled())
             } else {
                 message = Self.describe(error)
-                emit(.failure(message: message))
+                emit(.failure(code: Self.errorCode(for: error), message: message))
             }
         }
         terminateAfterShowingResult()
@@ -165,21 +173,27 @@ final class HelperModel: ObservableObject {
         var translated = try TranslationAccumulator(count: cues.count)
         let batchSize = 64
 
-        for start in stride(from: 0, to: cues.count, by: batchSize) {
-            try checkCancellation(cancellationFileURL)
-            let end = min(start + batchSize, cues.count)
-            let requests = (start..<end).map { index in
-                TranslationSession.Request(sourceText: cues[index].source, clientIdentifier: String(index))
+        do {
+            for start in stride(from: 0, to: cues.count, by: batchSize) {
+                try checkCancellation(cancellationFileURL)
+                let end = min(start + batchSize, cues.count)
+                let requests = (start..<end).map { index in
+                    TranslationSession.Request(sourceText: cues[index].source, clientIdentifier: String(index))
+                }
+                for try await response in session.translate(batch: requests) {
+                    try translated.record(
+                        clientIdentifier: response.clientIdentifier,
+                        targetText: response.targetText,
+                        batchRange: start..<end
+                    )
+                    progress = translated.progress
+                    emit(.phase(.translating, message: "正在翻译字幕", progress: progress))
+                }
             }
-            for try await response in session.translate(batch: requests) {
-                try translated.record(
-                    clientIdentifier: response.clientIdentifier,
-                    targetText: response.targetText,
-                    batchRange: start..<end
-                )
-                progress = translated.progress
-                emit(.phase(.translating, message: "正在翻译字幕", progress: progress))
-            }
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw TranslationTaskError.failed(error.localizedDescription)
         }
 
         return try translated.finish()
@@ -201,7 +215,7 @@ final class HelperModel: ObservableObject {
 
     private func emit(_ event: HelperEvent) {
         do {
-            let line = try event.jsonLine() + "\n"
+            let line = try event.with(jobId: jobId).jsonLine() + "\n"
             FileHandle.standardOutput.write(Data(line.utf8))
         } catch {
             FileHandle.standardError.write(Data("Otoha event encoding failed: \(error)\n".utf8))
@@ -215,10 +229,59 @@ final class HelperModel: ObservableObject {
         return "\(message) [domain=\(nsError.domain), code=\(nsError.code), userInfo=\(nsError.userInfo)]"
     }
 
+    private static func errorCode(for error: Error) -> HelperErrorCode {
+        switch error {
+        case JobConfigurationError.ffmpegNotExecutable, FFprobeError.notFound:
+            .ffmpegNotFound
+        case JobConfigurationError.invalidAudioStream:
+            .ffmpegInvalidAudioStream
+        case JobConfigurationError.mediaNotReadable,
+             JobConfigurationError.invalidLanguages,
+             JobConfigurationError.invalidSubtitleScale,
+             JobConfigurationError.outputDirectoryNotWritable:
+            .invalidRequest
+        case is FFmpegExtractionError:
+            .ffmpegExtractionFailed
+        case is FFprobeError:
+            .ffmpegExtractionFailed
+        case SpeechTranscriptionError.unsupportedLanguage:
+            .speechUnsupportedLanguage
+        case SpeechTranscriptionError.noAudio:
+            .speechNoAudio
+        case SpeechTranscriptionError.noSpeech:
+            .speechNoSpeech
+        case SpeechTranscriptionError.missingAudioFormat:
+            .speechMissingFormat
+        case SubtitleJobPipelineError.incompleteTranslation:
+            .subtitleIncompleteTranslation
+        case TranslationAccumulatorError.noResults,
+             TranslationAccumulatorError.invalidResponse:
+            .translationFailed
+        case TranslationAccumulatorError.incompleteTranslation:
+            .subtitleIncompleteTranslation
+        case is TranslationTaskError:
+            .translationFailed
+        case is ASSOutputError:
+            .subtitlePublishFailed
+        default:
+            .helperUnknown
+        }
+    }
+
     private func terminateAfterShowingResult() {
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.2))
             NSApplication.shared.terminate(nil)
+        }
+    }
+}
+
+private enum TranslationTaskError: Error, LocalizedError {
+    case failed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .failed(reason): "Apple 翻译失败：\(reason)"
         }
     }
 }

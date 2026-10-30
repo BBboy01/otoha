@@ -176,13 +176,26 @@ function createPlugin({
           const request = JSON.parse(args[1]);
           const mediaPath = typeof request.mediaPath === "string" ? request.mediaPath : "/Users/test/Anime episode.mkv";
           const outputPath = mediaPath.replace(/\.[^/.]+$/, ".otoha.ass");
-          stdoutHook('{"type":"phase","phase":"transcribing","message":"正在转录"}\n');
+          stdoutHook(JSON.stringify({
+            protocolVersion: 1,
+            type: "phase",
+            jobId: request.jobId,
+            phase: "transcribing",
+            message: "正在转录",
+          }) + "\n");
           if (changeMediaBeforeCompletion) {
             iina.core.status.url = "file:///Users/test/Another%20video.mkv";
           }
           if (fileLoadedBeforeCompletion) eventHandlers.get("iina.file-loaded")(fileLoadedBeforeCompletion);
           if (helperTerminal === "completed" && !existingSubtitles.includes(outputPath)) existingSubtitles.push(outputPath);
-          stdoutHook(`${JSON.stringify({ type: helperTerminal, path: outputPath, message: "fixture generation failure" })}\n`);
+          stdoutHook(`${JSON.stringify({
+            protocolVersion: 1,
+            type: helperTerminal,
+            jobId: request.jobId,
+            path: outputPath,
+            ...(helperTerminal === "error" ? { code: "helper.unknown" } : {}),
+            message: "fixture generation failure",
+          })}\n`);
           return { status: 0, stdout: "", stderr: "" };
         }
         return { status: 0, stdout: "", stderr: "" };

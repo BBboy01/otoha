@@ -42,6 +42,8 @@ test("main maps the chosen IINA track to ff-index and loads completed subtitles"
   assert.equal(helperCall.file, helperPath);
   const request = JSON.parse(helperCall.args[1]);
   assert.equal(helperCall.args[0], "--request-json");
+  assert.equal(request.protocolVersion, 1);
+  assert.match(request.jobId, /^\d+-[a-z0-9]+$/);
   assert.equal(request.audioStreamIndex, 4);
   assert.equal(request.mediaPath, "/Users/test/Anime episode.mkv");
   assert.equal(request.ffmpegPath, "/opt/homebrew/bin/ffmpeg");
@@ -387,6 +389,22 @@ test("main keeps output but does not load it after playback changes to another v
   assert.match(jobMessage.payload.message, /当前视频已更换/);
   assert.equal(jobMessage.payload.path, "/Users/test/Anime episode.otoha.ass");
   assert.deepEqual(plugin.loadedTracks, []);
+});
+
+test("main drops stale terminal errors after playback changes", async () => {
+  const plugin = createPlugin({
+    fileLoadedBeforeCompletion: "file:///Users/test/Next%20episode.mkv",
+    helperTerminal: "error",
+  });
+  plugin.eventHandlers.get("iina.window-loaded")();
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await plugin.sidebarHandlers.get("start")({ trackId: 7, sourceLanguage: "ja", targetLanguage: "zh-Hans" });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const jobMessages = plugin.messages.filter((message) => message.name === "job").map((message) => message.payload);
+  assert.equal(jobMessages.some((payload) => payload.status === "error"), false);
+  assert.equal(jobMessages.some((payload) => payload.message === "字幕 helper 已退出，但没有返回完成事件。"), false);
 });
 
 test("main does not launch helper when the chosen track has no ff-index", async () => {

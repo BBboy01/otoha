@@ -23,7 +23,11 @@ test("localMedia decodes local file URLs and rejects non-local media", () => {
 test("localMedia works in IINA JavaScriptCore where URL is not defined", () => {
   const source = fs.readFileSync(path.join(__dirname, "../controller.js"), "utf8");
   const module = { exports: {} };
-  vm.runInNewContext(source, { module, decodeURIComponent });
+  vm.runInNewContext(source, {
+    module,
+    decodeURIComponent,
+    require(id) { return require(path.join(__dirname, "..", id)); },
+  });
 
   const media = module.exports.localMedia("file:///Users/test/My%20video.mkv");
   assert.equal(media.path, "/Users/test/My video.mkv");
@@ -63,13 +67,13 @@ test("JSONL parser accepts split chunks and reports malformed records", () => {
   const errors = [];
   const parser = createJsonLineParser((event) => events.push(event), (error) => errors.push(error));
 
-  parser.push('{"type":"phase","phase":"transcribing"}\n{"type":"com');
-  parser.push('pleted","path":"/tmp/a.ass"}\nnot json\n');
+  parser.push('{"protocolVersion":1,"type":"phase","jobId":"job-123","phase":"transcribing"}\n{"protocolVersion":1,"type":"com');
+  parser.push('pleted","jobId":"job-123","path":"/tmp/a.ass"}\nnot json\n');
   parser.flush();
 
   assert.deepEqual(events, [
-    { type: "phase", phase: "transcribing" },
-    { type: "completed", path: "/tmp/a.ass" },
+    { protocolVersion: 1, type: "phase", jobId: "job-123", phase: "transcribing" },
+    { protocolVersion: 1, type: "completed", jobId: "job-123", path: "/tmp/a.ass" },
   ]);
   assert.equal(errors.length, 1);
 });
