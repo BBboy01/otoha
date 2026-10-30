@@ -3,6 +3,20 @@ import XCTest
 @testable import OtohaCore
 
 final class OtohaCoreTests: XCTestCase {
+    func testHelperLaunchModeDefaultsToBackground() {
+        XCTAssertEqual(
+            HelperLaunchMode(arguments: ["otoha-helper", "--request-json", "{}"]),
+            .background
+        )
+    }
+
+    func testHelperLaunchModeUsesDebugUIOnlyWhenRequested() {
+        XCTAssertEqual(
+            HelperLaunchMode(arguments: ["otoha-helper", "--request-json", "{}", "--ui"]),
+            .debugUI
+        )
+    }
+
     func testSubtitleLibraryUsesConfiguredPathAndFallsBackToMacApplicationSupport() throws {
         let home = URL(fileURLWithPath: "/Users/test", isDirectory: true)
 

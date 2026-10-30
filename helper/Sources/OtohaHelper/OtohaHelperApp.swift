@@ -17,13 +17,15 @@ struct OtohaHelperApp: App {
 @MainActor
 private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
     private var windowController: HelperWindowController?
+    private var backgroundTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if ProcessInfo.processInfo.environment["OTOHA_DEBUG_BUNDLE"] == "1" {
             let bundleID = Bundle.main.bundleIdentifier ?? "<missing>"
             FileHandle.standardError.write(Data("Otoha bundle identifier: \(bundleID)\n".utf8))
         }
-        NSApp.setActivationPolicy(.accessory)
+        let launchMode = HelperLaunchMode(arguments: CommandLine.arguments)
+        NSApp.setActivationPolicy(launchMode == .debugUI ? .accessory : .prohibited)
         if let index = CommandLine.arguments.firstIndex(of: "--list-subtitles-json"),
            CommandLine.arguments.indices.contains(index + 1) {
             Self.listSubtitles(json: CommandLine.arguments[index + 1])
@@ -33,7 +35,35 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
 
         let parsed = Self.parseRequest()
         let model = HelperModel(request: parsed.request, startupError: parsed.error, jobId: parsed.jobId)
-        windowController = HelperWindowController(model: model)
+        switch launchMode {
+        case .debugUI:
+            windowController = HelperWindowController(model: model)
+        case .background:
+            startBackgroundTask(model: model)
+        }
+    }
+
+    private func startBackgroundTask(model: HelperModel) {
+        backgroundTask = Task { @MainActor [model] in
+            guard model.request != nil else {
+                model.reportStartupError()
+                return
+            }
+            guard #available(macOS 26.4, *) else {
+                model.reportUnsupportedSystemVersion()
+                return
+            }
+            guard let source = model.sourceLanguage, let target = model.targetLanguage else {
+                model.reportStartupError()
+                return
+            }
+            let session = TranslationSession(
+                installedSource: source,
+                target: target,
+                preferredStrategy: .highFidelity
+            )
+            await model.run(using: session)
+        }
     }
 
     private static func parseRequest() -> (request: HelperRequest?, error: String?, jobId: String?) {

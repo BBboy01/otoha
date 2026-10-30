@@ -85,7 +85,13 @@ helper 只向 stdout 写 JSONL，每行一个对象；日志写 stderr。所有�
 
 插件遇到未知版本、事件类型、阶段或错误码时丢弃该行并保留当前任务状态。不能用中文 message 作为程序分支条件。
 
-## 4. 稳定错误码
+## 4. helper 启动与首次运行
+
+正常任务不创建或前置原生窗口。helper 以后台模式启动，所有进度、取消、完成和错误通过上述 JSONL 事件回到 IINA 侧栏。只有显式传入 `--ui` 的调试启动才创建 Otoha 原生窗口；该入口不属于插件正常任务协议。
+
+首次使用 Apple Speech 或 Translation 时，macOS 可能要求授予语音识别权限、下载语言模型或准备翻译资源。这些系统级提示由 macOS 管理，后台 helper 不能保证将它们静默化；出现提示时，用户应完成系统提示后等待当前任务继续。资源准备完成后，后续任务复用本机资源，不应重复打开 Otoha 窗口。
+
+## 5. 稳定错误码
 
 `helper.*`、`ffmpeg.*`、`speech.*` 和 `translation.*` 由 Swift helper 产生；`subtitle.libraryFailed` 与 `subtitle.loadFailed` 由插件在字幕库/IINA 加载边界产生，但共用同一 registry 和展示语义。
 
@@ -107,6 +113,6 @@ helper 只向 stdout 写 JSONL，每行一个对象；日志写 stderr。所有�
 | `subtitle.loadFailed` | IINA 未确认外挂字幕轨道加载 |
 | `job.cancelled` | 用户或媒体切换取消任务 |
 
-## 5. 兼容与演进
+## 6. 兼容与演进
 
 v1 只允许向对象增加可选字段。改变字段含义、事件状态机或错误码时递增 `protocolVersion`，并在插件和 helper 同一个 PR 中更新 Node/Swift 契约测试。旧事件不做隐式兼容，避免把失真的进度或错误当成成功。
