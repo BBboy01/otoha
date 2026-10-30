@@ -1,6 +1,8 @@
-<div align="center">
+<p align="center">
+  <img src="assets/otoha-icon.svg" alt="Otoha 图标" width="96" height="96">
+</p>
 
-<h1>Otoha</h1>
+<h1 align="center">Otoha</h1>
 
 <p><strong>面向 IINA 的本机双语字幕转录与翻译插件</strong></p>
 
@@ -8,9 +10,9 @@
 
 <p><a href="#安装">安装</a> · <a href="#使用">使用</a> · <a href="#开发">开发</a> · <a href="#文档">文档</a></p>
 
-> 当前版本面向 Apple Silicon Mac 和 macOS 26.4+。界面截图使用本地生成的合成画面，本文提供可复现的安装、使用和开发流程。
+> 目标平台：Apple Silicon Mac / macOS 26.4+。截图使用本地合成画面，不包含私人媒体。
 
-## 项目状态
+## 项目概览
 
 | 项目 | 当前版本 |
 | --- | --- |
@@ -112,7 +114,7 @@ IINA 官方插件流程：[Creating Plugins](https://docs.iina.io/pages/creating
 
 ![Otoha 在 IINA 中的侧栏与双语字幕](assets/otoha-in-iina.png)
 
-*截图使用本地生成的纯色测试画面和合成字幕，仅用于展示侧栏、双语字幕和显示方式，不包含真实媒体内容。*
+*截图使用本地生成的纯色测试画面和合成字幕，仅用于展示侧栏、双语字幕和显示方式。*
 
 ## 开发
 
@@ -136,7 +138,7 @@ bash scripts/verify-plugin-package.sh "$package_dir"
 
 只在 macOS 26.4+ 上构建 Swift helper。不要提交 `dist/`、个人媒体、字幕、日志、`.env` 或 `helper/.build`。
 
-## 当前边界
+## 边界与验收
 
 - 只处理本地文件视频，一次处理一个用户选择的音轨。
 - 只提供 Apple 本机后端；不包含云端服务、实时字幕、字幕网站搜索、批量队列或字幕编辑器。
@@ -146,10 +148,15 @@ bash scripts/verify-plugin-package.sh "$package_dir"
 
 ## 文档
 
+### 产品与架构
+
 - [文档索引](docs/README.md)
 - [产品与技术决策](docs/iina-transcription-translation-plugin-plan.md)
 - [架构说明](docs/architecture.md)
 - [运行时状态与 protocol v1](docs/runtime-state-and-protocol-v1.md)
+
+### 开发与运维
+
 - [开发指南](docs/development.md)
 - [排障指南](docs/troubleshooting.md)
 - [发布指南](docs/release.md)
