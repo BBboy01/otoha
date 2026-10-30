@@ -8,4 +8,6 @@ The current Mac arm64 prototype is implemented and verified through a real IINA 
 
 Run focused checks with `npm test --prefix plugin` and `swift test --package-path helper`. Build a plugin bundle for the current Mac with `bash scripts/package-plugin.sh`.
 
+GitHub Actions runs both test suites and verifies an arm64 plugin bundle. Push a `v*` tag matching `plugin/Info.json` to create a GitHub Release with notes generated from Conventional Commits by git-cliff and a downloadable `Otoha-<tag>-macos-arm64.iinaplgz` package. Open the downloaded package with IINA, or install it from IINA's Plugins preferences. Preview unreleased notes locally with `git cliff --unreleased`.
+
 This project is licensed under the [MIT License](LICENSE).

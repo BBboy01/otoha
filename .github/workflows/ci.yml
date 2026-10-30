@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Test and package plugin
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Test plugin
+        run: npm test --prefix plugin
+
+      - name: Test helper
+        run: swift test --package-path helper
+
+      - name: Build and verify plugin bundle
+        run: |
+          package_path="$RUNNER_TEMP/Otoha.iinaplugin"
+          bash scripts/package-plugin.sh "$package_path"
+          bash scripts/verify-plugin-package.sh "$package_path"
+
+      - name: Archive release plugin
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          package_path="$RUNNER_TEMP/Otoha.iinaplugin"
+          archive_path="$RUNNER_TEMP/Otoha-${RELEASE_TAG}-macos-arm64.iinaplgz"
+          (
+            cd "$package_path"
+            zip -r "$archive_path" *
+          )
+          unzip -t "$archive_path"
+
+      - name: Upload release plugin artifact
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v7
+        with:
+          name: otoha-plugin-${{ github.ref_name }}
+          path: ${{ runner.temp }}/Otoha-${{ github.ref_name }}-macos-arm64.iinaplgz
+          if-no-files-found: error
+
+  changelog:
+    name: Validate git-cliff configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Generate unreleased notes
+        uses: orhun/git-cliff-action@v4.9.1
+        with:
+          config: cliff.toml
+          version: v2.14.2
+          args: --unreleased --strip header
+        env:
+          OUTPUT: ${{ runner.temp }}/otoha-unreleased-notes.md
+          GITHUB_REPO: ${{ github.repository }}
+
+  release:
+    name: Create GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [verify, changelog]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download release plugin artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: otoha-plugin-${{ github.ref_name }}
+          path: ${{ runner.temp }}/release-assets
+
+      - name: Check tag version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          tag_version="${RELEASE_TAG#v}"
+          plugin_version="$(node -p "require('./plugin/Info.json').version")"
+          if [[ "$tag_version" != "$plugin_version" ]]; then
+            printf 'Tag version %s does not match plugin version %s.\n' "$tag_version" "$plugin_version" >&2
+            exit 1
+          fi
+
+      - name: Generate release notes
+        id: git-cliff
+        uses: orhun/git-cliff-action@v4.9.1
+        with:
+          config: cliff.toml
+          version: v2.14.2
+          args: --latest --strip header
+        env:
+          OUTPUT: ${{ runner.temp }}/otoha-release-notes.md
+          GITHUB_REPO: ${{ github.repository }}
+
+      - name: Publish release notes
+        uses: softprops/action-gh-release@v3
+        with:
+          name: ${{ github.ref_name }}
+          body_path: ${{ steps.git-cliff.outputs.changelog }}
+          files: ${{ runner.temp }}/release-assets/*.iinaplgz
+          fail_on_unmatched_files: true
