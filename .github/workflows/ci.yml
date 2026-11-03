@@ -24,59 +24,16 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Test plugin
-        run: npm test --prefix plugin
-
-      - name: Test helper
-        run: swift test --package-path helper
-
-      - name: Build and verify plugin bundle
-        run: |
-          package_path="$RUNNER_TEMP/Otoha.iinaplugin"
-          bash scripts/package-plugin.sh "$package_path"
-          bash scripts/verify-plugin-package.sh "$package_path"
-          tampered_path="$RUNNER_TEMP/Otoha-tampered.iinaplugin"
-          cp -R "$package_path" "$tampered_path"
-          mkdir -p "$tampered_path/assets"
-          printf 'unexpected resource\n' > "$tampered_path/assets/unlisted.js"
-          if bash scripts/verify-plugin-package.sh "$tampered_path"; then
-            printf 'Verifier accepted an unlisted package resource.\n' >&2
-            exit 1
-          fi
-          cp /usr/bin/true "$tampered_path/bin/OtohaHelper.app/Contents/MacOS/otoha-helper"
-          if bash scripts/verify-plugin-package.sh "$tampered_path"; then
-            printf 'Verifier accepted a replaced helper binary.\n' >&2
-            exit 1
-          fi
-
-      - name: Smoke test helper background CLI
-        run: |
-          helper_bin="$(swift build -c release --package-path helper --show-bin-path)/otoha-helper"
-          invalid_output="$("$helper_bin" --request-json '{}')"
-          printf '%s\n' "$invalid_output" | node -e '
-            const fs = require("node:fs");
-            const event = JSON.parse(fs.readFileSync(0, "utf8"));
-            if (event.type !== "error" || event.code !== "helper.invalidRequest" || event.jobId !== "unknown") process.exit(1);
-          '
-          list_output="$("$helper_bin" --list-subtitles-json '{"mediaPath":"/tmp/otoha-sample.mkv","outputDirectoryPath":"/tmp/otoha-subtitles"}')"
-          printf '%s\n' "$list_output" | node -e '
-            const fs = require("node:fs");
-            const response = JSON.parse(fs.readFileSync(0, "utf8"));
-            if (response.rootDirectoryPath !== "/tmp/otoha-subtitles" || !Array.isArray(response.files)) process.exit(1);
-          '
+      - name: Test and package plugin
+        run: make ci PACKAGE_DIR="$RUNNER_TEMP/Otoha.iinaplugin"
 
       - name: Archive release plugin
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          package_path="$RUNNER_TEMP/Otoha.iinaplugin"
-          archive_path="$RUNNER_TEMP/Otoha-${RELEASE_TAG}-macos-arm64.iinaplgz"
-          (
-            cd "$package_path"
-            zip -r "$archive_path" *
-          )
-          unzip -t "$archive_path"
+          PACKAGE_DIR: ${{ runner.temp }}/Otoha.iinaplugin
+          ARCHIVE_DIR: ${{ runner.temp }}
+        run: make archive
 
       - name: Upload release plugin artifact
         if: startsWith(github.ref, 'refs/tags/v')
