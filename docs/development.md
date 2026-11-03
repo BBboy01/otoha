@@ -8,28 +8,33 @@
 | --- | --- |
 | macOS | 26.4+，Apple Silicon 目标包为 arm64 |
 | IINA | 安装在 `/Applications/IINA.app`，用于手动侧栏验收 |
+| Make | 3.81+，macOS 的 Xcode Command Line Tools 提供 |
 | Node.js | 能运行插件 Node 测试 |
 | Swift | 6.2 工具链，能构建 `helper/Package.swift` |
 | FFmpeg | 真实转录和包验证需要；插件与 helper 单元测试不依赖媒体文件 |
 
 请勿将 `.env`、凭据、媒体文件、生成的字幕、日志或 `helper/.build` 提交到仓库。
 
-## 常用命令
+## 构建与测试
 
 ```bash
-# 插件单元测试
-npm test --prefix plugin
+# 查看可用目标
+make help
 
-# helper 单元测试
-swift test --package-path helper
+# 分别运行插件和 helper 测试，或一次运行全部测试
+make test-plugin
+make test-helper
+make test
 
-# Release 构建
-swift build -c release --package-path helper
+# 单独构建 Release helper
+make build-helper
 
-# 生成一个临时插件包并检查包内容
-package_dir="$(mktemp -d)/Otoha.iinaplugin"
-bash scripts/package-plugin.sh "$package_dir"
-bash scripts/verify-plugin-package.sh "$package_dir"
+# 打包到 dist/Otoha.iinaplugin 并验证包内容
+make package
+make verify-package
+
+# 运行 CI 使用的完整检查
+make ci
 
 # 仅检查语法和空白
 node --check plugin/main.js
@@ -37,7 +42,34 @@ node --check plugin/sidebar.js
 git diff --check
 ```
 
-`package-plugin.sh` 会先构建 helper，再按 `scripts/plugin-files.txt` 复制插件资源，最后写入 helper 源码哈希、二进制哈希和架构证据。输出目录必须不存在，避免把旧文件误混进新包。
+`make package` 会调用 `scripts/package-plugin.sh`：构建 helper，按 `scripts/plugin-files.txt` 复制插件资源，并写入 helper 源码哈希、二进制哈希和架构证据。输出目录必须不存在，以免旧文件混入新包。需要重建默认输出时，先运行 `make clean-package`；该目标只删除 `dist/Otoha.iinaplugin`。也可以用 `PACKAGE_DIR` 指定其他输出目录：
+
+```bash
+make package PACKAGE_DIR="$HOME/Desktop/Otoha.iinaplugin"
+make verify-package PACKAGE_DIR="$HOME/Desktop/Otoha.iinaplugin"
+```
+
+打包完成后，手动安装开发包：
+
+```bash
+/Applications/IINA.app/Contents/MacOS/iina-plugin link "$PWD/dist/Otoha.iinaplugin"
+```
+
+如果默认输出已存在，使用 `make clean-package` 后再打包，或指定一个尚不存在的 `PACKAGE_DIR`。
+
+`make ci` 依次运行插件和 helper 测试、构建并校验插件包、确认包校验器会拒绝未列出的资源和被替换的 helper，并对打包后的 helper CLI 执行 smoke test。CI 可以覆盖包路径：
+
+```bash
+make ci PACKAGE_DIR="$(mktemp -d)/Otoha.iinaplugin"
+```
+
+为 tag 构建本地发布归档时，包必须已构建，`RELEASE_TAG` 必须设置，归档目标也必须尚不存在：
+
+```bash
+make archive RELEASE_TAG=v0.1.0
+```
+
+归档写入 `dist/Otoha-<tag>-macos-arm64.iinaplgz`，并由 `unzip -t` 检查。
 
 ## 本地安装和卸载
 
@@ -49,13 +81,29 @@ IINA_PLUGIN=/Applications/IINA.app/Contents/MacOS/iina-plugin
 
 开发链接会以 `*.iinaplugin-dev` 形式注册。切换安装包前先 unlink 旧链接；同一个 `io.otoha.iina` 同时存在多个链接会触发 IINA 的重复 identifier 警告。每次改动 JavaScript 后可在 IINA Plugins 设置中 reload；helper Swift 改动需要重新 package 并重新 link。
 
+### 更新开发包
+
+更新默认路径下的源码开发包时，先解除旧链接，再更新代码、重新打包并链接。可以在 IINA 的 Settings > Plugins 中移除旧包，或执行示例中的 `unlink` 命令；如果已在设置中移除旧包，跳过该命令：
+
+```bash
+IINA_PLUGIN=/Applications/IINA.app/Contents/MacOS/iina-plugin
+PACKAGE_DIR="$PWD/dist/Otoha.iinaplugin"
+
+"$IINA_PLUGIN" unlink "$PACKAGE_DIR"
+git pull
+make clean-package package verify-package
+"$IINA_PLUGIN" link "$PACKAGE_DIR"
+```
+
+重新链接后，在 IINA Plugins 设置中 reload Otoha。如果只改了 JavaScript，可以直接 reload，不必重新打包；修改 helper Swift 代码后需要重新打包并重新链接。Release 版本的更新步骤见 [README](../README.md#更新-release-版本)。
+
 ## 代码分层
 
 - `plugin/`：IINA 适配、状态 store、侧栏 UI、字幕库客户端、任务控制器和协议解析。
 - `helper/Sources/OtohaCore/`：无 UI 的任务核心、FFmpeg、字幕文件名/库、ASS 输出和取消令牌。
 - `helper/Sources/OtohaHelper/`：macOS App 入口、Speech/Translation 适配、后台 JSONL 事件。
 - `plugin/test/` 与 `helper/Tests/`：协议、状态并发、字幕渲染、文件发布和取消的 focused tests。
-- `scripts/`：打包和包完整性验证；`.github/workflows/ci.yml`：测试、打包、Release 归档。
+- `Makefile` 与 `scripts/`：本地和 CI 共用的测试、打包、包完整性验证及 Release 归档入口；`.github/workflows/ci.yml`：调用这些入口并负责 GitHub Release。
 
 ## 新增或修改功能
 

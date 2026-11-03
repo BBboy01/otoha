@@ -47,18 +47,20 @@
 
 前往 [GitHub Releases](https://github.com/BBboy01/otoha/releases)，下载 `Otoha-v<版本>-macos-arm64.iinaplgz`，用 IINA 打开，或在 IINA 的 Plugins 设置中安装。并非每次代码更新都会发布新版本，请以 Releases 页面为准。
 
+### 更新 Release 版本
+
+从 [GitHub Releases](https://github.com/BBboy01/otoha/releases) 下载新版插件。在 IINA 的 Settings > Plugins 中移除当前 Otoha，再用 IINA 打开新版 `.iinaplgz` 文件，或从 Plugins 设置安装。若当前安装的是源码开发包，请先解除开发包链接，再按[开发指南](docs/development.md#更新开发包)更新；同一时间只保留一个 Otoha 安装项，避免重复插件标识符。
+
 ### 从源码安装
 
 ```bash
 git clone https://github.com/BBboy01/otoha.git
 cd otoha
-package_dir="$(mktemp -d)/Otoha.iinaplugin"
-bash scripts/package-plugin.sh "$package_dir"
-bash scripts/verify-plugin-package.sh "$package_dir"
-/Applications/IINA.app/Contents/MacOS/iina-plugin link "$package_dir"
+make package verify-package
+/Applications/IINA.app/Contents/MacOS/iina-plugin link "$PWD/dist/Otoha.iinaplugin"
 ```
 
-重新安装开发包前，先在 IINA Plugins 设置中移除旧的开发包链接，避免出现重复插件标识符。打开 IINA 后，从 Plugins 菜单打开 Otoha 侧栏。插件包已包含 `OtohaHelper.app`。
+重新构建默认输出前，运行 `make clean-package`；它只删除 `dist/Otoha.iinaplugin`。也可以通过 `PACKAGE_DIR=/绝对路径` 指定其他输出目录。重新安装开发包前，先在 IINA Plugins 设置中移除旧的开发包链接，避免出现重复插件标识符。打开 IINA 后，从 Plugins 菜单打开 Otoha 侧栏。插件包已包含 `OtohaHelper.app`。
 
 IINA 官方说明：[Creating Plugins](https://docs.iina.io/pages/creating-plugins.html) · [Developer Guide](https://docs.iina.io/pages/dev-guide.html)。
 
@@ -97,11 +99,11 @@ IINA 官方说明：[Creating Plugins](https://docs.iina.io/pages/creating-plugi
 
 ## 开发
 
-运行插件和 helper 测试：
+常用检查：
 
 ```bash
-npm test --prefix plugin
-swift test --package-path helper
+make help
+make test
 ```
 
 本地构建、测试、调试和打包说明见[开发指南](docs/development.md)。
