@@ -40,15 +40,6 @@ ffmpeg -version
 
 每个视频使用独立哈希目录。删除某个视频的字幕时，只删除对应目录中的 `.ass`；不要删除整个 Otoha 目录，除非希望清空所有视频的历史版本。设置自定义目录后，旧目录不会自动迁移。
 
-## helper 协议错误
+## 报告问题
 
-helper 每行向 stdout 输出一个 JSONL 事件，插件会校验 `protocolVersion`、`type`、`jobId`、阶段和错误码。遇到未知事件时插件会丢弃该行并保留当前任务状态。不要根据中文 `message` 判断程序分支；请使用 [稳定错误码表](runtime-state-and-protocol-v1.md#5-稳定错误码)。
-
-## 仍需实机确认的情况
-
-- 首次使用 Apple Speech/Translation 时的权限和资源下载提示。
-- 不同容器、多音轨文件的 `ff-index` 映射。
-- IINA 真实 `track-list` 的外挂字幕确认和超时行为。
-- VoiceOver、深色模式、长文件名和窄侧栏下的最终可访问性表现。
-
-这些项目不能仅通过 Node/Swift fixture 或包 verifier 证明。请把 macOS 版本、IINA 版本、媒体容器（不要上传媒体本身）、音轨信息、phase 和错误码一起记录。
+请附上 macOS 与 IINA 版本、媒体容器、音轨信息、任务阶段和错误码。不要附上视频或字幕文件；分享日志前请移除媒体路径中的个人信息。
