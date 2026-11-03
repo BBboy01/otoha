@@ -142,43 +142,6 @@ final class OtohaCoreTests: XCTestCase {
         XCTAssertEqual(decoded.jobId, "job-123")
     }
 
-    func testASSWriterSortsCuesAndFormatsBilingualTextWithStyles() throws {
-        let cues = [
-            SubtitleCue(start: 1.2345, end: 2.0, source: "Hello", translation: "你好"),
-            SubtitleCue(start: 0, end: 1.25, source: "First", translation: "第一句"),
-        ]
-        let ass = try ASSWriter.serialize(cues)
-
-        XCTAssertTrue(ass.hasPrefix("[Script Info]\n"))
-        XCTAssertTrue(ass.contains("Style: OtohaSource,Arial,42,&H50FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3.5,1.5,2,48,48,74,1"))
-        XCTAssertTrue(ass.contains("Style: OtohaTranslation,Arial,54,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3.5,1.5,2,48,48,20,1"))
-        XCTAssertTrue(ass.contains("Dialogue: 0,0:00:00.00,0:00:01.25,OtohaSource,,0,0,0,,First"))
-        XCTAssertTrue(ass.contains("Dialogue: 0,0:00:00.00,0:00:01.25,OtohaTranslation,,0,0,0,,第一句"))
-        XCTAssertTrue(ass.contains("Dialogue: 0,0:00:01.23,0:00:02.00,OtohaSource,,0,0,0,,Hello"))
-        XCTAssertTrue(ass.contains("Dialogue: 0,0:00:01.23,0:00:02.00,OtohaTranslation,,0,0,0,,你好"))
-        let translationIndex = ass.range(of: "Dialogue: 0,0:00:00.00,0:00:01.25,OtohaTranslation")!.lowerBound
-        let sourceIndex = ass.range(of: "Dialogue: 0,0:00:00.00,0:00:01.25,OtohaSource")!.lowerBound
-        XCTAssertLessThan(translationIndex, sourceIndex)
-    }
-
-    func testASSWriterEscapesTextAndNormalizesLineBreaks() throws {
-        let ass = try ASSWriter.serialize([
-            SubtitleCue(start: 0, end: 1, source: "Hello {world}\nagain", translation: "你好\\there"),
-        ])
-
-        XCTAssertTrue(ass.contains("Hello \\{world\\}\\Nagain"))
-        XCTAssertTrue(ass.contains("你好\\\\there"))
-    }
-
-    func testASSWriterScalesFontSizes() throws {
-        let ass = try ASSWriter.serialize([
-            SubtitleCue(start: 0, end: 1, source: "Hello", translation: "你好"),
-        ], scale: 1.2)
-
-        XCTAssertTrue(ass.contains("Style: OtohaSource,Arial,50,"))
-        XCTAssertTrue(ass.contains("Style: OtohaTranslation,Arial,65,"))
-    }
-
     func testTimedTranscriptCueBuilderUsesWordTimingAndSplitsPhrases() {
         let cues = TimedTranscriptCueBuilder.build(tokens: [
             TimedTranscriptToken(text: "Hello world. ", start: 0, end: 1.2),

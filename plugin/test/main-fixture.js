@@ -18,6 +18,10 @@ function createPlugin({
   ffmpegSearchPath = "/opt/homebrew/bin/ffmpeg",
   configuredFFmpegValid = true,
   subtitleTrackVisible = true,
+  displayWidth = 1920,
+  displayHeight = 1080,
+  videoParamsRotate = 0,
+  videoRotate = 0,
   audioLanguage = "ja-JP",
   exposesCoreOpen = false,
   outputDirectory = "",
@@ -63,7 +67,12 @@ function createPlugin({
   const iina = {
     core: {
       window: { loaded: windowReady },
-      status: { url: "file:///Users/test/Anime%20episode.mkv", title: "Anime episode" },
+      status: {
+        url: "file:///Users/test/Anime%20episode.mkv",
+        title: "Anime episode",
+        videoWidth: 1920,
+        videoHeight: 1080,
+      },
       subtitle: {
         get id() { return selectedSubtitleId; },
         set id(value) { selectedSubtitleId = Number(value); },
@@ -114,6 +123,14 @@ function createPlugin({
         if (name === "track-list") return tracks;
         if (name === "aid") return 7;
         return null;
+      },
+      getNumber(name) {
+        return {
+          dwidth: displayWidth,
+          dheight: displayHeight,
+          "video-params/rotate": videoParamsRotate,
+          "video-rotate": videoRotate,
+        }[name];
       },
     },
     preferences: {

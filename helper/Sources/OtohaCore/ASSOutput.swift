@@ -8,9 +8,19 @@ public enum ASSOutput {
         directory: URL,
         overwriteExisting: Bool = false,
         subtitleScale: Double = 1.0,
+        videoWidth: Int? = nil,
+        videoHeight: Int? = nil,
         cancellationFileURL: URL? = nil
     ) throws -> URL {
-        try publish(cues, baseName: baseName, directory: directory, overwriteExisting: overwriteExisting, subtitleScale: subtitleScale) {
+        try publish(
+            cues,
+            baseName: baseName,
+            directory: directory,
+            overwriteExisting: overwriteExisting,
+            subtitleScale: subtitleScale,
+            videoWidth: videoWidth,
+            videoHeight: videoHeight
+        ) {
             cancellationFileURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
         }
     }
@@ -21,10 +31,19 @@ public enum ASSOutput {
         directory: URL,
         overwriteExisting: Bool = false,
         subtitleScale: Double = 1.0,
+        videoWidth: Int? = nil,
+        videoHeight: Int? = nil,
         isCancelled: () -> Bool
     ) throws -> URL {
         try checkCancellation(isCancelled)
-        let content = Data(try ASSWriter.serialize(cues, scale: subtitleScale).utf8)
+        let content = Data(
+            try ASSWriter.serialize(
+                cues,
+                scale: subtitleScale,
+                videoWidth: videoWidth,
+                videoHeight: videoHeight
+            ).utf8
+        )
         let safeBaseName = SubtitleFilename.sanitizedBaseName(baseName)
         let temporaryURL = directory.appendingPathComponent(".otoha-\(UUID().uuidString).tmp")
         try writeExclusive(content, to: temporaryURL)
