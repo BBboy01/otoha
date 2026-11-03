@@ -75,7 +75,13 @@ IINA_PLUGIN=/Applications/IINA.app/Contents/MacOS/iina-plugin
 
 ### 修改字幕输出
 
-ASS 写入必须经过临时文件和成功后的替换路径。不要直接覆盖最终文件，也不要把 IINA 内存显示模式缓存写回字幕库。当前默认样式以 1920×1080 为基准，源文 42px、译文 54px，源文约 31% 透明度，二者使用黑色描边和轻阴影；字号比例由 Preferences 的 80%–140% 设置控制。修改字号或样式时，保留源文/译文的顺序和时间戳，同时更新 Swift 输出测试、JavaScript 显示模式夹具、README 截图和相关文档，并用合成媒体完成一次 IINA 实际渲染检查。
+ASS 写入必须经过临时文件和成功后的替换路径。不要直接覆盖最终文件，也不要把 IINA 内存显示模式缓存写回字幕库。默认源文 38px、译文 34px，字号比例由 Preferences 的 80%–140% 设置控制。源文约 31% 透明度，二者使用黑色描边和轻阴影。
+
+`ASSWriter` 使用固定逻辑高度 1080，逻辑宽度由视频宽高比计算，`PlayRes` 与 `LayoutRes` 一致；左右各留约 5% 边距。同一画面比例在不同像素分辨率下输出相同布局，缺少有效尺寸时回退到 1920×1080。保持 Translation 事件在前、Source 在后且同为 Layer 0，让 libass 碰撞避让将源文放在多行译文上方。
+
+英文使用 `WrapStyle: 1` 交给 libass 按可用宽度换行。IINA 的 mpv 不为原生 ASS 启用 `ASS_FEATURE_WRAP_UNICODE`，因此 `SubtitleLineBreaker` 为非 ASCII 文本使用 CoreText 的 Unicode 换行机会与字形测量，并保留显式换行。测量前按每个实际回退字体的 OpenType OS/2 Windows ascent/descent 将 ASS 字号换算为 CoreText point size，避免中文回退字体被高估而提前换行；没有 OS/2 表时使用 CoreText 行高度量。不要恢复按固定字符数切行或强制均分行宽。
+
+修改字号、样式或换行策略时，保留源文/译文的顺序和时间戳，同时更新 Swift 输出测试、JavaScript 显示模式夹具和相关文档，并用合成媒体完成一次 IINA 实际渲染检查。截图应展示长英文、中日文、混排、窄画面以及双语避让；不要打开用户的私人媒体。已有 ASS 不会自动改写，需要重新生成才能采用新排版。
 
 ## 测试重点
 

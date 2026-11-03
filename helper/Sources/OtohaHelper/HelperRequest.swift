@@ -12,6 +12,8 @@ struct HelperRequest: Decodable {
         case sourceLanguage
         case targetLanguage
         case subtitleScale
+        case videoWidth
+        case videoHeight
         case outputDirectoryPath
         case cancellationFilePath
     }
@@ -25,6 +27,8 @@ struct HelperRequest: Decodable {
     let sourceLanguage: String
     let targetLanguage: String
     let subtitleScale: Double?
+    let videoWidth: Int?
+    let videoHeight: Int?
     let outputDirectoryPath: String?
     let cancellationFilePath: String
 
@@ -68,6 +72,8 @@ struct HelperRequest: Decodable {
         sourceLanguage = try values.decode(String.self, forKey: .sourceLanguage)
         targetLanguage = try values.decode(String.self, forKey: .targetLanguage)
         subtitleScale = try values.decodeIfPresent(Double.self, forKey: .subtitleScale)
+        videoWidth = try values.decodeIfPresent(Int.self, forKey: .videoWidth)
+        videoHeight = try values.decodeIfPresent(Int.self, forKey: .videoHeight)
         self.outputDirectoryPath = outputDirectoryPath
         self.cancellationFilePath = cancellationFilePath
     }
@@ -87,6 +93,8 @@ struct HelperRequest: Decodable {
             sourceLanguage: sourceLanguage,
             targetLanguage: targetLanguage,
             subtitleScale: subtitleScale ?? 1.0,
+            videoWidth: videoWidth,
+            videoHeight: videoHeight,
             outputDirectory: SubtitleLibrary.mediaDirectory(for: mediaURL, rootDirectory: rootDirectory)
         )
     }

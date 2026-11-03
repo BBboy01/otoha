@@ -49,9 +49,33 @@ test("main maps the chosen IINA track to ff-index and loads completed subtitles"
   assert.equal(request.ffmpegPath, "/opt/homebrew/bin/ffmpeg");
   assert.equal(request.backend, "apple");
   assert.equal(request.subtitleScale, 1);
+  assert.equal(request.videoWidth, 1920);
+  assert.equal(request.videoHeight, 1080);
   assert.equal(request.outputDirectoryPath, "");
   assert.deepEqual(plugin.loadedTracks, ["/Users/test/Anime episode.otoha.ass"]);
   assert.equal(plugin.messages.findLast((message) => message.name === "job").payload.status, "completed");
+});
+
+test("main sends aspect-corrected and rotated display dimensions to the helper", async () => {
+  const cases = [
+    { displayWidth: 853, displayHeight: 480, videoWidth: 853, videoHeight: 480 },
+    { displayWidth: 640, displayHeight: 360, videoParamsRotate: 90, videoWidth: 360, videoHeight: 640 },
+    { displayWidth: 640, displayHeight: 360, videoParamsRotate: 90, videoRotate: 90, videoWidth: 640, videoHeight: 360 },
+    { displayWidth: 853, displayHeight: null, videoWidth: 1920, videoHeight: 1080 },
+  ];
+
+  for (const { videoWidth, videoHeight, ...dimensions } of cases) {
+    const plugin = createPlugin(dimensions);
+    plugin.runSidebarLoad();
+    plugin.sidebarHandlers.get("ready")({ helperPath });
+    await plugin.sidebarHandlers.get("start")({ trackId: 7, sourceLanguage: "ja", targetLanguage: "zh-Hans" });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const helperCall = plugin.execCalls.find((call) => call.file.endsWith("otoha-helper") && call.args[0] === "--request-json");
+    const request = JSON.parse(helperCall.args[1]);
+    assert.equal(request.videoWidth, videoWidth);
+    assert.equal(request.videoHeight, videoHeight);
+  }
 });
 
 test("main passes the configured subtitle scale to the helper", async () => {

@@ -327,6 +327,7 @@ async function startJob(payload = {}, mediaOverride = null) {
       sourceLanguage,
       targetLanguage,
       subtitleScale: readSetting(preferences, "subtitle_scale") / 100,
+      ...iinaAdapter.videoDimensions(),
       outputDirectoryPath: readSetting(preferences, "output_directory"),
       cancellationFilePath: cancelPath,
     };

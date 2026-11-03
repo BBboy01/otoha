@@ -12,6 +12,8 @@ public struct JobConfiguration: Codable, Sendable {
     public let sourceLanguage: String
     public let targetLanguage: String
     public let subtitleScale: Double
+    public let videoWidth: Int?
+    public let videoHeight: Int?
     public let outputDirectory: URL
 
     public init(
@@ -22,6 +24,8 @@ public struct JobConfiguration: Codable, Sendable {
         sourceLanguage: String,
         targetLanguage: String,
         subtitleScale: Double = 1.0,
+        videoWidth: Int? = nil,
+        videoHeight: Int? = nil,
         outputDirectory: URL
     ) {
         self.backend = backend
@@ -31,6 +35,8 @@ public struct JobConfiguration: Codable, Sendable {
         self.sourceLanguage = sourceLanguage
         self.targetLanguage = targetLanguage
         self.subtitleScale = subtitleScale
+        self.videoWidth = videoWidth
+        self.videoHeight = videoHeight
         self.outputDirectory = outputDirectory
     }
 

@@ -15,23 +15,40 @@ public struct SubtitleCue: Equatable, Sendable {
 }
 
 public enum ASSWriter {
-    public static func serialize(_ cues: [SubtitleCue], scale: Double = 1.0) throws -> String {
+    private static let sourceFontSize = 38.0
+    private static let translationFontSize = 34.0
+
+    public static func serialize(
+        _ cues: [SubtitleCue],
+        scale: Double = 1.0,
+        videoWidth: Int? = nil,
+        videoHeight: Int? = nil
+    ) throws -> String {
         guard scale.isFinite, (0.8...1.4).contains(scale) else { throw ASSError.invalidScale }
         let sorted = cues.sorted { $0.start < $1.start }
         guard !sorted.isEmpty else { throw ASSError.noCues }
+        let width = canvasWidth(videoWidth, videoHeight)
+        let margin = Int((Double(width) * 0.05).rounded())
+        let availableWidth = Double(width - 2 * margin) - 10
+        let sourceSize = fontSize(sourceFontSize, scale)
+        let translationSize = fontSize(translationFontSize, scale)
+        var sourceLineBreaker = SubtitleLineBreaker(fontSize: sourceSize, width: availableWidth)
+        var translationLineBreaker = SubtitleLineBreaker(fontSize: translationSize, width: availableWidth)
 
         var lines = [
             "[Script Info]",
             "ScriptType: v4.00+",
-            "PlayResX: 1920",
+            "PlayResX: \(width)",
             "PlayResY: 1080",
-            "WrapStyle: 2",
+            "LayoutResX: \(width)",
+            "LayoutResY: 1080",
+            "WrapStyle: 1",
             "ScaledBorderAndShadow: yes",
             "",
             "[V4+ Styles]",
             "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-            "Style: OtohaSource,Arial,\(fontSize(42, scale)),&H50FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3.5,1.5,2,48,48,74,1",
-            "Style: OtohaTranslation,Arial,\(fontSize(54, scale)),&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3.5,1.5,2,48,48,20,1",
+            "Style: OtohaSource,Arial,\(sourceSize),&H50FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3.5,1.5,2,\(margin),\(margin),74,1",
+            "Style: OtohaTranslation,Arial,\(translationSize),&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3.5,1.5,2,\(margin),\(margin),20,1",
             "",
             "[Events]",
             "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -41,8 +58,8 @@ public enum ASSWriter {
             guard cue.start.isFinite, cue.end.isFinite, cue.start >= 0, cue.end > cue.start else {
                 throw ASSError.invalidTimeRange
             }
-            let source = normalized(cue.source)
-            let translation = normalized(cue.translation)
+            let source = normalized(cue.source, lineBreaker: &sourceLineBreaker)
+            let translation = normalized(cue.translation, lineBreaker: &translationLineBreaker)
             guard !source.isEmpty, !translation.isEmpty else { throw ASSError.emptyText }
 
             let startTicks = timestampTicks(cue.start)
@@ -60,13 +77,27 @@ public enum ASSWriter {
         Int((base * scale).rounded())
     }
 
-    private static func normalized(_ value: String) -> String {
-        value
+    private static func canvasWidth(_ width: Int?, _ height: Int?) -> Int {
+        guard let width, let height, width > 0, height > 0 else { return 1920 }
+        // A fixed logical height keeps type size independent of the video's pixel resolution.
+        let logicalWidth = (1080 * Double(width) / Double(height)).rounded()
+        guard logicalWidth >= 1, logicalWidth <= Double(Int32.max) else { return 1920 }
+        return Int(logicalWidth)
+    }
+
+    private static func normalized(_ value: String, lineBreaker: inout SubtitleLineBreaker) -> String {
+        let explicitLines =
+            value
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .split(separator: "\n", omittingEmptySubsequences: false)
-            .map { escape(String($0)) }
+            .map(String.init)
+
+        return
+            explicitLines
+            .flatMap { lineBreaker.lines($0) }
+            .map(escape)
             .joined(separator: "\\N")
     }
 

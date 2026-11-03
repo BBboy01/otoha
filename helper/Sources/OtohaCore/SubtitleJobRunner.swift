@@ -62,6 +62,8 @@ public struct SubtitleJobRunner: Sendable {
             directory: configuration.outputDirectory,
             overwriteExisting: true,
             subtitleScale: configuration.subtitleScale,
+            videoWidth: configuration.videoWidth,
+            videoHeight: configuration.videoHeight,
             isCancelled: { cancellation.isCancelled }
         )
     }
