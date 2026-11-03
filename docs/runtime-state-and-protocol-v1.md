@@ -36,13 +36,36 @@
 }
 ```
 
-### 状态枚举
+### 任务状态与阶段
 
-`job.status` 使用 `idle`、`running`、`canceling`、`loading`、`completed`、`cancelled`、`available`、`error` 和 `load-error`；侧栏在字幕库查询尚未完成时还会临时合成 `checking` 展示状态。生成任务的 `running` 通过 `job.phase` 表示细阶段。`available` 表示字幕库中已有字幕；`load-error` 是侧栏为保留“重试加载”动作对 `subtitle.loadFailed` 的展示状态。`job.phase` 使用 `checkingEnvironment`、`preparingLanguageResources`、`extractingAudio`、`transcribing`、`translating`、`saving`、`loading`。
+| `job.status` | 含义 |
+| --- | --- |
+| `idle` | 没有活动任务 |
+| `running` | helper 正在生成字幕，细节由 `job.phase` 表示 |
+| `canceling` | 正在等待取消完成 |
+| `loading` | 插件正在请求 IINA 加载字幕 |
+| `completed` | 字幕已加载 |
+| `cancelled` | 任务已取消 |
+| `available` | 字幕库中有字幕，尚未加载 |
+| `error` | 生成任务失败 |
+| `load-error` | IINA 未确认字幕加载；侧栏保留“重试加载”操作 |
+| `checking` | 侧栏在字幕库查询期间合成的临时展示状态，不是 helper 状态 |
+
+`job.phase` 表示当前处理步骤：
+
+| 阶段 | 含义 |
+| --- | --- |
+| `checkingEnvironment` | 检查 FFmpeg 和输入文件 |
+| `preparingLanguageResources` | 准备 Apple Speech/Translation 资源 |
+| `extractingAudio` | 从选定音轨提取音频 |
+| `transcribing` | 识别源语言并生成带时间戳的文本 |
+| `translating` | 翻译识别结果 |
+| `saving` | 写入 ASS 字幕文件 |
+| `loading` | 插件请求 IINA 加载字幕 |
 
 播放媒体、字幕库、任务和偏好设置属于插件运行时真相；侧栏只负责渲染和发送用户意图。上面的平面字段是当前 `sendState` 的传输形状，后续 state store 可以在内部规范化，但不能改变字段语义。全局偏好来自 IINA preference，语言和显示方式的每视频记忆由插件按媒体路径保存。helper 只拥有当前任务的处理状态，不修改插件偏好或字幕选中状态。
 
-当前实现分别使用 `fileLoadedSequence`、`subtitleLookupId`、`displayLoadSequence` 和 active `jobId` 过滤异步结果；模块化时应收敛为统一的 operation token。异步结果只有在 token、媒体路径和 `jobId` 同时仍匹配时才能提交到状态；过期结果必须丢弃。
+异步结果只有在对应操作、当前媒体路径和 `jobId` 仍匹配时才能提交到状态；过期结果必须丢弃。具体并发控制方式属于插件实现，见[架构说明](architecture.md#异步任务与取消)。
 
 ## 2. 请求 JSON
 

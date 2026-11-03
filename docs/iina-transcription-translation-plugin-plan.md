@@ -1,6 +1,6 @@
 # Otoha 产品与技术决策
 
-**状态：** V1 实现已落地，本文记录当前产品边界、用户体验和仍需实机验收的项目。协议字段见 [runtime-state-and-protocol-v1.md](runtime-state-and-protocol-v1.md)，代码结构见 [architecture.md](architecture.md)。
+本文记录 Otoha 当前的产品目标、V1 范围和已确认决策。组件实现见[架构说明](architecture.md)，插件与 helper 的字段契约见[运行时状态与 protocol v1](runtime-state-and-protocol-v1.md)。
 
 ## 用户目标
 
@@ -22,19 +22,19 @@ flowchart TD
 
 | 主题 | 决策 | 原因 |
 | --- | --- | --- |
-| 后端 | 首版只实现 Apple 本机 Speech + Translation；保留 backend 配置入口 | 保持本机隐私，同时为后续后端留边界 |
+| 后端 | 首版使用 Apple Speech + Translation；请求保留 backend 扩展点 | 使用系统框架，不维护自有语言模型服务 |
 | helper | Swift helper 放在插件包内，用户只安装一次 | 不增加额外安装器和版本管理负担 |
 | FFmpeg | 用户自行安装，插件从 PATH 查找，也允许配置绝对路径 | 让其他本机程序复用同一 FFmpeg |
 | 触发方式 | 手动点击“生成”，后台执行 | 避免打开视频就消耗资源或误转录 |
-| 自动加载 | 仅加载已有字幕，不在缺少字幕时猜语言和转录 | 源语言无法可靠自动判断，避免无声失败或错误语言 |
+| 自动加载 | 打开视频时只加载字幕库中的已有字幕，不自动转录 | 生成需要用户明确选择源语言，避免误用语言 |
 | 存储 | 默认 `~/Library/Application Support/Otoha/Subtitles`，每个视频哈希目录 | 对用户可见但不污染视频目录，且能保留多个语言版本 |
 | 覆盖策略 | 同一媒体和语言对成功生成后覆盖；其他语言对保留 | 重生成结果可预测，历史选择不互相覆盖 |
 | 显示方式 | 原文、译文、双语三选一，按视频记忆，默认双语 | 同一视频的学习/阅读需求通常稳定 |
-| 输出 | ASS 逻辑高度为 1080，宽度按视频比例计算，左右各留 5% 边距；默认源文 38px、译文 34px，按实际字形宽度和语言边界换行；源文在上、译文在下，源文约 31% 透明度，配黑色描边和轻阴影 | 同一视频比例不因像素分辨率改变排版；支持单语显示缓存，字号比例可在 80%–140% 间调整 |
+| 输出 | ASS 逻辑高度为 1080，宽度按视频比例计算，左右各留 5% 边距；默认源文 38px、译文 34px，按实际字形宽度和语言边界换行；源文在上、译文在下，源文约 31% 透明度，配黑色描边和轻阴影 | 同一视频比例不因像素分辨率改变排版；支持单语显示缓存，字号比例可在 80% 至 140% 间调整 |
 | 焦点 | helper 正常运行不激活窗口；只有系统级权限/资源提示可能打断 | 尽量不影响用户观看 |
 | 兼容性 | 当前只验收 Apple Silicon + macOS 26.4+ | Apple Translation API 和打包校验以当前设备为目标 |
 
-## UI/UX 结构
+## 侧栏信息顺序
 
 侧栏保持从当前视频到操作再到反馈的阅读顺序：
 
@@ -44,7 +44,7 @@ flowchart TD
 4. **任务反馈**：阶段和错误详情折叠，进度有可靠数值时才显示；失败保留重试和取消边界。
 5. **播放选项**：自动加载和问号帮助图标；显示方式使用紧凑下拉框。
 
-全局低频配置放在 Preferences：默认语言、FFmpeg 路径、字幕库根目录、自动加载和字号。侧栏只保留当前视频需要即时决定的控件。
+全局设置放在 Preferences，包括默认语言、FFmpeg 路径、字幕库根目录、自动加载和字号。侧栏集中展示当前视频、字幕列表、生成操作和播放选项。
 
 ## 任务状态
 
@@ -63,7 +63,7 @@ stateDiagram-v2
     loadError --> loading: 重试加载
 ```
 
-`running` 的细阶段由 `checkingEnvironment`、`preparingLanguageResources`、`extractingAudio`、`transcribing`、`translating`、`saving` 表示；完成后才进入 `loading`。媒体切换会取消旧任务，并通过 operation token 丢弃迟到事件。
+此图描述用户可见的任务状态。helper 阶段、状态字段和错误码以 [protocol v1](runtime-state-and-protocol-v1.md) 为准。媒体切换会取消旧任务，并丢弃已过期的异步结果。
 
 ## V1 明确不做
 
@@ -72,21 +72,7 @@ stateDiagram-v2
 - 云端转录/翻译、字幕编辑器、同步到视频目录。
 - 独立 helper 安装器、Intel/Universal 兼容包。
 
-## 验收清单
-
-### 已由自动化覆盖
-
-- JavaScript 状态、协议解析、字幕显示模式、语言记忆和媒体切换。
-- Swift 字幕流水线、取消/超时、FFmpeg 错误、ASS 原子发布和文件命名。
-- 插件包资源白名单、helper 版本、源码/二进制哈希和 arm64 Mach-O。
-- Release tag 版本匹配、归档上传和发布后重新校验。
-
-### 仍需目标 Mac 实机确认
-
-- Apple Speech/Translation 首次资源准备和系统权限提示。
-- 多容器、多音轨下 `ff-index` 与实际音轨对应关系。
-- IINA 加载 ASS 后 `track-list` 的确认时序和超时处理。
-- 深色模式、VoiceOver、窄侧栏和长文件名的最终体验。
+自动化检查与人工验收范围见[开发指南](development.md#验证范围)。
 
 ## 参考
 

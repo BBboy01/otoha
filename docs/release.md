@@ -31,8 +31,8 @@ git diff --check
 
 - `plugin/Info.json.version`、`helper/Resources/Info.plist` 的 `CFBundleShortVersionString` 相同。
 - 变更已记录在 Conventional Commit 中；不需要提交 `CHANGELOG.md`。
-- README、安装命令和限制没有把待实机验收写成保证行为。
-- 工作树不包含 `dist/`、个人媒体、字幕、日志或 `.env`。
+- README、安装命令和功能限制与当前实现及发布包一致。
+- 工作树不包含 `dist/`、媒体、字幕、日志、凭据或 `.env`。
 
 ## 创建 tag
 
