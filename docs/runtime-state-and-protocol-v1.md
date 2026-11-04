@@ -121,6 +121,8 @@ helper 只向 stdout 写 JSONL，每行一个对象；日志写 stderr。所有�
 
 `helper.*`、`ffmpeg.*`、`speech.*` 和 `translation.*` 由 Swift helper 产生；`subtitle.libraryFailed` 与 `subtitle.loadFailed` 由插件在字幕库/IINA 加载边界产生，但共用同一 registry 和展示语义。
 
+字幕库删除使用单次 JSON 参数 `--delete-subtitle-json`，字段为 `protocolVersion`、`requestId`、`mediaPath`、`subtitlePath` 和可选的 `outputDirectoryPath`。helper 按当前媒体计算字幕库目录，只允许删除目录内符合该媒体命名规则的普通 ASS 文件；成功响应返回同版本、请求 ID 和删除路径。拒绝响应包含稳定错误码和下一步提示：`subtitle.deleteOutsideLibrary`、`subtitle.deleteMissing` 或 `subtitle.deleteFailed`。插件仅在匹配请求 ID 与路径后更新选择、播放器轨道和列表。
+
 | code | 适用情况 |
 | --- | --- |
 | `helper.invalidRequest` | 请求 JSON 缺失或字段无效 |

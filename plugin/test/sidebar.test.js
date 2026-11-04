@@ -14,7 +14,7 @@ function createSidebar() {
     "#existing-subtitles", "#job-form", "#job-message", "#job-status", "#job-icon",
     "#job-detail-toggle", "#job-detail-message", "#subtitle-loaded", "#media-error",
     "#media-name", "#subtitle-choice", "#translation-progress",
-    "#reveal-button", "#retry-button", "#source-language", "#start-button", "#target-language",
+    "#reveal-button", "#delete-button", "#retry-button", "#source-language", "#start-button", "#target-language",
     "#display-mode", "#source-language-error", "#target-language-error", "#generation-error",
   ];
   const elements = new Map(selectors.map((selector) => [selector, {

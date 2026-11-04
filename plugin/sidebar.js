@@ -164,6 +164,7 @@ function renderState(nextState) {
   elements.existingSubtitles.hidden = subtitles.length === 0;
   elements.reveal.hidden = subtitles.length === 0;
   elements.reveal.disabled = busy;
+  document.querySelector("#delete-button").disabled = busy || checkingSubtitles || subtitles.length === 0;
   elements.subtitleChoice.replaceChildren();
   for (const subtitle of subtitles) {
     const path = subtitle.path;

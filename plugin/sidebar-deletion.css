@@ -1,0 +1,43 @@
+@media (min-width: 281px) {
+  .subtitle-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+}
+
+.delete-trigger {
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
+  color: #b42318;
+  font-size: 17px;
+}
+
+dialog {
+  width: min(340px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  color: CanvasText;
+  background: Canvas;
+  border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
+  border-radius: 6px;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+
+.delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.danger {
+  color: white;
+  background: #b42318;
+}
+
+#delete-error {
+  color: #b42318;
+  overflow-wrap: anywhere;
+}

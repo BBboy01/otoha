@@ -26,6 +26,10 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
         }
         let launchMode = HelperLaunchMode(arguments: CommandLine.arguments)
         NSApp.setActivationPolicy(launchMode == .debugUI ? .accessory : .prohibited)
+        if SubtitleDeletionCLI.run(arguments: CommandLine.arguments) {
+            NSApp.terminate(nil)
+            return
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--list-subtitles-json"),
            CommandLine.arguments.indices.contains(index + 1) {
             Self.listSubtitles(json: CommandLine.arguments[index + 1])

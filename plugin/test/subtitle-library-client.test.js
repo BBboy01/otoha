@@ -80,6 +80,20 @@ test("subtitle library client reports when the active media is cleared", () => {
   assert.equal(client.state().mediaPath, null);
 });
 
+test("subtitle library client refresh can suppress auto-loading after deletion", async () => {
+  let currentOperation;
+  const loaded = [];
+  const client = createSubtitleLibraryClient({
+    exec: () => Promise.resolve({ status: 0, stdout: JSON.stringify({ files: [{ path: "/other.ass" }] }) }),
+    mediaPathForURL: () => "/video.mkv", subtitleLanguages: () => ({}),
+    beginOperation: () => (currentOperation = {}), isCurrentOperation: operation => operation === currentOperation,
+    isAutoLoadEnabled: () => true, onAutoLoad: files => loaded.push(files), onError: () => assert.fail("listing should not fail"),
+  });
+  await client.update({ helperPath: "/helper", media: { path: "/video.mkv" }, force: true, suppressAutoLoad: true });
+  assert.deepEqual(client.state().files, [{ path: "/other.ass" }]);
+  assert.equal(loaded.length, 0);
+});
+
 test("subtitle library client retries a failed listing for the same media", async () => {
   const requests = [];
   let currentOperation = null;

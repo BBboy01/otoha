@@ -87,7 +87,7 @@ IINA 官方说明：[Creating Plugins](https://docs.iina.io/pages/creating-plugi
 ~/Library/Application Support/Otoha/Subtitles/
 ```
 
-每个视频使用独立目录，字幕文件名包含源语言和目标语言。可在 Otoha Preferences 中更改字幕库根目录；侧栏的“在 Finder 中显示”会定位当前选中的字幕文件。
+每个视频使用独立目录，字幕文件名包含源语言和目标语言。可在 Otoha Preferences 中更改字幕库根目录；侧栏可在 Finder 中显示或删除选中的单个字幕文件，删除前会显示视频和语言对并要求确认。
 
 ## 限制
 
