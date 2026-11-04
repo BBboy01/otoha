@@ -1,10 +1,13 @@
-const path = require("node:path");
-
 const PROTOCOL_VERSION = 1;
 const MODES = new Set(["source", "translation", "bilingual"]);
 
 function absolute(value) {
-  return typeof value === "string" && path.isAbsolute(value);
+  return typeof value === "string" && value.startsWith("/") && !value.includes("\0")
+    && !value.split("/").some((part) => part === "." || part === "..");
+}
+
+function normalized(value) {
+  return `/${value.split("/").filter(Boolean).join("/")}`;
 }
 
 function createSubtitleExportController({ chooseDirectory, exec, getContext, onResult }) {
@@ -66,7 +69,7 @@ function createSubtitleExportController({ chooseDirectory, exec, getContext, onR
       }
       const outputPath = response && response.path;
       if (!absolute(outputPath) || !outputPath.toLowerCase().endsWith(".srt")
-        || path.dirname(path.resolve(outputPath)) !== path.resolve(destinationDirectoryPath)) {
+        || normalized(outputPath.slice(0, outputPath.lastIndexOf("/"))) !== normalized(destinationDirectoryPath)) {
         throw new Error("SRT 导出结果不在所选文件夹中，请检查 helper 版本后重试。");
       }
       report({ status: "success", path: outputPath });
