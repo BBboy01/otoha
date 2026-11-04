@@ -21,14 +21,14 @@ const { normalizeDisplayMode, renderSubtitleMode } = require("./subtitle-display
 const iinaAdapter = createIinaAdapter(iina);
 const { console: hostConsole, core, event, file, menu, mpv, preferences, sidebar, utils } = iinaAdapter;
 const subtitleSettings = createSubtitleSettings(preferences);
-const jobController = createJobController();
+const jobController = createJobController({ now: () => Date.now() });
 const runtimeStore = createRuntimeStore({
   job: { jobId: null, status: "idle", phase: "", message: "", progress: null, path: null, loaded: false, errorCode: null },
   subtitleLibrary: { mediaPath: null, outputDirectoryPath: null, rootDirectoryPath: "", files: [], loading: false },
 });
 function currentJob() { return jobController.current(); }
 function jobState() { return runtimeStore.getState().job; }
-function replaceJob(nextJob) { runtimeStore.setState((state) => ({ ...state, job: nextJob })); }
+function replaceJob(nextJob) { runtimeStore.setState((state) => ({ ...state, job: jobController.withTiming(nextJob) })); }
 const subtitleTrackManager = createSubtitleTrackManager({
   mpv,
   file,
@@ -381,8 +381,8 @@ function handleHelperEvent(helperEvent) {
   if (staleForPlayback && helperEvent.type !== "completed") {
     if (["error", "cancelled"].includes(helperEvent.type)) jobController.markTerminal(); return;
   }
-
   if (helperEvent.type === "phase") {
+    if (runningJob.cancelRequested) return;
     replaceJob({
       ...jobState(),
       phase: helperEvent.phase || "",

@@ -32,6 +32,7 @@ function createPlugin({
   helperTerminal = "completed",
   duplicateTerminal = "",
   waitForCancel = false,
+  phaseAfterCancel = false,
   fileLoadedBeforeCompletion = "",
   subtitleScale = 100,
   existingSubtitles = [],
@@ -204,6 +205,10 @@ function createPlugin({
             message: "正在转录",
           }) + "\n");
           if (waitForCancel) await new Promise((resolve) => { resumeHelper = resolve; });
+          if (phaseAfterCancel) stdoutHook(`${JSON.stringify({
+            protocolVersion: 1, type: "phase", jobId: request.jobId,
+            phase: "translating", message: "late phase", progress: 0.5,
+          })}\n`);
           if (changeMediaBeforeCompletion) {
             iina.core.status.url = "file:///Users/test/Another%20video.mkv";
           }

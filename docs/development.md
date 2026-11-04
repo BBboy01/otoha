@@ -97,6 +97,12 @@ make clean-package package verify-package
 
 重新链接后，在 IINA Plugins 设置中 reload Otoha。如果只改了 JavaScript，可以直接 reload，不必重新打包；修改 helper Swift 代码后需要重新打包并重新链接。Release 版本的更新步骤见 [README](../README.md#更新-release-版本)。
 
+## 长任务反馈（#25）
+
+focused tests：`node --test plugin/test/job-controller.test.js plugin/test/job-feedback.test.js plugin/test/protocol.test.js plugin/test/sidebar.test.js plugin/test/sidebar-display.test.js`。覆盖省略百分比的 JSONL、阶段切换、计时冻结、迟到阶段及终态、加载与侧栏状态。
+
+实机验收须单独记录：使用较长的合成或获授权语音媒体，确认提取、资源准备、转录、翻译、保存和 IINA 加载阶段持续可见；转录没有固定百分比，耗时增长且能取消；媒体切换后不显示旧任务进度；失败可重新生成，加载失败可重试。记录 macOS 权限/资源提示、helper 是否抢焦点及 VoiceOver 读出的阶段。浏览器注入状态和 fake helper 测试不替代这项实机验收。
+
 ## 代码分层
 
 - `plugin/`：IINA 适配、状态 store、侧栏 UI、字幕库客户端、任务控制器和协议解析。
