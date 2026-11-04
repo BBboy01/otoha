@@ -7,6 +7,7 @@ subtitle-settings.js
 subtitle-display.js
 iina-adapter.js
 job-controller.js
+language-preflight-client.js
 runtime-store.js
 settings-controller.js
 sidebar-lifecycle.js

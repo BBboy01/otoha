@@ -97,6 +97,13 @@ make clean-package package verify-package
 
 重新链接后，在 IINA Plugins 设置中 reload Otoha。如果只改了 JavaScript，可以直接 reload，不必重新打包；修改 helper Swift 代码后需要重新打包并重新链接。Release 版本的更新步骤见 [README](../README.md#更新-release-版本)。
 
+## 语言资源预检（#26）
+
+- Node：`node --test plugin/test/language-preflight.test.js plugin/test/main-preflight.test.js plugin/test/sidebar-preflight.test.js`，覆盖支持、缺资源、失败重试、错误协议、切换语言及迟到结果。
+- Swift：`swift test --package-path helper --filter LanguagePreflightTests`，覆盖请求校验、资源状态、失败前不创建输出目录、取消后保留旧 ASS。
+- 实机 CLI：打包后运行 `otoha-helper --check-languages-json '{"protocolVersion":1,"requestId":"manual-check","sourceLanguage":"en","targetLanguage":"ja"}'`。这是实际 Apple 能力检查，不是转录验证；不依赖用户媒体。
+- IINA 单独验收：改变语言后按钮等待预检；不支持或缺资源时显示原因，语言可改、资源可重新检查；Speech 资源准备仍可取消；视频切换和失败后已有字幕可继续播放。记录 macOS 权限/下载提示及 helper 是否抢焦点。
+
 ## 代码分层
 
 - `plugin/`：IINA 适配、状态 store、侧栏 UI、字幕库客户端、任务控制器和协议解析。

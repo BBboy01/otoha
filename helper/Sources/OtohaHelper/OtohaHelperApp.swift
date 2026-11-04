@@ -26,6 +26,30 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
         }
         let launchMode = HelperLaunchMode(arguments: CommandLine.arguments)
         NSApp.setActivationPolicy(launchMode == .debugUI ? .accessory : .prohibited)
+        if let index = CommandLine.arguments.firstIndex(of: "--check-languages-json"),
+           CommandLine.arguments.indices.contains(index + 1) {
+            let json = CommandLine.arguments[index + 1]
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(30))
+                FileHandle.standardError.write(Data("语言检查超时，请重试。\n".utf8))
+                exit(EXIT_FAILURE)
+            }
+            backgroundTask = Task { @MainActor in
+                do {
+                    guard #available(macOS 26.4, *) else { throw PreflightSystemError() }
+                    let request = try JSONDecoder().decode(LanguagePreflightRequest.self, from: Data(json.utf8))
+                    let result = try await LanguagePreflightService.check(request)
+                    var data = try JSONEncoder().encode(result)
+                    data.append(0x0A)
+                    FileHandle.standardOutput.write(data)
+                    NSApp.terminate(nil)
+                } catch {
+                    FileHandle.standardError.write(Data("语言检查失败：\(error.localizedDescription)\n".utf8))
+                    exit(EXIT_FAILURE)
+                }
+            }
+            return
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--list-subtitles-json"),
            CommandLine.arguments.indices.contains(index + 1) {
             Self.listSubtitles(json: CommandLine.arguments[index + 1])
@@ -99,6 +123,10 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
             exit(EXIT_FAILURE)
         }
     }
+}
+
+private struct PreflightSystemError: Error, LocalizedError {
+    var errorDescription: String? { "语言资源检查需要 macOS 26.4 或更新版本。" }
 }
 
 @MainActor

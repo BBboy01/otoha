@@ -83,6 +83,8 @@ sequenceDiagram
 
 ## 异步任务与取消
 
+语言选择触发 `language-preflight-client.js` 调用 helper `--check-languages-json`，结果按媒体、语言对和请求序号隔离。Swift 通过 `SpeechTranscriber.supportedLocale`、`AssetInventory.status` 和高保真 `LanguageAvailability` 读取本机能力；Speech 预检和实际准备共享同一 transcriber 创建逻辑。预检不读取媒体或创建输出目录。`SubtitleJobRunner` 在所有准备和提取工作前复查能力，并在成功保存时才创建输出目录；无法使用的语言对不会启动长任务或改动旧字幕。
+
 媒体切换、字幕库刷新、显示模式转换和任务启动各自使用 operation token。插件提交异步结果前会核对媒体路径、操作 token 和任务 ID，过期结果直接丢弃。切换到新视频时，插件写入取消标记，helper 终止当前任务并清理临时目录，不发布半成品。
 
 ## 文件和进程

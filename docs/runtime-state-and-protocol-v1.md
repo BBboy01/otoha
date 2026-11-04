@@ -117,7 +117,25 @@ helper 只向 stdout 写 JSONL，每行一个对象；日志写 stderr。所有�
 
 字幕列表查询使用同一个 helper 的 `--list-subtitles-json` 参数，输入 `{ "mediaPath": "...", "outputDirectoryPath": "..." }`，输出 `{ "rootDirectoryPath": "...", "files": [{ "path": "..." }] }`。列表查询不会启动语音或翻译任务，也不会修改字幕文件。
 
-## 5. 稳定错误码
+## 5. 语言预检（#26）
+
+`--check-languages-json` 在后台执行只读能力检查，不接收媒体/输出路径，不提取音频、不下载模型、不写字幕。输入示例：
+
+```json
+{"protocolVersion":1,"requestId":"language-1","sourceLanguage":"en","targetLanguage":"ja"}
+```
+
+stdout 返回一行 JSON，包含相同的版本、requestId 和语言对，以及 `speech` / `translation` 状态（`installed`、`supported`、`downloading`、`unsupported`）、用户文案 `message`，不可用时包含 `errorCode`。非法请求或系统错误退出非零，原因写 stderr。能力查询最多等待 30 秒，超时可重试。
+
+侧栏状态通过 `languagePreflight` 投影，包含 `mediaPath`、语言对及 `idle/checking/ready/unavailable/error`。只有当前媒体和语言对匹配的 `ready` 可以生成；请求序号隔离迟到结果，切换语言或媒体后旧结果不能启用生成按钮。预检失败保留语言选择及重新检查操作，不影响已有字幕播放。生成入口仍重新执行 helper 能力检查，防止缓存过期或绕过 UI。
+
+Speech 的 `supported/downloading` 可继续，在生成时通过原有可取消资源准备流程处理。后台 Translation 使用 `installedSource`，仅 `installed` 可继续；`supported` 明确提示先通过 macOS 翻译功能下载语言后重试，不宣称后台 helper 可以弹出下载授权。高保真策略与实际翻译会话一致，不自动识别源语言。
+
+新增错误码：`translation.unsupportedLanguage`（语言对不支持）、`translation.resourcesMissing`（资源未安装），Speech 不支持继续使用 `speech.unsupportedLanguage`。预检失败或取消发生在音轨提取和输出目录创建前，不覆盖已有 ASS。
+
+详见 Apple [LanguageAvailability](https://developer.apple.com/documentation/translation/languageavailability) 和 [installedSource 会话](https://developer.apple.com/documentation/translation/translationsession/init(installedsource:target:preferredstrategy:)) 的下载边界。
+
+## 6. 稳定错误码
 
 `helper.*`、`ffmpeg.*`、`speech.*` 和 `translation.*` 由 Swift helper 产生；`subtitle.libraryFailed` 与 `subtitle.loadFailed` 由插件在字幕库/IINA 加载边界产生，但共用同一 registry 和展示语义。
 
@@ -133,12 +151,14 @@ helper 只向 stdout 写 JSONL，每行一个对象；日志写 stderr。所有�
 | `speech.noAudio` / `speech.noSpeech` | 没有音频或没有识别到语音 |
 | `speech.missingFormat` | 没有可用的 SpeechAnalyzer 音频格式 |
 | `translation.failed` | Apple 翻译任务失败 |
+| `translation.unsupportedLanguage` | 本机不支持所选翻译语言对 |
+| `translation.resourcesMissing` | 后台翻译所需的语言资源尚未安装 |
 | `subtitle.incompleteTranslation` | 翻译结果数量不完整 |
 | `subtitle.publishFailed` | ASS 写入或替换失败 |
 | `subtitle.libraryFailed` | 字幕列表读取失败 |
 | `subtitle.loadFailed` | IINA 未确认外挂字幕轨道加载 |
 | `job.cancelled` | 用户或媒体切换取消任务 |
 
-## 6. 兼容与演进
+## 7. 兼容与演进
 
-v1 只允许向对象增加可选字段。改变字段含义、事件状态机或错误码时递增 `protocolVersion`，并在插件和 helper 同一个 PR 中更新 Node/Swift 契约测试。旧事件不做隐式兼容，避免把失真的进度或错误当成成功。
+v1 保持现有字段、事件状态机和错误码语义不变。新增只读命令及错误码 registry 必须随插件/helper 同包更新，并同步 Node/Swift 契约测试；改变已有字段含义、事件状态机或错误码含义时递增 `protocolVersion`。旧插件不会隐式接受未知错误码，避免把未理解的错误当成成功。

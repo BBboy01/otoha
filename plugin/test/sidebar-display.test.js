@@ -15,6 +15,7 @@ function createSidebar() {
     "#media-error", "#media-name", "#subtitle-choice", "#translation-progress", "#reveal-button",
     "#retry-button", "#source-language", "#source-language-error", "#start-button", "#target-language",
     "#target-language-error", "#subtitle-loaded", "#display-mode",
+    "#language-resource-status", "#language-resource-message", "#check-languages",
   ];
   const elements = new Map(selectors.map((selector) => [selector, {
     children: [], hidden: false, disabled: false, checked: false, value: "", textContent: "",
