@@ -8,6 +8,17 @@ const {
   parseHelperEvent,
 } = require("../protocol");
 
+test("phase events without measured progress remain indeterminate across JSONL", () => {
+  const { createJsonLineParser } = require("../controller");
+  const events = [];
+  const parser = createJsonLineParser((event) => events.push(event));
+  for (const phase of JOB_PHASES) {
+    parser.push(JSON.stringify({ protocolVersion: 1, type: "phase", jobId: "long-job", phase }) + "\n");
+  }
+  assert.equal(events.length, JOB_PHASES.length);
+  assert.ok(events.every((event) => event.progress === undefined));
+});
+
 test("helper protocol v1 accepts a phase event with a stable job identity", () => {
   const event = parseHelperEvent({
     protocolVersion: PROTOCOL_VERSION,

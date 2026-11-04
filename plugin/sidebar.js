@@ -24,6 +24,7 @@ const elements = {
   existingSubtitles: document.querySelector("#existing-subtitles"),
   jobForm: document.querySelector("#job-form"),
   jobMessage: document.querySelector("#job-message"),
+  jobElapsed: document.querySelector("#job-elapsed"),
   jobStatus: document.querySelector("#job-status"),
   jobIcon: document.querySelector("#job-icon"),
   jobDetailToggle: document.querySelector("#job-detail-toggle"),
@@ -53,6 +54,7 @@ let lastResolvedLanguages = "";
 let lastResolvedSubtitlePath;
 let lastFeedbackKey = "";
 let languageValidationRequested = false;
+let feedbackJob = null;
 
 function post(name, payload) {
   iina.postMessage(name, payload);
@@ -212,6 +214,8 @@ function updateGeneration() {
 
 function renderJob(job) {
   const current = job || { status: "idle", message: "" };
+  feedbackJob = current;
+  renderElapsed();
   const message = current.message || "";
   const failed = ["error", "load-error"].includes(current.status);
   const noSpeech = current.errorCode === "speech.noSpeech";
@@ -244,8 +248,9 @@ function renderJob(job) {
   elements.cancel.hidden = !["running", "canceling"].includes(current.status);
   elements.cancel.disabled = current.status === "canceling";
   elements.retry.hidden = current.status !== "load-error";
-  elements.progress.hidden = current.phase !== "translating" || !Number.isFinite(current.progress);
-  if (!elements.progress.hidden) {
+  elements.progress.hidden = !["running", "loading"].includes(current.status);
+  elements.progress.setAttribute("aria-label", current.phase === "translating" ? "翻译进度" : "字幕生成进度");
+  if (!elements.progress.hidden && Number.isFinite(current.progress)) {
     const progress = Math.min(Math.max(current.progress, 0), 1);
     const percentage = Math.round(progress * 100);
     elements.progress.value = progress;
@@ -253,10 +258,21 @@ function renderJob(job) {
     elements.progress.setAttribute("aria-valuetext", `${percentage}%`);
   } else {
     if (typeof elements.progress.removeAttribute === "function") {
+      elements.progress.removeAttribute("value");
       elements.progress.removeAttribute("aria-valuenow");
       elements.progress.removeAttribute("aria-valuetext");
     }
   }
+}
+
+function renderElapsed() {
+  const job = feedbackJob;
+  const visible = job && Number.isFinite(job.startedAt) && job.status !== "idle";
+  elements.jobElapsed.hidden = !visible;
+  if (!visible) return;
+  const end = Number.isFinite(job.finishedAt) ? job.finishedAt : Date.now();
+  const seconds = Math.max(0, Math.floor((end - job.startedAt) / 1000));
+  elements.jobElapsed.textContent = `已耗时 ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 elements.jobDetailToggle.addEventListener("click", () => {
@@ -334,3 +350,6 @@ const helperURL = new URL("bin/OtohaHelper.app/Contents/MacOS/otoha-helper", win
 iina.postMessage("ready", { helperPath: decodeURIComponent(helperURL.pathname) });
 iina.postMessage("refresh");
 window.setInterval(() => post("refresh"), 2500);
+window.setInterval(() => {
+  if (feedbackJob && ["running", "loading"].includes(feedbackJob.status)) renderElapsed();
+}, 1000);

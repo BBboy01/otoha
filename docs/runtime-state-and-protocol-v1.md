@@ -92,7 +92,8 @@ helper 必须拒绝缺少 `protocolVersion` 或 `jobId` 的任务。请求解析
 helper 只向 stdout 写 JSONL，每行一个对象；日志写 stderr。所有事件包含 `protocolVersion: 1`、`type` 和非空 `jobId`。
 
 ```json
-{"protocolVersion":1,"type":"phase","jobId":"...","phase":"transcribing","progress":0.4,"message":"正在转录"}
+{"protocolVersion":1,"type":"phase","jobId":"...","phase":"transcribing","message":"正在转录"}
+{"protocolVersion":1,"type":"phase","jobId":"...","phase":"translating","progress":0.4,"message":"正在翻译"}
 {"protocolVersion":1,"type":"completed","jobId":"...","path":"/Users/me/Library/Application Support/Otoha/Subtitles/episode [ja to zh-Hans].ass"}
 {"protocolVersion":1,"type":"cancelled","jobId":"..."}
 {"protocolVersion":1,"type":"error","jobId":"...","code":"speech.noSpeech","message":"所选音轨中没有识别到语音。"}
@@ -108,6 +109,10 @@ helper 只向 stdout 写 JSONL，每行一个对象；日志写 stderr。所有�
 | `error` | `code`, `message` | 稳定错误码用于逻辑分支，message 只用于展示 |
 
 插件遇到未知版本、事件类型、阶段或错误码时丢弃该行并保留当前任务状态。不能用中文 message 作为程序分支条件。
+
+没有可测量进度时省略 `progress`，侧栏显示不确定进度；不以阶段序号或已耗时推算百分比。当前 Speech 转录不提供可靠媒体进度；语音模型下载和 Translation 批次结果可提供实测百分比。每次阶段事件都替换旧 `progress`，避免翻译百分比残留到保存阶段。
+
+插件从占用任务槽时记录 `job.startedAt`（毫秒时间戳），跨阶段及侧栏重载保留。取消请求或终态记录 `job.finishedAt`，侧栏用二者展示总耗时，每秒仅更新耗时文本，不反复播报 `role=status`。这两个字段由插件维护，不属于 helper JSONL，也不代表 helper 心跳。运行中显示阶段和取消按钮；加载期间显示不确定进度；取消期间停止进度及耗时，忽略迟到的阶段事件。失败详情、加载重试和媒体切换恢复沿用现有状态机。
 
 ## 4. helper 启动与首次运行
 

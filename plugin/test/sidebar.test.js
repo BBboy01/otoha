@@ -12,7 +12,7 @@ function createSidebar() {
   const selectors = [
     "#audio-track", "#auto-load", "#auto-load-help", "#cancel-button",
     "#existing-subtitles", "#job-form", "#job-message", "#job-status", "#job-icon",
-    "#job-detail-toggle", "#job-detail-message", "#subtitle-loaded", "#media-error",
+    "#job-detail-toggle", "#job-detail-message", "#subtitle-loaded", "#media-error", "#job-elapsed",
     "#media-name", "#subtitle-choice", "#translation-progress",
     "#reveal-button", "#retry-button", "#source-language", "#start-button", "#target-language",
     "#display-mode", "#source-language-error", "#target-language-error", "#generation-error",
