@@ -200,43 +200,6 @@ test("main ignores non-ASS subtitle files", async () => {
   assert.deepEqual(plugin.loadedTracks, ["/library/episode.ass"]);
 });
 
-test("main exports the selected saved ASS through IINA's directory picker", async () => {
-  const subtitlePath = "/Users/test/Library/Application Support/Otoha/Subtitles/Anime/Anime [en to zh-Hans].ass";
-  const plugin = createPlugin({ existingSubtitles: [subtitlePath] });
-  plugin.runSidebarLoad();
-  plugin.sidebarHandlers.get("ready")({ helperPath });
-  await new Promise((resolve) => setImmediate(resolve));
-
-  await plugin.sidebarHandlers.get("exportSubtitle")({ subtitlePath, mode: "translation" });
-
-  assert.deepEqual(plugin.chooseFileCalls, [{ title: "选择 SRT 导出文件夹", options: { chooseDir: true } }]);
-  const helperCall = plugin.execCalls.find((call) => call.file.endsWith("otoha-helper") && call.args[0] === "--export-srt-json");
-  assert.ok(helperCall);
-  const request = JSON.parse(helperCall.args[1]);
-  assert.equal(request.subtitlePath, subtitlePath);
-  assert.equal(request.mediaPath, "/Users/test/Anime episode.mkv");
-  assert.equal(request.mode, "translation");
-  assert.equal(request.destinationDirectoryPath, "/Users/test/Exports");
-  assert.notEqual(request.destinationDirectoryPath, "/Users/test");
-  assert.deepEqual(plugin.messages.findLast((message) => message.name === "exportResult").payload, {
-    status: "success",
-    path: "/Users/test/Exports/Anime episode [Translation].srt",
-  });
-});
-
-test("main leaves the ASS untouched when the user cancels SRT export", async () => {
-  const subtitlePath = "/Users/test/Library/Application Support/Otoha/Subtitles/Anime/Anime [en to zh-Hans].ass";
-  const plugin = createPlugin({ existingSubtitles: [subtitlePath], chosenExportDirectory: null });
-  plugin.runSidebarLoad();
-  plugin.sidebarHandlers.get("ready")({ helperPath });
-  await new Promise((resolve) => setImmediate(resolve));
-
-  await plugin.sidebarHandlers.get("exportSubtitle")({ subtitlePath, mode: "bilingual" });
-
-  assert.equal(plugin.execCalls.some((call) => call.args[0] === "--export-srt-json"), false);
-  assert.deepEqual(plugin.messages.findLast((message) => message.name === "exportResult").payload, { status: "cancelled" });
-});
-
 test("main does not start transcription when automatic loading finds no subtitle", async () => {
   const plugin = createPlugin({ autoLoad: true });
   plugin.runSidebarLoad();

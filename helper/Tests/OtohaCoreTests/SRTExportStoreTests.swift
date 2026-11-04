@@ -41,6 +41,34 @@ final class SRTExportStoreTests: XCTestCase {
         XCTAssertThrowsError(try fixture.export(destinationDirectory: linkedDestination))
     }
 
+    func testCreatesTheOtohaExportsDirectoryWithoutModifyingTheASS() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let directory = fixture.root.appendingPathComponent("Exports", isDirectory: true)
+        let output = try fixture.export(destinationDirectory: directory)
+        XCTAssertEqual(output.deletingLastPathComponent(), directory)
+        XCTAssertEqual(try String(contentsOf: output, encoding: .utf8), fixture.expectedSRT)
+        XCTAssertEqual(try Data(contentsOf: fixture.subtitleURL), fixture.originalASS)
+    }
+
+    func testDoesNotCreateOtherMissingDestinations() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let directory = fixture.root.appendingPathComponent("Unselected", isDirectory: true)
+        XCTAssertThrowsError(try fixture.export(destinationDirectory: directory))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
+    }
+
+    func testRejectsASymlinkAtTheOtohaExportsDirectory() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let directory = fixture.root.appendingPathComponent("Exports", isDirectory: true)
+        try FileManager.default.createSymbolicLink(at: directory, withDestinationURL: fixture.destination)
+        XCTAssertThrowsError(try fixture.export(destinationDirectory: directory))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: fixture.destination.path), [])
+        XCTAssertEqual(try Data(contentsOf: fixture.subtitleURL), fixture.originalASS)
+    }
+
     private struct Fixture {
         let root: URL
         let mediaURL: URL

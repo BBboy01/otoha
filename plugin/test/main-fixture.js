@@ -37,7 +37,6 @@ function createPlugin({
   existingSubtitles = [],
   subtitleContents = {},
   failedListingPath = "",
-  chosenExportDirectory = "/Users/test/Exports",
 } = {}) {
   const sidebarHandlers = new Map();
   const eventHandlers = new Map();
@@ -243,7 +242,7 @@ function createPlugin({
       },
       async chooseFile(title, options) {
         chooseFileCalls.push({ title, options });
-        return chosenExportDirectory;
+        throw new Error("Native file pickers are unavailable in this host fixture");
       },
       open(filePath) { messages.push({ kind: "open", filePath }); },
     },

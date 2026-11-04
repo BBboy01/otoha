@@ -33,6 +33,11 @@ public enum SRTExportStore {
         guard let ass = String(data: assData, encoding: .utf8) else { throw SRTExportStoreError.invalidEncoding }
         let contents = Data(try SRTExporter.export(ass, mode: mode).utf8)
         let directory = destinationDirectory.standardizedFileURL
+        let otohaExports = libraryRoot.standardizedFileURL.appendingPathComponent("Exports", isDirectory: true)
+        if directory.path == otohaExports.path,
+           mkdir(directory.path, S_IRUSR | S_IWUSR | S_IXUSR) != 0, errno != EEXIST {
+            throw SRTExportStoreError.destinationUnavailable(errno)
+        }
         var directoryInfo = stat()
         guard lstat(directory.path, &directoryInfo) == 0,
               (directoryInfo.st_mode & S_IFMT) == S_IFDIR else {
@@ -131,7 +136,7 @@ public enum SRTExportStoreError: Error, Equatable, LocalizedError {
         case .sourceTooLarge: "ASS 文件超过 16 MB，无法导出。"
         case .invalidEncoding: "ASS 文件不是有效的 UTF-8 文本。"
         case .readFailed: "读取 ASS 文件失败，请检查文件权限。"
-        case .destinationUnavailable: "无法访问所选导出目录，请选择一个可写文件夹。"
+        case .destinationUnavailable: "无法访问导出目录，请检查字幕库路径和写入权限后重试。"
         case .writeFailed: "SRT 导出失败，请检查导出目录的写入权限。"
         }
     }

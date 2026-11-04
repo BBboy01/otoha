@@ -117,7 +117,7 @@ helper 只向 stdout 写 JSONL，每行一个对象；日志写 stderr。所有�
 
 字幕列表查询使用同一个 helper 的 `--list-subtitles-json` 参数，输入 `{ "mediaPath": "...", "outputDirectoryPath": "..." }`，输出 `{ "rootDirectoryPath": "...", "files": [{ "path": "..." }] }`。列表查询不会启动语音或翻译任务，也不会修改字幕文件。
 
-SRT 导出通过 `--export-srt-json` 调用 helper，输入协议版本、当前视频路径、已选 ASS 路径、字幕库根目录、用户在 IINA 原生目录面板选定的导出目录和 `source` / `translation` / `bilingual` 模式，成功时输出 `{ "path": "...srt" }`。helper 只读取当前视频的 Otoha 字幕库内 ASS，并在目标文件夹创建不覆盖已有文件的 SRT；连续导出会加 `(2)`、`(3)` 后缀。导出失败通过 stderr 和非零退出码返回，不更改原 ASS。
+SRT 导出通过 `--export-srt-json` 调用 helper，输入协议版本、当前视频路径、已选 ASS 路径、字幕库根目录、`destinationDirectoryPath` 和 `source` / `translation` / `bilingual` 模式，成功时输出 `{ "path": "...srt" }`。插件将目标目录设为字幕库根目录下的 `Exports`；helper 仅自动创建这个约定子目录，其他显式目标目录必须已存在，拒绝目标目录本身为符号链接。helper 只读取当前视频的 Otoha 字幕库内 ASS，并创建不覆盖已有文件的 SRT；连续导出会加 `(2)`、`(3)` 后缀。导出失败通过 stderr 和非零退出码返回，不更改原 ASS。媒体切换后不会向新视频侧栏发布旧导出的成功或失败反馈。
 
 ## 5. 稳定错误码
 
