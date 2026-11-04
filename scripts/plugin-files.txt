@@ -12,8 +12,11 @@ settings-controller.js
 sidebar-lifecycle.js
 settings-schema.js
 subtitle-library-client.js
+subtitle-export-controller.js
+media-context.js
 subtitle-track-manager.js
 sidebar.html
 sidebar.css
+subtitle-export.css
 sidebar.js
 preferences.html

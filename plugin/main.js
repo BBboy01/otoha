@@ -17,9 +17,12 @@ const { readSetting } = require("./settings-schema.js");
 const { createSubtitleTrackManager } = require("./subtitle-track-manager.js");
 const { createSubtitleSettings, subtitleLanguages } = require("./subtitle-settings.js");
 const { createSubtitleLibraryClient } = require("./subtitle-library-client.js");
+const { createSubtitleExportRuntime } = require("./subtitle-export-controller.js");
+const { createMediaContext } = require("./media-context.js");
 const { normalizeDisplayMode, renderSubtitleMode } = require("./subtitle-display.js");
 const iinaAdapter = createIinaAdapter(iina);
 const { console: hostConsole, core, event, file, menu, mpv, preferences, sidebar, utils } = iinaAdapter;
+const { mediaPathForURL, mediaSnapshot } = createMediaContext(localMedia);
 const subtitleSettings = createSubtitleSettings(preferences);
 const jobController = createJobController();
 const runtimeStore = createRuntimeStore({
@@ -94,16 +97,23 @@ const settingsController = createSettingsController({
   reportError: (message) => setJobError(message),
 });
 const sidebarReadyTimeout = 2000;
-function playerWindowIsLoaded() {
-  return !core.window || core.window.loaded === true;
-}
-function mediaPathForURL(value) { try { return localMedia(value).path; } catch { return ""; } }
-function scheduleSidebarLoad() {
-  sidebarLifecycle.scheduleRetry();
-}
-function initializeSidebar() {
-  sidebarLifecycle.initialize();
-}
+const subtitleExportController = createSubtitleExportRuntime({
+  utils,
+  getContext() {
+    const { media } = mediaSnapshot(latestFileLoadedURL || core.status.url);
+    const library = subtitleLibraryState();
+    return {
+      helperPath,
+      mediaPath: media ? media.path : "",
+      libraryRootPath: library.mediaPath === (media && media.path) ? library.rootDirectoryPath : "",
+      subtitles: library.mediaPath === (media && media.path) ? library.files : [],
+    };
+  },
+  onResult: (result) => send("exportResult", result),
+});
+const playerWindowIsLoaded = () => iinaAdapter.playerWindowIsLoaded();
+const scheduleSidebarLoad = () => sidebarLifecycle.scheduleRetry();
+const initializeSidebar = () => sidebarLifecycle.initialize();
 function loadSidebarPage(show = false) {
   sidebarShowRequested = sidebarShowRequested || show;
   if (uiLoaded) {
@@ -151,6 +161,7 @@ function loadSidebarPage(show = false) {
     sidebar.onMessage("loadExisting", (filePath) => {
       if (!currentJob() && subtitleLibraryState().files.some((subtitle) => subtitle.path === filePath)) loadSubtitle(filePath, null, true);
     });
+    sidebar.onMessage("exportSubtitle", (payload) => subtitleExportController.export(payload));
     sidebar.onMessage("setDisplayMode", (mode) => setDisplayMode(mode));
     sidebar.onMessage("cancel", () => cancelJob());
     sidebar.onMessage("retryLoad", () => {
@@ -233,19 +244,6 @@ scheduleSidebarLoad();
 
 function send(name, payload) {
   if (uiLoaded) sidebar.postMessage(name, payload);
-}
-
-function mediaSnapshot(url) {
-  let media = null;
-  let mediaError = "";
-  if (url) {
-    try {
-      media = localMedia(url);
-    } catch (error) {
-      mediaError = error.message;
-    }
-  }
-  return { media, mediaError };
 }
 
 function refreshSubtitleLibrary(mediaURLOverride = null, force = false) {

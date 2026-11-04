@@ -117,6 +117,8 @@ helper 只向 stdout 写 JSONL，每行一个对象；日志写 stderr。所有�
 
 字幕列表查询使用同一个 helper 的 `--list-subtitles-json` 参数，输入 `{ "mediaPath": "...", "outputDirectoryPath": "..." }`，输出 `{ "rootDirectoryPath": "...", "files": [{ "path": "..." }] }`。列表查询不会启动语音或翻译任务，也不会修改字幕文件。
 
+SRT 导出通过 `--export-srt-json` 调用 helper，输入协议版本、当前视频路径、已选 ASS 路径、字幕库根目录、用户在 IINA 原生目录面板选定的导出目录和 `source` / `translation` / `bilingual` 模式，成功时输出 `{ "path": "...srt" }`。helper 只读取当前视频的 Otoha 字幕库内 ASS，并在目标文件夹创建不覆盖已有文件的 SRT；连续导出会加 `(2)`、`(3)` 后缀。导出失败通过 stderr 和非零退出码返回，不更改原 ASS。
+
 ## 5. 稳定错误码
 
 `helper.*`、`ffmpeg.*`、`speech.*` 和 `translation.*` 由 Swift helper 产生；`subtitle.libraryFailed` 与 `subtitle.loadFailed` 由插件在字幕库/IINA 加载边界产生，但共用同一 registry 和展示语义。

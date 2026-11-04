@@ -16,6 +16,7 @@ function createSidebar() {
     "#media-name", "#subtitle-choice", "#translation-progress",
     "#reveal-button", "#retry-button", "#source-language", "#start-button", "#target-language",
     "#display-mode", "#source-language-error", "#target-language-error", "#generation-error",
+    "#export-button", "#export-message", "#export-result", "#reveal-export-button",
   ];
   const elements = new Map(selectors.map((selector) => [selector, {
     children: [],
@@ -32,6 +33,7 @@ function createSidebar() {
   }]));
   const handlers = new Map();
   const posts = [];
+  const exportModes = ["source", "translation", "bilingual"].map((value) => ({ value, checked: value === "bilingual", disabled: false }));
   const iina = {
     onMessage(name, callback) { handlers.set(name, callback); },
     postMessage(name, payload) { posts.push({ name, payload }); },
@@ -45,14 +47,17 @@ function createSidebar() {
   }
 
   vm.runInNewContext(sidebarSource, {
-    document: { querySelector: (selector) => elements.get(selector) },
+    document: {
+      querySelector: (selector) => elements.get(selector),
+      querySelectorAll: (selector) => selector === "input[name='export-mode']" ? exportModes : [],
+    },
     iina,
     Option,
     URL,
     window: { location: { href: "file:///tmp/Otoha/sidebar.html" }, setInterval() {} },
   });
 
-  return { elements, handlers, posts };
+  return { elements, exportModes, handlers, posts };
 }
 
 function videoState(overrides = {}) {
@@ -175,6 +180,33 @@ test("sidebar places the Finder action beside the selected subtitle", () => {
   assert.equal(sidebar.elements.get("#reveal-button").hidden, false);
   sidebar.elements.get("#reveal-button").listeners.get("click")();
   assert.deepEqual(sidebar.posts.at(-1), { name: "reveal", payload: "/library/video.ass" });
+});
+
+test("sidebar exports a selected ASS in one of three accessible modes and exposes the saved file", () => {
+  assert.match(sidebarMarkup, /<fieldset class="export-mode">[\s\S]*<legend>导出内容<\/legend>/);
+  assert.match(sidebarMarkup, /name="export-mode" value="source"/);
+  assert.match(sidebarMarkup, /name="export-mode" value="translation"/);
+  assert.match(sidebarMarkup, /name="export-mode" value="bilingual" checked/);
+  assert.match(sidebarMarkup, /id="export-result"[^>]*role="status"[^>]*aria-live="polite"/);
+  const sidebar = createSidebar();
+  sidebar.handlers.get("state")(videoState({ availableSubtitles: [{ path: "/library/video.ass" }] }));
+  const exportButton = sidebar.elements.get("#export-button");
+  assert.equal(exportButton.disabled, false);
+  sidebar.exportModes.find((radio) => radio.value === "translation").checked = true;
+  exportButton.listeners.get("click")();
+  assert.deepEqual(JSON.parse(JSON.stringify(sidebar.posts.at(-1))), {
+    name: "exportSubtitle",
+    payload: { subtitlePath: "/library/video.ass", mode: "translation" },
+  });
+
+  sidebar.handlers.get("exportResult")({ status: "running" });
+  assert.equal(exportButton.disabled, true);
+  assert.equal(sidebar.elements.get("#export-message").textContent, "正在导出 SRT…");
+  sidebar.handlers.get("exportResult")({ status: "success", path: "/Users/test/Exports/video [Translation].srt" });
+  assert.equal(exportButton.disabled, false);
+  assert.equal(sidebar.elements.get("#export-message").textContent, "已导出：video [Translation].srt");
+  sidebar.elements.get("#reveal-export-button").listeners.get("click")();
+  assert.deepEqual(sidebar.posts.at(-1), { name: "reveal", payload: "/Users/test/Exports/video [Translation].srt" });
 });
 
 test("sidebar does not infer a missing source language from audio metadata", () => {
