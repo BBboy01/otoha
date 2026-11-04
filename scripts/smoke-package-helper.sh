@@ -24,3 +24,4 @@ printf '%s\n' "$list_output" | node -e '
 '
 
 printf 'Packaged helper CLI smoke tests passed.\n'
+node "$(dirname "$0")/test-subtitle-editing.cjs" "$HELPER_BIN"

@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Otoha</title>
     <link rel="stylesheet" href="sidebar.css" />
+    <link rel="stylesheet" href="subtitle-editor.css" />
+    <script defer src="subtitle-editor.js"></script>
     <script defer src="sidebar.js"></script>
   </head>
   <body>
@@ -25,6 +27,7 @@
       <section id="existing-subtitles" aria-labelledby="subtitle-heading" hidden>
         <div class="section-heading">
           <h2 id="subtitle-heading">字幕列表</h2>
+          <button id="edit-subtitle-button" class="editor-icon" type="button" title="校对所选字幕" aria-label="校对所选字幕">&#9998;</button>
           <span id="subtitle-loaded" class="subtitle-loaded" role="status" aria-label="字幕已加载" title="字幕已加载" hidden>✓</span>
         </div>
         <div class="subtitle-row">
@@ -93,6 +96,38 @@
         </div>
       </section>
 
+      <dialog id="subtitle-editor" aria-labelledby="editor-heading">
+        <div class="editor-heading">
+          <h2 id="editor-heading">校对字幕</h2>
+          <button id="editor-close" class="editor-icon" type="button" title="关闭校对" aria-label="关闭校对">&times;</button>
+        </div>
+        <p id="editor-file" class="editor-file"></p>
+        <p id="editor-status" role="status" aria-live="polite"></p>
+        <p id="editor-error" class="inline-error" role="alert" hidden></p>
+        <div id="editor-fields" hidden>
+          <label for="editor-cue">字幕片段</label>
+          <select id="editor-cue" size="4" aria-label="字幕片段"></select>
+          <div class="editor-navigation">
+            <button id="editor-previous" class="editor-icon" type="button" title="上一句" aria-label="上一句">&#8593;</button>
+            <button id="editor-next" class="editor-icon" type="button" title="下一句" aria-label="下一句">&#8595;</button>
+            <output id="editor-time" aria-label="片段时间范围"></output>
+            <button id="editor-seek" class="editor-icon" type="button" title="跳到片段开始" aria-label="跳到片段开始">&#9654;</button>
+          </div>
+          <label for="editor-source">原文</label>
+          <textarea id="editor-source" rows="4" spellcheck="true"></textarea>
+          <label for="editor-translation">译文</label>
+          <textarea id="editor-translation" rows="4" spellcheck="true"></textarea>
+          <button id="editor-save" class="primary" type="button">保存</button>
+        </div>
+      </dialog>
+      <dialog id="editor-discard-dialog" role="alertdialog" aria-labelledby="editor-discard-heading" aria-describedby="editor-discard-message">
+        <h2 id="editor-discard-heading">放弃修改？</h2>
+        <p id="editor-discard-message">尚未保存的字幕修改将丢失。</p>
+        <div class="editor-confirm-actions">
+          <button id="editor-keep" type="button" autofocus>继续校对</button>
+          <button id="editor-discard" type="button">放弃修改</button>
+        </div>
+      </dialog>
     </main>
   </body>
 </html>

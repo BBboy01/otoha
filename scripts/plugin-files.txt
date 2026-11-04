@@ -13,6 +13,9 @@ sidebar-lifecycle.js
 settings-schema.js
 subtitle-library-client.js
 subtitle-track-manager.js
+subtitle-editor-controller.js
+subtitle-editor.js
+subtitle-editor.css
 sidebar.html
 sidebar.css
 sidebar.js

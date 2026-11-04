@@ -26,6 +26,11 @@ const ERROR_CODES = Object.freeze([
   "subtitle.publishFailed",
   "subtitle.libraryFailed",
   "subtitle.loadFailed",
+  "subtitle.editUnsupported",
+  "subtitle.editInvalidText",
+  "subtitle.editOutsideLibrary",
+  "subtitle.editConflict",
+  "subtitle.editTooLarge",
   "job.cancelled",
 ]);
 
@@ -51,12 +56,20 @@ function parseHelperEvent(value) {
     if (typeof value.phase !== "string" || !JOB_PHASES.includes(value.phase)) {
       throw protocolError("phase is unsupported");
     }
-    if (value.progress !== undefined &&
-        (typeof value.progress !== "number" || !Number.isFinite(value.progress) || value.progress < 0 || value.progress > 1)) {
+    if (
+      value.progress !== undefined &&
+      (typeof value.progress !== "number" ||
+        !Number.isFinite(value.progress) ||
+        value.progress < 0 ||
+        value.progress > 1)
+    ) {
       throw protocolError("progress must be between 0 and 1");
     }
   }
-  if (value.type === "completed" && (typeof value.path !== "string" || !value.path.startsWith("/"))) {
+  if (
+    value.type === "completed" &&
+    (typeof value.path !== "string" || !value.path.startsWith("/"))
+  ) {
     throw protocolError("completed event requires an absolute path");
   }
   if (value.type === "error") {

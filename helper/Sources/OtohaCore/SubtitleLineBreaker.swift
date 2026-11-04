@@ -4,17 +4,19 @@ import Foundation
 struct SubtitleLineBreaker {
     private let fontSize: CGFloat
     private let width: Double
+    private let fontName: String
     private var fonts: [String: CTFont] = [:]
 
-    init(fontSize: Int, width: Double) {
+    init(fontSize: Int, width: Double, fontName: String = "Arial") {
         self.fontSize = CGFloat(fontSize)
         self.width = max(1, width)
+        self.fontName = fontName
     }
 
     mutating func lines(_ value: String) -> [String] {
         // IINA enables libass Unicode wrapping for converted text, but not native ASS.
         // Plain ASCII can use renderer wrapping unless a single word exceeds the available width.
-        let font = CTFontCreateWithName("Arial" as CFString, fontSize, nil)
+        let font = CTFontCreateWithName(fontName as CFString, fontSize, nil)
         let fontKey = NSAttributedString.Key(kCTFontAttributeName as String)
         if value.unicodeScalars.allSatisfy(\.isASCII) {
             let measuringFont = normalizedFont(font)
