@@ -44,6 +44,8 @@ flowchart TB
 | `OtohaCore` | FFmpeg 配置、取消、转录/翻译流水线、ASS 原子发布 | 访问 IINA API |
 | 用户 FFmpeg | 读取视频并提取选定的 FFmpeg stream index | 转录或翻译 |
 
+侧栏状态中的 `jobActive` 表示主进程仍持有任务。Helper 的终止事件可先于进程退出到达；此时显示终止结果，但生成及字幕操作仍保持禁用，直到任务清理完成后的状态更新。取消控件失效时焦点暂留状态文本，任务释放后返回生成按钮。
+
 ## 生成字幕时序
 
 ```mermaid

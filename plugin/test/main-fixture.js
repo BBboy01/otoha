@@ -33,6 +33,7 @@ function createPlugin({
   duplicateTerminal = "",
   waitForCancel = false,
   phaseAfterCancel = false,
+  waitAfterTerminal = false,
   fileLoadedBeforeCompletion = "",
   subtitleScale = 100,
   existingSubtitles = [],
@@ -56,6 +57,7 @@ function createPlugin({
   let windowReady = windowReadyAtStart;
   let remainingLoadFileFailures = loadFileFailures;
   let resumeHelper;
+  let finishHelperResolver;
   const preferenceValues = {
     ffmpeg_path: ffmpegPath, output_directory: outputDirectory, auto_load: autoLoad,
     default_source_language: defaultSourceLanguage, default_target_language: defaultTargetLanguage,
@@ -230,6 +232,7 @@ function createPlugin({
               ...(duplicateTerminal === "error" ? { code: "helper.unknown" } : {}),
             })}\n`);
           }
+          if (waitAfterTerminal) await new Promise(resolve => { finishHelperResolver = resolve; });
           return { status: 0, stdout: "", stderr: "" };
         }
         if (file === "/usr/bin/touch" && waitForCancel) resumeHelper?.();
@@ -302,7 +305,7 @@ function createPlugin({
       }
       assert.ok(runs < 100, "timer queue should settle");
     },
-    finishHelper() { resumeHelper?.(); },
+    finishHelper() { resumeHelper?.(); finishHelperResolver?.(); },
   };
 }
 

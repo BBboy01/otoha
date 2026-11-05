@@ -109,6 +109,7 @@ function updateLanguageErrors() {
 }
 
 function renderState(nextState) {
+  const focused = document.activeElement;
   const previousMediaPath = currentMediaPath;
   state = nextState;
   currentMediaPath = state.media ? state.media.path : "";
@@ -150,7 +151,7 @@ function renderState(nextState) {
   fillLanguages(elements.sourceLanguage, selectedSourceLanguage);
   fillLanguages(elements.targetLanguage, selectedTargetLanguage);
 
-  const busy = state.job && ["running", "canceling", "loading"].includes(state.job.status);
+  const busy = state.jobActive || state.job && ["running", "canceling", "loading"].includes(state.job.status);
   const checkingSubtitles = Boolean(state.media && state.subtitleLibraryLoading);
   elements.audioTrack.disabled = !state.media || audioTracks.length === 0 || busy;
   elements.sourceLanguage.disabled = busy;
@@ -198,11 +199,22 @@ function renderState(nextState) {
   renderJob(checkingSubtitles && (!state.job || state.job.status === "idle")
     ? { status: "checking", message: "正在检查字幕列表" }
     : state.job);
+  restoreJobFocus(focused);
+}
+
+function restoreJobFocus(focused) {
+  if (![elements.cancel, elements.jobMessage].includes(focused)) return;
+  if (focused === elements.cancel && !elements.cancel.hidden && !elements.cancel.disabled) return;
+  const target = !elements.start.disabled ? elements.start
+    : !elements.jobStatus.hidden ? elements.jobMessage : null;
+  if (!target || target === focused) return;
+  if (target === elements.jobMessage) target.tabIndex = -1;
+  target.focus();
 }
 
 function updateGeneration() {
   if (!state) return;
-  const busy = state.job && ["running", "canceling", "loading"].includes(state.job.status);
+  const busy = state.jobActive || state.job && ["running", "canceling", "loading"].includes(state.job.status);
   const availableTrack = (state.tracks || []).some((track) => track.available && String(track.id) === String(selectedTrackId));
   elements.start.disabled = !state.media || !availableTrack || busy || state.subtitleLibraryLoading
     || !selectedSourceLanguage || !selectedTargetLanguage || selectedSourceLanguage === selectedTargetLanguage;
@@ -302,7 +314,7 @@ elements.autoLoad.addEventListener("change", () => {
 });
 
 function setDisplayMode(mode) {
-  const busy = state && state.job && ["running", "canceling", "loading"].includes(state.job.status);
+  const busy = state && (state.jobActive || state.job && ["running", "canceling", "loading"].includes(state.job.status));
   if (!state || !state.media || busy || !["source", "translation", "bilingual"].includes(mode)) return;
   post("setDisplayMode", mode);
 }
@@ -338,12 +350,14 @@ elements.retry.addEventListener("click", () => post("retryLoad"));
 elements.reveal.addEventListener("click", () => post("reveal", elements.subtitleChoice.value));
 iina.onMessage("state", renderState);
 iina.onMessage("job", (job) => {
+  const focused = document.activeElement;
   if (state) {
     state.job = job;
     state.hasOutput = Boolean(job.path || state.hasOutput);
   }
   renderJob(job);
   updateGeneration();
+  restoreJobFocus(focused);
 });
 
 const helperURL = new URL("bin/OtohaHelper.app/Contents/MacOS/otoha-helper", window.location.href);

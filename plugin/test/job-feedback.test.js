@@ -30,14 +30,26 @@ function sidebar() {
   const timers = [];
   let now = 1000;
   const context = {
-    document: { querySelector(selector) {
+    document: { activeElement: null, querySelector(selector) {
       const element = {
         hidden: false, dataset: {}, attributes: new Map(),
-        add() {}, addEventListener() {}, replaceChildren() {}, focus() {},
+        add() {}, addEventListener() {}, replaceChildren() {},
+        focus() { context.document.activeElement = this; },
         setAttribute(key, value) { this.attributes.set(key, String(value)); },
         getAttribute(key) { return this.attributes.get(key); },
         removeAttribute(key) { this.attributes.delete(key); },
       };
+      for (const property of ["hidden", "disabled"]) {
+        let value = false;
+        Object.defineProperty(element, property, {
+          get: () => value,
+          set(next) {
+            value = next;
+            if (next && context.document.activeElement === element)
+              context.document.activeElement = null;
+          },
+        });
+      }
       elements.set(selector, element);
       return element;
     } },
@@ -46,8 +58,8 @@ function sidebar() {
     window: { location: { href: "file:///tmp/Otoha/sidebar.html" }, setInterval(callback) { timers.push(callback); } },
   };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../sidebar.js"), "utf8"), context);
-  const state = (job) => handlers.get("state")({ media: { path: "/synthetic.mp4" }, tracks: [], job });
-  return { elements, state, tick(time) { now = time; timers.forEach((callback) => callback()); } };
+  const state = (job, extra = {}) => handlers.get("state")({ media: { path: "/synthetic.mp4" }, tracks: [{ id: 1, available: true }], selectedTrackId: 1, sourceLanguage: "en", targetLanguage: "ja", job, ...extra });
+  return { elements, state, handlers, document: context.document, tick(time) { now = time; timers.forEach((callback) => callback()); } };
 }
 
 test("transcription shows indeterminate progress and elapsed time without inventing a percentage", () => {
@@ -78,4 +90,61 @@ test("all running phases have progress; translation percentages clear on phase c
   assert.equal(ui.elements.get("#job-elapsed").textContent, "已耗时 1:00");
   ui.state({ status: "idle" });
   assert.equal(ui.elements.get("#job-elapsed").hidden, true);
+});
+
+test("cancelled and failed jobs restore keyboard focus without stealing it at startup", () => {
+  for (const delivery of ["state", "job"]) {
+    const ui = sidebar();
+    const start = ui.elements.get("#start-button");
+    const cancel = ui.elements.get("#cancel-button");
+    const message = ui.elements.get("#job-message");
+    ui.state({ status: "idle" });
+    const update = job => delivery === "state" ? ui.state(job) : ui.handlers.get("job")(job);
+    start.focus();
+    update({ status: "running", phase: "transcribing" });
+    assert.equal(ui.document.activeElement, null, delivery);
+    cancel.focus();
+    update({ status: "canceling" });
+    assert.equal(ui.document.activeElement, message, delivery);
+    update({ status: "cancelled" });
+    assert.equal(ui.document.activeElement, start, delivery);
+    start.focus();
+    update({ status: "running", phase: "transcribing" });
+    cancel.focus();
+    update({ status: "error", message: "可重试" });
+    assert.equal(ui.document.activeElement, start, delivery);
+    ui.elements.get("#auto-load-help").focus();
+    update({ status: "running", phase: "transcribing" });
+    assert.equal(ui.document.activeElement, ui.elements.get("#auto-load-help"), delivery);
+  }
+});
+
+test("terminal feedback keeps generation disabled until the helper process exits", () => {
+  const ui = sidebar();
+  ui.state({ status: "running" }, { jobActive: true });
+  ui.elements.get("#cancel-button").focus();
+  ui.state({ status: "cancelled", message: "已取消" }, { jobActive: true });
+  assert.equal(ui.elements.get("#start-button").disabled, true);
+  assert.equal(ui.document.activeElement, ui.elements.get("#job-message"));
+  ui.state({ status: "cancelled", message: "已取消" }, { jobActive: false });
+  assert.equal(ui.elements.get("#start-button").disabled, false);
+  assert.equal(ui.document.activeElement, ui.elements.get("#start-button"));
+});
+
+test("runtime publishes active ownership until a terminal helper has actually exited", async () => {
+  const plugin = createPlugin({ helperTerminal: "cancelled", waitAfterTerminal: true });
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  const running = plugin.sidebarHandlers.get("start")({ trackId: 7, sourceLanguage: "en", targetLanguage: "ja" });
+  await new Promise(resolve => setImmediate(resolve));
+  plugin.sidebarHandlers.get("refresh")();
+  const terminal = plugin.messages.findLast(item => item.name === "state").payload;
+  try {
+    assert.equal(terminal.job.status, "cancelled");
+    assert.equal(terminal.jobActive, true);
+  } finally {
+    plugin.finishHelper();
+    await running;
+  }
+  assert.equal(plugin.messages.findLast(item => item.name === "state").payload.jobActive, false);
 });

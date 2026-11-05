@@ -285,7 +285,7 @@ function sendState(mediaURLOverride = null) {
     availableSubtitles,
     subtitleLibraryLoading: Boolean(media && subtitleLibrary.mediaPath === media.path && subtitleLibrary.loading),
     ffmpegPath: preferences.get("ffmpeg_path") || "",
-    job: jobState(),
+    job: jobState(), jobActive: Boolean(currentJob()),
     hasOutput: Boolean(lastOutputPath || availableSubtitles.length),
   });
 }
