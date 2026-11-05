@@ -40,7 +40,7 @@
   background: Canvas;
   box-shadow: 0 3px 12px #0002;
 }
-.more-options button { display: flex; align-items: center; gap: 6px; text-align: left; border: none; background: transparent; }
+.more-options button { display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; white-space: nowrap; text-align: left; border: none; background: transparent; }
 #generation-options { border-top: 1px solid var(--quiet-border); padding-top: 11px; }
 #generation-options > summary { cursor: pointer; font-weight: 600; }
 #generation-options form { border-top: 0; padding-top: 10px; }
