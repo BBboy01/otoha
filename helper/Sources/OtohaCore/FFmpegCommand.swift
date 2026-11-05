@@ -120,23 +120,22 @@ public enum FFprobeReader {
             let deadline = ContinuousClock.now.advanced(by: timeout)
             while process.isRunning {
                 if Task.isCancelled || FileManager.default.fileExists(atPath: cancellationFileURL.path) {
-                    terminate(process)
+                    await terminateMediaProcess(process)
                     throw CancellationError()
                 }
                 if ContinuousClock.now >= deadline {
-                    terminate(process)
+                    await terminateMediaProcess(process)
                     throw FFprobeError.timedOut
                 }
                 try await Task.sleep(for: .milliseconds(50))
             }
-            process.waitUntilExit()
             guard process.terminationStatus == 0 else {
                 throw FFprobeError.failed("ffprobe exited with status \(process.terminationStatus).")
             }
             let data = output.fileHandleForReading.readDataToEndOfFile()
             return try parseStartTime(data, configuration: configuration)
         } catch {
-            if process.isRunning { terminate(process) }
+            if process.isRunning { await terminateMediaProcess(process) }
             throw error
         }
     }
@@ -162,18 +161,6 @@ public enum FFprobeReader {
         let streamStart = try parseTime(stream.start_time)
         let formatStart = try parseTime(result.format?.start_time)
         return streamStart - formatStart
-    }
-
-    private static func terminate(_ process: Process) {
-        guard process.isRunning else {
-            process.waitUntilExit()
-            return
-        }
-        process.terminate()
-        let deadline = Date().addingTimeInterval(0.2)
-        while process.isRunning && Date() < deadline { usleep(10_000) }
-        if process.isRunning { kill(process.processIdentifier, SIGKILL) }
-        process.waitUntilExit()
     }
 }
 
@@ -225,12 +212,11 @@ public enum FFmpegExtractor {
 
         while process.isRunning {
             if Task.isCancelled || FileManager.default.fileExists(atPath: cancellationFileURL.path) {
-                terminate(process)
+                await terminateMediaProcess(process)
                 throw FFmpegExtractionError.cancelled
             }
             try? await Task.sleep(for: .milliseconds(100))
         }
-        process.waitUntilExit()
         guard process.terminationStatus == 0 else {
             if Task.isCancelled || FileManager.default.fileExists(atPath: cancellationFileURL.path) {
                 throw FFmpegExtractionError.cancelled
@@ -243,16 +229,20 @@ public enum FFmpegExtractor {
         }
         return sourceTimeOffset
     }
+}
 
-    private static func terminate(_ process: Process) {
-        guard process.isRunning else {
-            process.waitUntilExit()
-            return
+// Swift tasks can resume on another thread, so avoid waitUntilExit's thread-local run loop.
+private func terminateMediaProcess(_ process: Process) async {
+    guard process.isRunning else { return }
+    process.terminate()
+    let deadline = ContinuousClock.now.advanced(by: .milliseconds(200))
+    var sentKill = false
+    while process.isRunning {
+        if !sentKill && ContinuousClock.now >= deadline {
+            kill(process.processIdentifier, SIGKILL)
+            sentKill = true
         }
-        process.terminate()
-        let deadline = Date().addingTimeInterval(0.2)
-        while process.isRunning && Date() < deadline { usleep(10_000) }
-        if process.isRunning { kill(process.processIdentifier, SIGKILL) }
-        process.waitUntilExit()
+        try? await Task.sleep(for: .milliseconds(10))
+        await Task.yield()
     }
 }
