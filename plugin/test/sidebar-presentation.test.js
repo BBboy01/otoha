@@ -131,4 +131,3 @@ test("sidebar keeps subtitle management beside the selected version", () => {
     payload: "/library/video.ass",
   });
 });
-
