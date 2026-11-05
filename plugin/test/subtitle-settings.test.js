@@ -6,6 +6,12 @@ const mediaPath = "/videos/episode.mkv";
 const japaneseSubtitle = { path: "/library/episode [ja to zh-Hans].ass" };
 const englishSubtitle = { path: "/library/episode [en to zh-Hans].ass" };
 
+test("numbered generated subtitles retain their language pair", () => {
+  assert.deepEqual(subtitleLanguages("/library/episode [en to ja] (2).ass"), {
+    sourceLanguage: "en", targetLanguage: "ja",
+  });
+});
+
 function createPreferences(values = {}) {
   return {
     values,

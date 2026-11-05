@@ -11,7 +11,7 @@ function languagePair(value) {
 
 function subtitleLanguages(filePath) {
   if (typeof filePath !== "string") return {};
-  const match = filePath.split("/").pop().match(/ \[([^\[\]]+) to ([^\[\]]+)\]\.ass$/i);
+  const match = filePath.split("/").pop().match(/ \[([^[\]]+) to ([^[\]]+)\](?: \((?:[2-9]\d*|1\d+)\))?\.ass$/i);
   return match ? languagePair({ sourceLanguage: match[1], targetLanguage: match[2] }) : {};
 }
 

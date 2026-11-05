@@ -14,7 +14,9 @@
   iina.onMessage("deletion", payload => {
     if (["closed", "deleted"].includes(payload.status)) {
       dialog.close();
-      const focusTarget = trigger.disabled || document.querySelector("#existing-subtitles").hidden ? document.querySelector("#source-language") : trigger;
+      const empty = document.querySelector("#existing-subtitles").hidden;
+      if (empty && document.querySelector("#generation-options")) document.querySelector("#generation-options").open = true;
+      const focusTarget = trigger.disabled || empty ? document.querySelector("#source-language") : document.querySelector("#subtitle-more > summary") || trigger;
       focusTarget.focus();
       return;
     }

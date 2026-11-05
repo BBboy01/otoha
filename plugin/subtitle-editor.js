@@ -16,6 +16,9 @@
     "editor-source",
     "editor-translation",
     "editor-save",
+    "editor-save-next",
+    "editor-save-area",
+    "editor-count",
     "editor-keep",
     "editor-discard",
   ];
@@ -28,11 +31,17 @@
   let index = 0;
   let currentMedia = "";
   let restoreFocus = null;
+  let advanceAfterSave = false;
   const post = (name, payload) => iina.postMessage(name, payload);
   const dirty = () => JSON.stringify(drafts) !== JSON.stringify(baseline);
   const time = (seconds) => {
     const milliseconds = Math.round(seconds * 1000);
     return `${String(Math.floor(milliseconds / 3600000)).padStart(2, "0")}:${String(Math.floor(milliseconds / 60000) % 60).padStart(2, "0")}:${String(Math.floor(milliseconds / 1000) % 60).padStart(2, "0")}.${String(milliseconds % 1000).padStart(3, "0")}`;
+  };
+  const cueLabel = (cueIndex) => {
+    const cue = session.snapshot.cues[cueIndex];
+    const modified = JSON.stringify(drafts[cueIndex]) !== JSON.stringify(baseline[cueIndex]);
+    return `${cueIndex + 1}. ${time(cue.start)} ${modified ? "[未保存] " : ""}${drafts[cueIndex].source.replace(/\n/g, " ").slice(0, 60)}`;
   };
   function render() {
     if (!session) return;
@@ -42,6 +51,7 @@
       !currentMedia;
     const available = drafts.length > 0;
     nodes.fields.hidden = !available;
+    nodes["save-area"].hidden = !available;
     nodes.close.disabled = saving;
     for (const field of [nodes.source, nodes.translation, nodes.cue])
       field.disabled = saving;
@@ -49,14 +59,20 @@
     nodes.next.disabled = saving || index >= drafts.length - 1;
     nodes.seek.disabled = !available || saving || detached;
     nodes.save.disabled = !available || saving || detached || !dirty();
-    nodes.status.textContent = saving
+    nodes["save-next"].disabled = !available || saving || detached || index >= drafts.length - 1;
+    const count = available ? `第 ${index + 1} / ${drafts.length} 句` : "";
+    if (nodes.count.textContent !== count) nodes.count.textContent = count;
+    if (nodes.cue.children[index]) nodes.cue.children[index].text = cueLabel(index);
+    const status = saving
       ? "正在保存字幕"
       : detached
         ? "视频已切换，草稿已保留"
         : dirty()
           ? "未保存"
           : session.message || "";
-    nodes.error.textContent = session.status === "error" ? session.message : "";
+    if (nodes.status.textContent !== status) nodes.status.textContent = status;
+    const error = session.status === "error" ? session.message : "";
+    if (nodes.error.textContent !== error) nodes.error.textContent = error;
     nodes.error.hidden = !nodes.error.textContent;
   }
   function showCue() {
@@ -78,7 +94,9 @@
     if (dirty()) nodes["discard-dialog"].showModal();
     else close();
   }
-  function save() {
+  function save(advance = false) {
+    if (advance && nodes["save-next"].disabled) return;
+    if (advance && !dirty()) { index++; showCue(); nodes.source.focus(); return; }
     if (nodes.save.disabled) return;
     const invalid = drafts.findIndex(
       (text) => !text.source.trim() || !text.translation.trim(),
@@ -95,6 +113,9 @@
       (drafts[index].source.trim() ? nodes.translation : nodes.source).focus();
       return;
     }
+    advanceAfterSave = advance;
+    session = { ...session, status: "saving" };
+    render();
     post("saveSubtitleEdits", {
       sessionId: session.sessionId,
       texts: drafts.map((text) => ({ ...text })),
@@ -105,8 +126,10 @@
       session = null;
       baseline = [];
       drafts = [];
+      advanceAfterSave = false;
       if (nodes["discard-dialog"].open) nodes["discard-dialog"].close();
-      nodes["subtitle-editor"].close();
+      nodes["subtitle-editor"].hidden = true;
+      document.getElementById("sidebar-home").hidden = false;
       if (
         restoreFocus &&
         !restoreFocus.disabled &&
@@ -126,10 +149,14 @@
       baseline = [];
       drafts = [];
       index = 0;
+      advanceAfterSave = false;
       restoreFocus = document.activeElement;
       nodes.file.textContent = next.path?.split("/").pop() || "";
-      if (!nodes["subtitle-editor"].open) nodes["subtitle-editor"].showModal();
+      document.getElementById("sidebar-home").hidden = true;
+      nodes["subtitle-editor"].hidden = false;
+      nodes.close.focus();
     }
+    if (next.status === "error") advanceAfterSave = false;
     if (next.snapshot && (next.status === "ready" || next.status === "saved")) {
       baseline = next.snapshot.cues.map(({ source, translation }) => ({
         source,
@@ -137,16 +164,15 @@
       }));
       drafts = baseline.map((text) => ({ ...text }));
       nodes.cue.replaceChildren(
-        ...next.snapshot.cues.map(
-          (cue, cueIndex) =>
-            new Option(
-              `${cueIndex + 1}. ${time(cue.start)}  ${cue.source.replace(/\n/g, " ").slice(0, 60)}`,
-              String(cueIndex),
-            ),
-        ),
+        ...next.snapshot.cues.map((cue, cueIndex) => new Option(cueLabel(cueIndex), String(cueIndex))),
       );
+      const advance = next.status === "saved" && advanceAfterSave;
+      if (advance) {
+        index = Math.min(index + 1, drafts.length - 1);
+        advanceAfterSave = false;
+      }
       showCue();
-      if (next.status === "ready") nodes.source.focus();
+      if (next.status === "ready" || advance) nodes.source.focus();
     }
     render();
   });
@@ -178,7 +204,8 @@
   nodes.seek.addEventListener("click", () =>
     post("seekSubtitleCue", { sessionId: session.sessionId, index }),
   );
-  nodes.save.addEventListener("click", save);
+  nodes.save.addEventListener("click", () => save());
+  nodes["save-next"].addEventListener("click", () => save(true));
   nodes.close.addEventListener("click", requestClose);
   nodes.keep.addEventListener("click", () => nodes["discard-dialog"].close());
   nodes.discard.addEventListener("click", close);
@@ -187,6 +214,10 @@
     requestClose();
   });
   nodes["subtitle-editor"].addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !nodes["discard-dialog"].open) {
+      event.preventDefault();
+      requestClose();
+    }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
       event.preventDefault();
       save();

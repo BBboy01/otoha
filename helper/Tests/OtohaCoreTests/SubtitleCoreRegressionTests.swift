@@ -3,6 +3,16 @@ import XCTest
 @testable import OtohaCore
 
 final class SubtitleCoreRegressionTests: XCTestCase {
+    func testNumberedGeneratedVersionsBelongOnlyToTheirMedia() {
+        let media = URL(fileURLWithPath: "/Videos/Movie.mkv")
+        for name in ["Movie [en to ja].ass", "Movie [en to ja] (2).ass", "Movie [en to ja] (100).ass"] {
+            XCTAssertTrue(SubtitleFilename.isSubtitle(URL(fileURLWithPath: name), for: media))
+        }
+        for name in ["Other [en to ja] (2).ass", "Movie [en to ja] (bad).ass", "Movie [en to ja] (0).ass"] {
+            XCTAssertFalse(SubtitleFilename.isSubtitle(URL(fileURLWithPath: name), for: media))
+        }
+    }
+
     func testSubtitleLibraryUsesCanonicalMediaNameWhenListingGeneratedFiles() throws {
         let fixture = try Fixture()
         let mediaURL = URL(fileURLWithPath: "/Videos/movie:part .mkv")

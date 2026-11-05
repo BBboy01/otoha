@@ -92,7 +92,6 @@ function fillLanguages(select, selected) {
   }
   select.value = selected || "";
 }
-
 function trackLabel(track) {
   const title =
     track.title || (track.lang ? track.lang.toUpperCase() : `音轨 ${track.id}`);
@@ -208,13 +207,10 @@ function renderState(nextState) {
   for (const subtitle of subtitles) {
     const path = subtitle.path;
     const name = typeof path === "string" ? path.split("/").pop() : "字幕文件";
-    const languagePair =
-      subtitle.sourceLanguage && subtitle.targetLanguage
-        ? `（${subtitle.sourceLanguage} → ${subtitle.targetLanguage}）`
-        : "";
-    const option = new Option(`${name || "字幕文件"}${languagePair}`, path);
+    const label = window.sidebarWorkflow?.subtitleLabel(subtitle, LANGUAGES) || name || "字幕文件";
+    const option = new Option(label, path);
     if (typeof option.setAttribute === "function") {
-      option.setAttribute("aria-label", `${name || "字幕文件"}${languagePair}`);
+      option.setAttribute("aria-label", label);
     }
     elements.subtitleChoice.add(option);
   }
@@ -244,11 +240,12 @@ function renderState(nextState) {
       ? { status: "checking", message: "正在检查字幕列表" }
       : state.job);
   restoreJobFocus(focused);
+  window.sidebarWorkflow?.onState(state);
 }
 function restoreJobFocus(focused) {
   if (![elements.cancel, elements.jobMessage].includes(focused)) return;
   if (focused === elements.cancel && !elements.cancel.hidden && !elements.cancel.disabled) return;
-  const target = !elements.start.disabled ? elements.start
+  const target = !elements.start.disabled && elements.start.closest?.("details")?.open !== false ? elements.start
     : !elements.jobStatus.hidden ? elements.jobMessage : null;
   if (!target || target === focused) return;
   if (target === elements.jobMessage) target.tabIndex = -1;
@@ -283,6 +280,7 @@ function renderLanguagePreflight(busy) {
   const matches = check && check.mediaPath === currentMediaPath
     && check.sourceLanguage === selectedSourceLanguage && check.targetLanguage === selectedTargetLanguage;
   const status = matches ? check.status : "checking";
+  window.sidebarWorkflow?.onPreflight(matches ? check : null);
   elements.languageResourceMessage.textContent = matches ? check.message || "正在检查语言资源" : "正在检查语言资源";
   elements.languageResourceStatus.setAttribute("aria-busy", String(status === "checking"));
   elements.checkLanguages.hidden = status === "checking";
@@ -292,7 +290,6 @@ function renderLanguagePreflight(busy) {
     post("checkLanguages", { sourceLanguage: selectedSourceLanguage, targetLanguage: selectedTargetLanguage });
   }
 }
-
 function renderJob(job) {
   const current = job || { status: "idle", message: "" };
   feedbackJob = current;
@@ -319,10 +316,9 @@ function renderJob(job) {
   else if (libraryWarning) summary = "字幕库读取失败";
   else if (failed) summary = "字幕生成失败";
   elements.jobMessage.textContent = summary;
-  elements.jobStatus.hidden =
-    current.status === "idle" ||
-    (current.status === "completed" && current.loaded === true) ||
-    (current.status === "available" && !libraryWarning);
+  elements.jobStatus.hidden = current.status === "idle" || (current.status === "available" && !libraryWarning) || (current.status === "completed" && current.loaded && !current.jobId);
+  if (current.status === "completed" && current.loaded) elements.jobMessage.textContent = current.jobId ? "字幕已生成并加载" : "字幕已加载";
+  window.sidebarWorkflow?.onJob(current);
   elements.jobStatus.dataset.kind =
     noSpeech || libraryWarning ? "warning" : failed ? "error" : "info";
   elements.jobIcon.hidden = !failed && !libraryWarning;
@@ -427,11 +423,15 @@ elements.jobForm.addEventListener("submit", (event) => {
     return;
   }
   if (elements.start.disabled) return;
-  post("start", {
+  const payload = {
     trackId: selectedTrackId,
     sourceLanguage: selectedSourceLanguage,
     targetLanguage: selectedTargetLanguage,
-  });
+  };
+  const matching = (state.availableSubtitles || []).some((subtitle) => subtitle.sourceLanguage === selectedSourceLanguage && subtitle.targetLanguage === selectedTargetLanguage);
+  const start = () => post("start", payload);
+  if (window.sidebarWorkflow) window.sidebarWorkflow.requestStart(payload, matching, start);
+  else start();
 });
 
 elements.cancel.addEventListener("click", () => post("cancel"));

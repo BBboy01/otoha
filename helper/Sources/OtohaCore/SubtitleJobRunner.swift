@@ -67,7 +67,7 @@ public struct SubtitleJobRunner: Sendable {
                 targetLanguage: configuration.targetLanguage
             ),
             directory: configuration.outputDirectory,
-            overwriteExisting: true,
+            overwriteExisting: false,
             subtitleScale: configuration.subtitleScale,
             videoWidth: configuration.videoWidth,
             videoHeight: configuration.videoHeight,

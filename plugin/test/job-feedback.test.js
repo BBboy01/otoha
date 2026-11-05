@@ -131,6 +131,24 @@ test("terminal feedback keeps generation disabled until the helper process exits
   assert.equal(ui.document.activeElement, ui.elements.get("#start-button"));
 });
 
+test("terminal focus stays on visible feedback when generation settings are collapsed", () => {
+  const ui = sidebar();
+  ui.elements.get("#start-button").closest = () => ({ open: false });
+  ui.state({ status: "running" });
+  ui.elements.get("#cancel-button").focus();
+  ui.state({ status: "cancelled", message: "已取消" });
+  assert.equal(ui.document.activeElement, ui.elements.get("#job-message"));
+});
+
+test("a completed generation retains feedback while loading an existing file uses its loaded badge", () => {
+  const ui = sidebar();
+  ui.state({ jobId: "generated", status: "completed", loaded: true });
+  assert.equal(ui.elements.get("#job-status").hidden, false);
+  assert.equal(ui.elements.get("#job-message").textContent, "字幕已生成并加载");
+  ui.state({ jobId: null, status: "completed", loaded: true });
+  assert.equal(ui.elements.get("#job-status").hidden, true);
+});
+
 test("runtime publishes active ownership until a terminal helper has actually exited", async () => {
   const plugin = createPlugin({ helperTerminal: "cancelled", waitAfterTerminal: true });
   plugin.runSidebarLoad();

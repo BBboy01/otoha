@@ -28,4 +28,7 @@ subtitle-export.css
 sidebar-deletion.css
 sidebar.js
 sidebar-deletion.js
+sidebar-workflow.js
+sidebar-workflow.css
+icons/LICENSE
 preferences.html

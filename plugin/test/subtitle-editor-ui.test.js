@@ -31,7 +31,7 @@ function fixture() {
             this.open = false;
           },
           focus() {
-            document.activeElement = this;
+            if (!this.disabled) document.activeElement = this;
           },
           getClientRects() {
             return [1];
@@ -173,4 +173,23 @@ test("media changes preserve drafts and block save and seek until returning", ()
   f.emit("closed");
   assert.equal(f.nodes.get("subtitle-editor").open, false);
   assert.equal(f.document.activeElement, f.opener);
+});
+
+test("save and next advances only after successful persistence and marks modified cues", () => {
+  const f = fixture();
+  assert.equal(f.node("count").textContent, "第 1 / 2 句");
+  f.input("source", "Corrected");
+  assert.match(f.node("cue").children[0].text, /未保存/);
+  f.node("save-next").focus();
+  f.click("save-next");
+  assert.equal(f.posts.at(-1).name, "saveSubtitleEdits");
+  assert.equal(f.node("cue").value, "0");
+  f.emit("error", { message: "保存失败" });
+  assert.equal(f.node("cue").value, "0");
+  f.click("save-next");
+  f.emit("saved", { snapshot: { ...f.snapshot, cues: f.snapshot.cues.map((cue, index) => index ? cue : { ...cue, source: "Corrected" }) } });
+  assert.equal(f.node("cue").value, "1");
+  assert.equal(f.node("count").textContent, "第 2 / 2 句");
+  assert.equal(f.document.activeElement, f.node("source"));
+  assert.doesNotMatch(f.node("cue").children[0].text, /未保存/);
 });
