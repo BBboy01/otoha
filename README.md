@@ -90,6 +90,8 @@ IINA 官方说明：[Creating Plugins](https://docs.iina.io/pages/creating-plugi
 
 每个视频使用独立目录，字幕文件名包含源语言和目标语言。可在 Otoha Preferences 中更改字幕库根目录；侧栏可定位当前选中的字幕文件，也可把 ASS 导出为 SRT 到字幕库根目录下的 `Exports` 子目录，并在 Finder 中定位导出文件。SRT 只保留文本与时间，不含 ASS 样式；重名时会创建带编号的副本。
 
+侧栏也可删除选中的单个字幕文件，删除前会显示视频和语言对并要求确认。
+
 ## 限制
 
 - 仅处理本地视频和视频文件内的一个音轨，不支持外部音轨或实时转录。

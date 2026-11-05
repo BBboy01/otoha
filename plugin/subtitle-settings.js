@@ -78,6 +78,10 @@ function createSubtitleSettings(preferences) {
       return available.find((file) => file.path === savedPath) || available[0] || null;
     },
 
+    forgetSelection(mediaPath, subtitlePath) {
+      if (record(read(), mediaPath).subtitlePath === subtitlePath) update(mediaPath, { subtitlePath: null });
+    },
+
     displayMode(mediaPath) {
       return displayMode(record(read(), mediaPath).displayMode);
     },

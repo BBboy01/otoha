@@ -281,6 +281,8 @@ function createPlugin({
       if (id === "./subtitle-library-client.js") return require("../subtitle-library-client.js");
       if (id === "./subtitle-export-controller.js") return require("../subtitle-export-controller.js");
       if (id === "./media-context.js") return require("../media-context.js");
+      if (id === "./subtitle-deletion-runtime.js") return { createSubtitleDeletionRuntime: () => ({ register() {}, isOpen() { return false; } }) };
+      if (id === "./media-snapshot.js") return require("../media-snapshot.js");
       if (id === "./subtitle-settings.js") return require("../subtitle-settings.js");
       if (id === "./subtitle-display.js") return subtitleDisplay;
       throw new Error(`Unexpected plugin module: ${id}`);

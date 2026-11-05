@@ -30,7 +30,7 @@ function sidebar() {
   const timers = [];
   let now = 1000;
   const context = {
-    document: { querySelector(selector) {
+    document: { querySelectorAll() { return []; }, querySelector(selector) {
       const element = {
         hidden: false, dataset: {}, attributes: new Map(),
         add() {}, addEventListener() {}, replaceChildren() {}, focus() {},

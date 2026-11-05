@@ -194,3 +194,16 @@ test("invalid display mode writes are ignored", () => {
 
   assert.equal(preferences.values.video_settings, before);
 });
+
+test("deleting a selected subtitle clears only that selection", () => {
+  const preferences = createPreferences();
+  const settings = createSubtitleSettings(preferences);
+  settings.rememberGeneration(mediaPath, { sourceLanguage: "ja", targetLanguage: "zh-Hans" }, japaneseSubtitle.path);
+  settings.rememberDisplayMode(mediaPath, "translation");
+  settings.forgetSelection(mediaPath, japaneseSubtitle.path);
+  const record = JSON.parse(preferences.values.video_settings)[mediaPath];
+  assert.equal(record.subtitlePath, null);
+  assert.equal(record.sourceLanguage, "ja");
+  assert.equal(record.targetLanguage, "zh-Hans");
+  assert.equal(record.displayMode, "translation");
+});

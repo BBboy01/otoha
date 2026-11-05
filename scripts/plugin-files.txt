@@ -15,9 +15,14 @@ settings-schema.js
 subtitle-library-client.js
 subtitle-export-controller.js
 media-context.js
+subtitle-deletion-controller.js
+subtitle-deletion-runtime.js
+media-snapshot.js
 subtitle-track-manager.js
 sidebar.html
 sidebar.css
 subtitle-export.css
+sidebar-deletion.css
 sidebar.js
+sidebar-deletion.js
 preferences.html

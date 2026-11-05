@@ -39,6 +39,7 @@ flowchart TB
 | `plugin/runtime-store.js` | 保存完整 `AppState` 快照，过滤过期异步结果 | 直接渲染 HTML |
 | `plugin/sidebar.js` | 渲染状态、发送用户操作、无障碍属性 | 推断任务真相 |
 | `plugin/subtitle-library-client.js` | 调用 helper 列出当前视频字幕，自动加载已有文件 | 生成字幕内容 |
+| `plugin/subtitle-deletion-controller.js` | 确认单个文件删除并验证 helper 响应 | 直接操作文件系统 |
 | `plugin/subtitle-track-manager.js` | 加载 ASS、按显示模式生成 IINA 内存缓存、移除旧轨道 | 修改源 ASS 文件 |
 | `OtohaHelper` | 后台入口、JSONL 输出、系统版本检查、任务生命周期 | 保存插件偏好 |
 | `OtohaCore` | FFmpeg 配置、取消、转录/翻译流水线、ASS 原子发布 | 访问 IINA API |

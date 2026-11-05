@@ -50,7 +50,11 @@ function createSubtitleLibraryClient({
     replace({ ...library, files });
   }
 
-  function update({ helperPath, media, mediaURLOverride = null, outputDirectoryPath = "", force = false }) {
+  function removeFile(path) {
+    replace({ ...library, files: library.files.filter(item => item.path !== path) });
+  }
+
+  function update({ helperPath, media, mediaURLOverride = null, outputDirectoryPath = "", force = false, suppressAutoLoad = false }) {
     if (!media) {
       clear();
       return;
@@ -94,7 +98,7 @@ function createSubtitleLibraryClient({
           loading: false,
           failed: false,
         });
-        if (files.length > 0 && isAutoLoadEnabled()) onAutoLoad(files, mediaURLOverride ? media.path : null);
+        if (files.length > 0 && !suppressAutoLoad && isAutoLoadEnabled()) onAutoLoad(files, mediaURLOverride ? media.path : null);
         if (typeof onUpdated === "function") onUpdated(mediaURLOverride);
       })
       .catch((error) => {
@@ -111,7 +115,7 @@ function createSubtitleLibraryClient({
       });
   }
 
-  return { addFile, clear, invalidate, state, update };
+  return { addFile, removeFile, clear, invalidate, state, update };
 }
 
 module.exports = { createSubtitleLibraryClient };

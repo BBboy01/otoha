@@ -15,7 +15,7 @@ function createSidebar() {
     "#job-detail-toggle", "#job-detail-message", "#subtitle-loaded", "#media-error", "#job-elapsed",
     "#language-resource-status", "#language-resource-message", "#check-languages",
     "#media-name", "#subtitle-choice", "#translation-progress",
-    "#reveal-button", "#retry-button", "#source-language", "#start-button", "#target-language",
+    "#reveal-button", "#delete-button", "#retry-button", "#source-language", "#start-button", "#target-language",
     "#display-mode", "#source-language-error", "#target-language-error", "#generation-error",
     "#export-button", "#export-message", "#export-result", "#reveal-export-button",
   ];

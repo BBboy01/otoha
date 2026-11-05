@@ -27,3 +27,12 @@ test("subtitle track manager renders display modes and removes only its previous
   manager.removePrevious("/tmp/new.ass");
   assert.deepEqual(commands, [["sub-remove", ["10"]]]);
 });
+
+test("unload removes only the exact cached display track", () => {
+  const tracks = [{ type: "sub", id: 20, "external-filename": "/other/video.ass" }, { type: "sub", id: 21, "external-filename": "/resolved/cache.ass" }];
+  const commands = [];
+  const manager = createSubtitleTrackManager({ mpv: { getNative: () => tracks, command: (...args) => commands.push(args) },
+    file: {}, resolvePath: () => "", mediaPathForURL: () => "", renderSubtitleMode: () => "" });
+  manager.rememberLoaded("/resolved/cache.ass"); manager.unload();
+  assert.deepEqual(commands, [["sub-remove", ["21"]]]);
+});

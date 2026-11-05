@@ -1,13 +1,4 @@
-const {
-  audioTracks,
-  createJsonLineParser,
-  localMedia,
-  phaseLabel,
-  PROTOCOL_VERSION,
-  resolveFFmpegPath,
-  resolveAudioStreamIndex,
-  waitForSubtitleTrack,
-} = require("./controller.js");
+const { audioTracks, createJsonLineParser, localMedia, phaseLabel, PROTOCOL_VERSION, resolveFFmpegPath, resolveAudioStreamIndex, waitForSubtitleTrack } = require("./controller.js");
 const { createIinaAdapter } = require("./iina-adapter.js");
 const { createJobController } = require("./job-controller.js");
 const { createLanguagePreflightClient } = require("./language-preflight-client.js");
@@ -17,13 +8,14 @@ const { createSettingsController } = require("./settings-controller.js");
 const { readSetting } = require("./settings-schema.js");
 const { createSubtitleTrackManager } = require("./subtitle-track-manager.js");
 const { createSubtitleSettings, subtitleLanguages } = require("./subtitle-settings.js");
-const { createSubtitleLibraryClient } = require("./subtitle-library-client.js");
 const { createSubtitleExportRuntime } = require("./subtitle-export-controller.js");
-const { createMediaContext } = require("./media-context.js");
 const { normalizeDisplayMode, renderSubtitleMode } = require("./subtitle-display.js");
+const { mediaPathForURL: getMediaPath, mediaSnapshot: getMediaSnapshot, playerWindowIsLoaded: isPlayerWindowLoaded } = require("./media-snapshot.js");
 const iinaAdapter = createIinaAdapter(iina);
 const { console: hostConsole, core, event, file, menu, mpv, preferences, sidebar, utils } = iinaAdapter;
-const { mediaPathForURL, mediaSnapshot } = createMediaContext(localMedia);
+const mediaPathForURL = (value) => getMediaPath(value, localMedia);
+const mediaSnapshot = (url) => getMediaSnapshot(url, localMedia);
+const playerWindowIsLoaded = () => isPlayerWindowLoaded(core);
 const subtitleSettings = createSubtitleSettings(preferences);
 const jobController = createJobController({ now: () => Date.now() });
 const languagePreflightClient = createLanguagePreflightClient({ exec: (...args) => utils.exec(...args), helperPath: () => helperPath, onUpdated: () => sendState() });
@@ -52,7 +44,7 @@ let helperPath = null;
 let lastOutputPath = null;
 let pendingAutoLoad = null;
 let mediaOperation = runtimeStore.begin("media");
-const subtitleLibraryClient = createSubtitleLibraryClient({
+const subtitleLibraryClient = require("./subtitle-library-client.js").createSubtitleLibraryClient({
   exec: (...args) => utils.exec(...args),
   mediaPathForURL: (value) => mediaPathForURL(value || latestFileLoadedURL || core.status.url),
   subtitleLanguages,
@@ -78,9 +70,7 @@ const subtitleLibraryClient = createSubtitleLibraryClient({
     replaceJob({
       status: previousFiles.length ? "available" : "error",
       phase: "",
-      message: previousFiles.length
-        ? `新字幕库读取失败，仍可使用已发现的字幕：${error.message || error}`
-        : `无法读取字幕列表：${error.message || error}`,
+      message: previousFiles.length ? `新字幕库读取失败，仍可使用已发现的字幕：${error.message || error}` : `无法读取字幕列表：${error.message || error}`,
       progress: null,
       path: lastOutputPath,
       loaded: false,
@@ -89,7 +79,25 @@ const subtitleLibraryClient = createSubtitleLibraryClient({
     sendState();
   },
 });
-function subtitleLibraryState() { return runtimeStore.getState().subtitleLibrary; }
+const subtitleLibraryState = () => runtimeStore.getState().subtitleLibrary;
+const subtitleDeletion = require("./subtitle-deletion-runtime.js").createSubtitleDeletionRuntime({
+  getContext: () => ({ mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url), title: core.status.title, outputDirectoryPath: readSetting(preferences, "output_directory"), helperPath, files: subtitleLibraryState().files, busy: Boolean(currentJob()) || jobState().status === "loading" }),
+  exec: (...args) => utils.exec(...args),
+  send: (payload) => send("deletion", payload),
+  onChanged: () => sendState(),
+  settings: subtitleSettings,
+  library: subtitleLibraryClient,
+  currentMediaPath: () => mediaPathForURL(latestFileLoadedURL || core.status.url),
+  outputDirectoryPath: () => readSetting(preferences, "output_directory"),
+  refresh: (mediaPath) => refreshSubtitleLibrary(mediaPath, true, true),
+  clearOutput(path) {
+    if (lastOutputPath !== path) return;
+    runtimeStore.begin("display");
+    subtitleTrackManager.unload();
+    lastOutputPath = null;
+    replaceJob({ status: "idle", message: "", path: null, loaded: false });
+  },
+});
 const settingsController = createSettingsController({
   preferences,
   exec: (...args) => utils.exec(...args),
@@ -113,7 +121,6 @@ const subtitleExportController = createSubtitleExportRuntime({
   },
   onResult: (result) => send("exportResult", result),
 });
-const playerWindowIsLoaded = () => iinaAdapter.playerWindowIsLoaded();
 const scheduleSidebarLoad = () => sidebarLifecycle.scheduleRetry();
 const initializeSidebar = () => sidebarLifecycle.initialize();
 function loadSidebarPage(show = false) {
@@ -139,7 +146,8 @@ function loadSidebarPage(show = false) {
       uiLoaded = true;
       sidebarLoadRequested = false;
       sidebarLifecycle.markLoadFinished();
-      const loadedURL = pendingFileLoadedURL; pendingFileLoadedURL = null;
+      const loadedURL = pendingFileLoadedURL;
+      pendingFileLoadedURL = null;
       const candidate = payload && payload.helperPath;
       if (typeof candidate !== "string" || !candidate.startsWith("/")) {
         setJobError("无法定位 Otoha helper，请重新打开插件侧栏。");
@@ -161,8 +169,9 @@ function loadSidebarPage(show = false) {
     });
     sidebar.onMessage("start", (payload) => startJob(payload));
     sidebar.onMessage("checkLanguages", (payload) => !currentJob() && languagePreflightClient.check({ ...payload, mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url) }, true));
+    subtitleDeletion.register(sidebar);
     sidebar.onMessage("loadExisting", (filePath) => {
-      if (!currentJob() && subtitleLibraryState().files.some((subtitle) => subtitle.path === filePath)) loadSubtitle(filePath, null, true);
+      if (!currentJob() && !subtitleDeletion.isOpen() && subtitleLibraryState().files.some((subtitle) => subtitle.path === filePath)) loadSubtitle(filePath, null, true);
     });
     sidebar.onMessage("exportSubtitle", (payload) => subtitleExportController.export(payload));
     sidebar.onMessage("setDisplayMode", (mode) => setDisplayMode(mode));
@@ -172,10 +181,12 @@ function loadSidebarPage(show = false) {
       return undefined;
     });
     sidebar.onMessage("reveal", (filePath) => settingsController.reveal(filePath || lastOutputPath));
-    sidebar.onMessage("setSetting", ({ key, value }) => settingsController.setSetting(key, value).then(() => {
-      refreshSubtitleLibrary(null, true);
-      sendState();
-    }));
+    sidebar.onMessage("setSetting", ({ key, value }) =>
+      settingsController.setSetting(key, value).then(() => {
+        refreshSubtitleLibrary(null, true);
+        sendState();
+      }),
+    );
     if (sidebarShowRequested) {
       sidebarShowRequested = false;
       sidebar.show();
@@ -184,14 +195,14 @@ function loadSidebarPage(show = false) {
       if (!uiLoaded && sidebarLoadRequested) {
         sidebarLoadRequested = false;
         sidebarLifecycle.markLoadFinished();
-        scheduleSidebarLoad();
+        sidebarLifecycle.scheduleRetry();
       }
     }, sidebarReadyTimeout);
   } catch (error) {
     sidebarLoadRequested = false;
     sidebarLifecycle.markLoadFinished();
     hostConsole.error(`Otoha: 无法加载侧栏：${error.message || error}`);
-    scheduleSidebarLoad();
+    sidebarLifecycle.scheduleRetry();
   }
 }
 
@@ -223,8 +234,7 @@ event.on("iina.window-loaded", () => {
   if (!uiLoaded) {
     sidebarLifecycle.reset();
     initializeSidebar();
-  }
-  else sendState();
+  } else sendState();
 });
 event.on("iina.file-loaded", (url) => {
   const eventMediaPath = mediaPathForURL(url);
@@ -243,17 +253,17 @@ event.on("iina.file-loaded", (url) => {
   }
 });
 if (menu && typeof menu.addItem === "function" && typeof menu.item === "function") menu.addItem(menu.item("显示 Otoha 侧栏", () => showSidebar()));
-scheduleSidebarLoad();
+sidebarLifecycle.scheduleRetry();
 
 function send(name, payload) {
   if (uiLoaded) sidebar.postMessage(name, payload);
 }
 
-function refreshSubtitleLibrary(mediaURLOverride = null, force = false) {
+function refreshSubtitleLibrary(mediaURLOverride = null, force = false, suppressAutoLoad = false) {
   const url = mediaURLOverride || latestFileLoadedURL || core.status.url;
   const { media } = mediaSnapshot(url);
   const outputDirectoryPath = readSetting(preferences, "output_directory");
-  subtitleLibraryClient.update({ helperPath, media, mediaURLOverride, outputDirectoryPath, force });
+  return subtitleLibraryClient.update({ helperPath, media, mediaURLOverride, outputDirectoryPath, force, suppressAutoLoad: suppressAutoLoad || subtitleDeletion.isOpen() });
 }
 
 function sendState(mediaURLOverride = null) {
@@ -292,7 +302,7 @@ function sendState(mediaURLOverride = null) {
   });
 }
 async function startJob(payload = {}, mediaOverride = null) {
-  if (currentJob()) return;
+  if (currentJob() || subtitleDeletion.isOpen()) return;
   runtimeStore.begin("display");
   const jobFileLoadedSequence = fileLoadedSequence;
   let jobId = null;
@@ -362,7 +372,8 @@ async function startJob(payload = {}, mediaOverride = null) {
       utils.exec("/bin/rm", ["-f", runningJob.cancelPath]).catch(() => {});
     }
     if (runningJob && runningJob.id === jobId && pendingAutoLoad) {
-      const deferred = pendingAutoLoad; pendingAutoLoad = null;
+      const deferred = pendingAutoLoad;
+      pendingAutoLoad = null;
       if (mediaPathForURL(latestFileLoadedURL || core.status.url) === deferred.mediaPath) await loadSubtitle(deferred.path);
     }
     jobController.reset();
@@ -377,7 +388,8 @@ function handleHelperEvent(helperEvent) {
   const currentMediaPath = mediaPathForURL(latestFileLoadedURL || core.status.url);
   const staleForPlayback = !runtimeStore.isCurrent(runningJob.mediaOperation) || runningJob.fileLoadedSequence !== fileLoadedSequence || (currentMediaPath && currentMediaPath !== runningJob.mediaPath);
   if (staleForPlayback && helperEvent.type !== "completed") {
-    if (["error", "cancelled"].includes(helperEvent.type)) jobController.markTerminal(); return;
+    if (["error", "cancelled"].includes(helperEvent.type)) jobController.markTerminal();
+    return;
   }
   if (helperEvent.type === "phase") {
     if (runningJob.cancelRequested) return;
@@ -397,8 +409,7 @@ function handleHelperEvent(helperEvent) {
     const subtitleLibrary = subtitleLibraryState();
     if (subtitleLibrary.mediaPath === runningJob.mediaPath) subtitleLibraryClient.addFile({ path: helperEvent.path, ...runningJob.languages });
     const currentStatusMediaPath = mediaPathForURL(latestFileLoadedURL || core.status.url);
-    const fileLoadedMediaIsCurrent = runtimeStore.isCurrent(runningJob.mediaOperation)
-      && runningJob.fileLoadedSequence === fileLoadedSequence;
+    const fileLoadedMediaIsCurrent = runtimeStore.isCurrent(runningJob.mediaOperation) && runningJob.fileLoadedSequence === fileLoadedSequence;
     const statusMediaIsCurrent = !currentStatusMediaPath || currentStatusMediaPath === runningJob.mediaPath;
     if (!fileLoadedMediaIsCurrent || !statusMediaIsCurrent) {
       replaceJob({
@@ -487,7 +498,7 @@ async function loadSubtitle(filePath, mediaURLOverride = null, rememberSelection
 }
 
 function setDisplayMode(value) {
-  if (currentJob()) return;
+  if (currentJob() || subtitleDeletion.isOpen()) return;
   const mode = normalizeDisplayMode(value);
   const mediaPath = mediaPathForURL(latestFileLoadedURL || core.status.url);
   if (!mediaPath) return;

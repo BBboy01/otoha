@@ -28,6 +28,9 @@ const ERROR_CODES = Object.freeze([
   "subtitle.publishFailed",
   "subtitle.libraryFailed",
   "subtitle.loadFailed",
+  "subtitle.deleteOutsideLibrary",
+  "subtitle.deleteMissing",
+  "subtitle.deleteFailed",
   "job.cancelled",
 ]);
 

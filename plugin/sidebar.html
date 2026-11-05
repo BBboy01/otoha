@@ -6,7 +6,9 @@
     <title>Otoha</title>
     <link rel="stylesheet" href="sidebar.css" />
     <link rel="stylesheet" href="subtitle-export.css" />
+    <link rel="stylesheet" href="sidebar-deletion.css" />
     <script defer src="sidebar.js"></script>
+    <script defer src="sidebar-deletion.js"></script>
   </head>
   <body>
     <main>
@@ -31,6 +33,7 @@
         <div class="subtitle-row">
           <select id="subtitle-choice" aria-label="选择字幕"></select>
           <button id="reveal-button" class="secondary" type="button" title="在 Finder 中显示所选字幕">在 Finder 中显示</button>
+          <button id="delete-button" class="secondary delete-trigger" type="button" title="删除所选字幕" aria-label="删除所选字幕">⌫</button>
         </div>
         <fieldset class="export-mode">
           <legend>导出内容</legend>
@@ -112,6 +115,15 @@
         </div>
       </section>
 
+      <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-description">
+        <h2 id="delete-title">删除字幕？</h2>
+        <p id="delete-description"></p>
+        <p id="delete-error" role="alert" hidden></p>
+        <div class="delete-actions">
+          <button id="delete-cancel" class="secondary" type="button" autofocus>取消</button>
+          <button id="delete-confirm" class="danger" type="button">删除</button>
+        </div>
+      </dialog>
     </main>
   </body>
 </html>

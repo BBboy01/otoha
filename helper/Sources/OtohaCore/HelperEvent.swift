@@ -22,6 +22,9 @@ public enum HelperErrorCode: String, Codable, Sendable {
     case subtitlePublishFailed = "subtitle.publishFailed"
     case subtitleLibraryFailed = "subtitle.libraryFailed"
     case subtitleLoadFailed = "subtitle.loadFailed"
+    case subtitleDeleteOutsideLibrary = "subtitle.deleteOutsideLibrary"
+    case subtitleDeleteMissing = "subtitle.deleteMissing"
+    case subtitleDeleteFailed = "subtitle.deleteFailed"
     case jobCancelled = "job.cancelled"
 }
 

@@ -7,7 +7,7 @@ const path = require("node:path");
 function createSidebar() {
   const elements = new Map(), handlers = new Map(), posts = [];
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../sidebar.js"), "utf8"), {
-    document: { querySelector(selector) {
+    document: { querySelectorAll() { return []; }, querySelector(selector) {
       const node = { dataset: {}, hidden: false, listeners: new Map(), attributes: new Map(), value: "",
         replaceChildren() {}, add() {}, focus() {},
         addEventListener(name, callback) { this.listeners.set(name, callback); },

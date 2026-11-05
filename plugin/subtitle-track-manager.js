@@ -18,6 +18,11 @@ function createSubtitleTrackManager({ mpv, file, resolvePath, mediaPathForURL, r
     });
   }
 
+  function findExact(filePath) {
+    return (mpv.getNative("track-list") || []).find(track => track && track.type === "sub"
+      && (track["external-filename"] || track.externalFilename) === filePath);
+  }
+
   function prepare(filePath, mediaPath, mode) {
     if (mode === "bilingual") return filePath;
     const content = file.read(filePath);
@@ -45,7 +50,13 @@ function createSubtitleTrackManager({ mpv, file, resolvePath, mediaPathForURL, r
     activeDisplayTrackPath = null;
   }
 
-  return { find, prepare, rememberLoaded, removePrevious, reset };
+  function unload() {
+    const track = activeDisplayTrackPath && findExact(activeDisplayTrackPath);
+    if (track) mpv.command("sub-remove", [String(track.id)]);
+    reset();
+  }
+
+  return { find, findExact, prepare, rememberLoaded, removePrevious, reset, unload };
 }
 
 module.exports = { createSubtitleTrackManager };
