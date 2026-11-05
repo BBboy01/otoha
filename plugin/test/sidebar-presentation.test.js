@@ -33,7 +33,7 @@ test("sidebar uses a compact hover and click explanation for automatic loading",
   assert.match(sidebarMarkup, /role="tooltip"/);
   assert.match(sidebarMarkup, /<span id="automation-heading">自动加载<\/span>[\s\S]*<div class="help-popover">[\s\S]*<span class="help-icon" aria-hidden="true">\?<\/span>/);
   assert.match(sidebarStyles, /\.automation-row \{[\s\S]*justify-content: flex-start;/);
-  assert.match(sidebarStyles, /\.help-icon \{[\s\S]*width: 15px;[\s\S]*height: 15px;/);
+  assert.match(sidebarStyles, /\.help-icon \{[\s\S]*width: var\(--otoha-icon-size-help\);[\s\S]*height: var\(--otoha-icon-size-help\);/);
   assert.match(sidebarStyles, /@media \(hover: hover\) \{[\s\S]*\.help-popover:hover > \.help-tooltip/);
   assert.match(sidebarStyles, /\.help-popover:focus-within > \.help-tooltip/);
   const sidebar = createSidebar();
@@ -95,11 +95,11 @@ test("sidebar groups generation in a collapsible task section", () => {
   assert.match(sidebarMarkup, /<label for="source-language">源语言<\/label>/);
   assert.match(sidebarMarkup, /<label for="target-language">目标语言<\/label>/);
   assert.match(sidebarMarkup, /<section class="playback-options" aria-label="播放选项">/);
-  assert.match(sidebarStyles, /h2 \{[\s\S]*font-size: 13px;[\s\S]*font-weight: 650;/);
-  assert.match(sidebarStyles, /label \{[\s\S]*font-size: 11px;[\s\S]*font-weight: 600;/);
-  assert.match(sidebarStyles, /form \{[\s\S]*padding-top: 11px;[\s\S]*border-top: 1px solid var\(--quiet-border\);/);
+  assert.match(sidebarStyles, /h2 \{[\s\S]*font-size: var\(--otoha-font-size-body\);[\s\S]*font-weight: var\(--otoha-font-weight-heading\);/);
+  assert.match(sidebarStyles, /label \{[\s\S]*font-size: var\(--otoha-font-size-small\);[\s\S]*font-weight: var\(--otoha-font-weight-medium\);/);
+  assert.match(sidebarStyles, /form \{[\s\S]*padding-top: var\(--otoha-space-section-inset\);[\s\S]*border-top: var\(--otoha-border-width\) solid var\(--otoha-color-border-subtle\);/);
   assert.match(sidebarStyles, /\.track-row \{[\s\S]*grid-template-columns: auto minmax\(0, 1fr\);/);
-  assert.match(sidebarStyles, /button\.primary \{[\s\S]*min-height: 34px;/);
+  assert.match(sidebarStyles, /button\.primary \{[\s\S]*min-height: var\(--otoha-control-height-primary\);/);
   assert.match(sidebarStyles, /@media \(max-width: 280px\)[\s\S]*\.language-grid,[\s\S]*\.subtitle-row/);
 });
 

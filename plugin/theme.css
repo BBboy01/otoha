@@ -1,0 +1,169 @@
+:root {
+  color-scheme: light dark;
+
+  --otoha-space-unit: 4px;
+  --otoha-space-0-5: calc(var(--otoha-space-unit) / 2);
+  --otoha-space-1: var(--otoha-space-unit);
+  --otoha-space-1-5: calc(var(--otoha-space-unit) * 1.5);
+  --otoha-space-2: calc(var(--otoha-space-unit) * 2);
+  --otoha-space-2-5: calc(var(--otoha-space-unit) * 2.5);
+  --otoha-space-3: calc(var(--otoha-space-unit) * 3);
+  --otoha-space-3-5: calc(var(--otoha-space-unit) * 3.5);
+  --otoha-space-4: calc(var(--otoha-space-unit) * 4);
+  --otoha-space-4-5: calc(var(--otoha-space-unit) * 4.5);
+  --otoha-space-5: calc(var(--otoha-space-unit) * 5);
+  --otoha-space-6: calc(var(--otoha-space-unit) * 6);
+  --otoha-space-8: calc(var(--otoha-space-unit) * 8);
+
+  /* Preserve the current density until a visual redesign is approved. */
+  --otoha-space-action-gap: 3px;
+  --otoha-space-label-gap: 5px;
+  --otoha-space-row-gap: 7px;
+  --otoha-space-section-inset: 11px;
+  --otoha-sidebar-padding-top: 13px;
+  --otoha-space-section-gap: 15px;
+  --otoha-sidebar-padding-inline: var(--otoha-space-3);
+  --otoha-sidebar-padding-bottom: var(--otoha-space-4);
+  --otoha-dialog-padding: var(--otoha-space-3-5);
+  --otoha-dialog-gutter: var(--otoha-space-6);
+
+  --otoha-font-family:
+    -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --otoha-font-size-micro: 9px;
+  --otoha-font-size-caption: 10px;
+  --otoha-font-size-small: 11px;
+  --otoha-font-size-label: 12px;
+  --otoha-font-size-body: 13px;
+  --otoha-font-size-heading: 16px;
+  --otoha-font-size-symbol: 18px;
+  --otoha-font-weight-medium: 600;
+  --otoha-font-weight-heading: 650;
+  --otoha-font-weight-bold: 700;
+  --otoha-line-height-solid: 1;
+  --otoha-line-height-heading: 1.2;
+  --otoha-line-height-label: 1.25;
+  --otoha-line-height-title: 1.3;
+  --otoha-line-height-compact: 1.4;
+  --otoha-line-height-body: 1.45;
+  --otoha-line-height-relaxed: 1.5;
+
+  --otoha-color-text: CanvasText;
+  --otoha-color-text-muted: color-mix(
+    in srgb,
+    var(--otoha-color-text) 62%,
+    transparent
+  );
+  --otoha-color-text-secondary: color-mix(
+    in srgb,
+    var(--otoha-color-text) 70%,
+    transparent
+  );
+  --otoha-color-surface: Canvas;
+  --otoha-color-field: Field;
+  --otoha-color-surface-inset: color-mix(
+    in srgb,
+    var(--otoha-color-text) 4%,
+    var(--otoha-color-surface)
+  );
+  --otoha-color-surface-control: color-mix(
+    in srgb,
+    var(--otoha-color-text) 8%,
+    var(--otoha-color-surface)
+  );
+  --otoha-color-surface-hover: color-mix(
+    in srgb,
+    var(--otoha-color-text) 14%,
+    var(--otoha-color-surface)
+  );
+  --otoha-color-accent: #2778c4;
+  --otoha-control-accent: var(--otoha-color-accent);
+  --otoha-color-accent-hover: #1f69ad;
+  --otoha-color-accent-border: #1766a7;
+  --otoha-color-on-accent: #fff;
+  --otoha-color-danger: #b42318;
+  --otoha-color-on-danger: #fff;
+  --otoha-color-error: #b42318;
+  --otoha-color-warning: #8a5a00;
+  --otoha-color-border-subtle: color-mix(
+    in srgb,
+    var(--otoha-color-text) 14%,
+    transparent
+  );
+  --otoha-color-border-dialog: color-mix(
+    in srgb,
+    var(--otoha-color-text) 18%,
+    transparent
+  );
+  --otoha-color-border-control: color-mix(
+    in srgb,
+    var(--otoha-color-text) 23%,
+    transparent
+  );
+  --otoha-color-border-strong: color-mix(
+    in srgb,
+    var(--otoha-color-text) 24%,
+    transparent
+  );
+  --otoha-color-border-help: color-mix(
+    in srgb,
+    var(--otoha-color-text) 30%,
+    transparent
+  );
+  --otoha-color-backdrop: #0006;
+  --otoha-color-backdrop-soft: rgb(0 0 0 / 35%);
+
+  --otoha-border-width: 1px;
+  --otoha-focus-width: 2px;
+  --otoha-focus-offset: 2px;
+  --otoha-status-border-width: 2px;
+  --otoha-radius-small: 4px;
+  --otoha-radius-control: 5px;
+  --otoha-radius-dialog: 6px;
+  --otoha-radius-circle: 50%;
+  --otoha-shadow-menu: 0 3px 12px #0002;
+  --otoha-shadow-tooltip: 0 2px 8px color-mix(in srgb, #000 18%, transparent);
+  --otoha-opacity-disabled: 0.48;
+  --otoha-layer-tooltip: 2;
+  --otoha-layer-menu: 3;
+
+  --otoha-control-height: 31px;
+  --otoha-control-height-roomy: 32px;
+  --otoha-control-height-primary: 34px;
+  --otoha-control-size-small: 24px;
+  --otoha-control-size-compact: 28px;
+  --otoha-control-size: 32px;
+  --otoha-icon-size: 16px;
+  --otoha-icon-size-status: 14px;
+  --otoha-icon-size-help: 15px;
+  --otoha-badge-size: 16px;
+  --otoha-progress-height: 3px;
+  --otoha-sidebar-min-width: 210px;
+  --otoha-tooltip-max-width: 230px;
+  --otoha-menu-width: 190px;
+  --otoha-dialog-width-small: 340px;
+  --otoha-dialog-width: 400px;
+  --otoha-dialog-width-wide: 460px;
+  --otoha-preferences-max-width: 720px;
+  --otoha-preferences-output-width: 48px;
+  --otoha-status-min-height: 54px;
+  --otoha-editor-viewport-inset: 29px;
+  --otoha-editor-status-height: 19px;
+  --otoha-editor-cue-height: 146px;
+  --otoha-editor-cue-height-compact: 104px;
+  --otoha-editor-text-height: 72px;
+  --otoha-editor-text-height-compact: 58px;
+  --otoha-editor-text-max-height: 180px;
+
+  font: var(--otoha-font-size-body)/var(--otoha-line-height-body)
+    var(--otoha-font-family);
+  color: var(--otoha-color-text);
+  background: var(--otoha-color-surface);
+  accent-color: var(--otoha-control-accent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --otoha-color-error: #ff9b93;
+    --otoha-color-warning: #e5b958;
+  }
+}

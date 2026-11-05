@@ -6,30 +6,30 @@
 }
 
 .export-mode legend {
-  margin-bottom: 5px;
-  color: var(--muted-text);
-  font-size: 11px;
-  font-weight: 600;
+  margin-bottom: var(--otoha-space-label-gap);
+  color: var(--otoha-color-text-muted);
+  font-size: var(--otoha-font-size-small);
+  font-weight: var(--otoha-font-weight-medium);
 }
 
 .export-mode-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
+  gap: var(--otoha-space-1);
 }
 
 .export-mode-options label {
   display: flex;
   min-width: 0;
-  min-height: 32px;
+  min-height: var(--otoha-control-height-roomy);
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: var(--otoha-space-label-gap);
   margin: 0;
-  padding: 4px;
-  border: 1px solid var(--quiet-border);
-  border-radius: 5px;
-  font-size: 11px;
+  padding: var(--otoha-space-1);
+  border: var(--otoha-border-width) solid var(--otoha-color-border-subtle);
+  border-radius: var(--otoha-radius-control);
+  font-size: var(--otoha-font-size-small);
   cursor: pointer;
 }
 
@@ -37,33 +37,34 @@
   width: auto;
   min-height: 0;
   margin: 0;
-  accent-color: #2778c4;
+  accent-color: var(--otoha-color-accent);
 }
 
 .export-mode-options label:focus-within {
-  outline: 2px solid #2778c4;
-  outline-offset: 1px;
+  outline: var(--otoha-focus-width) solid var(--otoha-color-accent);
+  outline-offset: var(--otoha-border-width);
 }
 
 .export-button {
   width: 100%;
-  margin-top: 12px;
+  margin-top: var(--otoha-space-3);
 }
 
 .export-result {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 6px;
-  padding: 6px 8px;
-  border-left: 2px solid color-mix(in srgb, CanvasText 24%, transparent);
-  background: color-mix(in srgb, CanvasText 4%, Canvas);
-  font-size: 11px;
-  line-height: 1.4;
+  gap: var(--otoha-space-1-5);
+  padding: var(--otoha-space-1-5) var(--otoha-space-2);
+  border-left: var(--otoha-status-border-width) solid
+    var(--otoha-color-border-strong);
+  background: var(--otoha-color-surface-inset);
+  font-size: var(--otoha-font-size-small);
+  line-height: var(--otoha-line-height-compact);
 }
 
 .export-result[data-kind="error"] {
-  border-left-color: #b42318;
+  border-left-color: var(--otoha-color-danger);
 }
 
 #export-message {
@@ -73,6 +74,6 @@
 
 #reveal-export-button {
   flex: none;
-  padding-inline: 6px;
+  padding-inline: var(--otoha-space-1-5);
   white-space: nowrap;
 }
