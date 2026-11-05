@@ -276,8 +276,9 @@ final class OtohaCoreTests: XCTestCase {
             translate: { _ in ["你好"] }
         )
 
-        XCTAssertEqual(outputURL.lastPathComponent, "movie ; $ input [ja-JP to en-US].ass")
-        XCTAssertEqual(outputURL, existingURL)
+        XCTAssertEqual(outputURL.lastPathComponent, "movie ; $ input [ja-JP to en-US] (2).ass")
+        XCTAssertEqual(try String(contentsOf: existingURL, encoding: .utf8), "old subtitle")
+        XCTAssertTrue(SubtitleFilename.isSubtitle(outputURL, for: fixture.mediaURL))
         let content = try String(contentsOf: outputURL, encoding: .utf8)
         XCTAssertTrue(content.contains("Dialogue: 0,0:00:02.50,0:00:03.25,OtohaSource,,0,0,0,,こんにちは"))
         XCTAssertTrue(content.contains("Dialogue: 0,0:00:02.50,0:00:03.25,OtohaTranslation,,0,0,0,,你好"))

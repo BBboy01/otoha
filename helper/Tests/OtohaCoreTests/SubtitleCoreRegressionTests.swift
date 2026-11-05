@@ -1,8 +1,19 @@
+import Darwin
 import Foundation
 import XCTest
 @testable import OtohaCore
 
 final class SubtitleCoreRegressionTests: XCTestCase {
+    func testNumberedGeneratedVersionsBelongOnlyToTheirMedia() {
+        let media = URL(fileURLWithPath: "/Videos/Movie.mkv")
+        for name in ["Movie [en to ja].ass", "Movie [en to ja] (2).ass", "Movie [en to ja] (100).ass"] {
+            XCTAssertTrue(SubtitleFilename.isSubtitle(URL(fileURLWithPath: name), for: media))
+        }
+        for name in ["Other [en to ja] (2).ass", "Movie [en to ja] (bad).ass", "Movie [en to ja] (0).ass"] {
+            XCTAssertFalse(SubtitleFilename.isSubtitle(URL(fileURLWithPath: name), for: media))
+        }
+    }
+
     func testSubtitleLibraryUsesCanonicalMediaNameWhenListingGeneratedFiles() throws {
         let fixture = try Fixture()
         let mediaURL = URL(fileURLWithPath: "/Videos/movie:part .mkv")
@@ -61,6 +72,7 @@ final class SubtitleCoreRegressionTests: XCTestCase {
             to: ffprobe
         )
         let cancellationURL = fixture.directory.appendingPathComponent("cancel")
+        let started = ContinuousClock.now
         let task = Task {
             try await FFprobeReader.audioStreamStartTime(
                 configuration: fixture.configuration(),
@@ -77,6 +89,7 @@ final class SubtitleCoreRegressionTests: XCTestCase {
             XCTFail("Expected ffprobe cancellation")
         } catch is CancellationError {
         }
+        XCTAssertLessThan(started.duration(to: .now), .seconds(3))
     }
 
     func testFFprobeTimesOutAndTerminatesProcess() async throws {
@@ -86,6 +99,7 @@ final class SubtitleCoreRegressionTests: XCTestCase {
         try fixture.writeExecutable("#!/bin/sh\nexit 0\n", to: ffmpeg)
         try fixture.writeExecutable("#!/bin/sh\nsleep 2\n", to: ffprobe)
 
+        let started = ContinuousClock.now
         do {
             _ = try await FFprobeReader.audioStreamStartTime(
                 configuration: fixture.configuration(),
@@ -97,6 +111,46 @@ final class SubtitleCoreRegressionTests: XCTestCase {
         } catch let error as FFprobeError {
             XCTAssertEqual(error, .timedOut)
         }
+        XCTAssertLessThan(started.duration(to: .now), .seconds(3))
+    }
+
+    func testFFprobeTaskCancellationKillsProcessThatIgnoresTermination() async throws {
+        let fixture = try Fixture()
+        let ffmpeg = fixture.directory.appendingPathComponent("ffmpeg")
+        let ffprobe = fixture.directory.appendingPathComponent("ffprobe")
+        let pidURL = fixture.directory.appendingPathComponent("ffprobe.pid")
+        try fixture.writeExecutable("#!/bin/sh\nexit 0\n", to: ffmpeg)
+        try fixture.writeExecutable(
+            "#!/bin/sh\ntrap '' TERM\nprintf '%s' $$ > \"$0.pid\"\nwhile :; do :; done\n",
+            to: ffprobe
+        )
+        let task = Task {
+            try await FFprobeReader.audioStreamStartTime(
+                configuration: fixture.configuration(),
+                cancellationFileURL: fixture.directory.appendingPathComponent("cancel"),
+                environment: ["PATH": fixture.directory.path],
+                timeout: .seconds(5)
+            )
+        }
+        defer { task.cancel() }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+        while !FileManager.default.fileExists(atPath: pidURL.path), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        let pidText = try String(contentsOf: pidURL, encoding: .utf8)
+        let pid = try XCTUnwrap(Int32(pidText))
+        XCTAssertEqual(kill(pid, 0), 0)
+
+        let started = ContinuousClock.now
+        task.cancel()
+        do {
+            _ = try await task.value
+            XCTFail("Expected ffprobe task cancellation")
+        } catch is CancellationError {
+        }
+        XCTAssertLessThan(started.duration(to: .now), .seconds(3))
+        XCTAssertEqual(kill(pid, 0), -1)
+        XCTAssertEqual(errno, ESRCH)
     }
 
     func testFFmpegExtractionCancellationKillsProcessThatIgnoresTermination() async throws {

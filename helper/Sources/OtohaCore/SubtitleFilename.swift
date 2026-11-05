@@ -18,9 +18,16 @@ public enum SubtitleFilename {
         let baseName = mediaBaseName(for: mediaURL)
         let stem = url.deletingPathExtension().lastPathComponent
         if stem == baseName || stem == "\(baseName).otoha" { return true }
+        var generatedStem = stem
+        if stem.hasSuffix(")"), let suffix = stem.range(of: " (", options: .backwards) {
+            let digits = stem[suffix.upperBound...].dropLast()
+            if digits.allSatisfy(\.isNumber), let version = Int(digits), version >= 2 {
+                generatedStem = String(stem[..<suffix.lowerBound])
+            }
+        }
         let generatedPrefix = "\(baseName) ["
-        if stem.hasPrefix(generatedPrefix), stem.hasSuffix("]") {
-            let languagePair = stem.dropFirst(generatedPrefix.count).dropLast()
+        if generatedStem.hasPrefix(generatedPrefix), generatedStem.hasSuffix("]") {
+            let languagePair = generatedStem.dropFirst(generatedPrefix.count).dropLast()
             if languagePair.contains(" to ") { return true }
         }
         let prefixes = ["\(baseName) (", "\(baseName).otoha ("]

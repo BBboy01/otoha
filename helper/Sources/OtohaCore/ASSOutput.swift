@@ -2,6 +2,18 @@ import Darwin
 import Foundation
 
 public enum ASSOutput {
+    public static func replace(_ content: Data, at destination: URL, beforeCommit: () throws -> Void = {}) throws {
+        let directory = destination.deletingLastPathComponent()
+        let temporaryURL = directory.appendingPathComponent(".otoha-\(UUID().uuidString).tmp")
+        try writeExclusive(content, to: temporaryURL)
+        defer { _ = unlink(temporaryURL.path) }
+        try beforeCommit()
+        guard rename(temporaryURL.path, destination.path) == 0 else {
+            throw ASSOutputError.publishFailed(String(cString: strerror(errno)))
+        }
+        syncDirectory(directory)
+    }
+
     public static func publish(
         _ cues: [SubtitleCue],
         baseName: String,

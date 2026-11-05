@@ -32,16 +32,24 @@ function createPlugin({
   helperTerminal = "completed",
   duplicateTerminal = "",
   waitForCancel = false,
+  phaseAfterCancel = false,
+  preflightSpeech = "installed",
+  preflightTranslation = "installed",
+  preflightGate = null,
+  waitAfterTerminal = false,
   fileLoadedBeforeCompletion = "",
   subtitleScale = 100,
   existingSubtitles = [],
   subtitleContents = {},
   failedListingPath = "",
+  subtitleEditSnapshot = null,
+  editedSubtitleContent = "",
 } = {}) {
   const sidebarHandlers = new Map();
   const eventHandlers = new Map();
   const messages = [];
   const execCalls = [];
+  const chooseFileCalls = [];
   const fileWrites = [];
   const loadedTracks = [];
   const menuItems = [];
@@ -55,13 +63,25 @@ function createPlugin({
   let windowReady = windowReadyAtStart;
   let remainingLoadFileFailures = loadFileFailures;
   let resumeHelper;
+  let finishHelperResolver;
   const preferenceValues = {
-    ffmpeg_path: ffmpegPath, output_directory: outputDirectory, auto_load: autoLoad,
-    default_source_language: defaultSourceLanguage, default_target_language: defaultTargetLanguage,
-    subtitle_scale: subtitleScale, ...savedPreferences,
+    ffmpeg_path: ffmpegPath,
+    output_directory: outputDirectory,
+    auto_load: autoLoad,
+    default_source_language: defaultSourceLanguage,
+    default_target_language: defaultTargetLanguage,
+    subtitle_scale: subtitleScale,
+    ...savedPreferences,
   };
   const tracks = [
-    { type: "audio", id: 7, "ff-index": 2, lang: audioLanguage, title: "Japanese", selected: true },
+    {
+      type: "audio",
+      id: 7,
+      "ff-index": 2,
+      lang: audioLanguage,
+      title: "Japanese",
+      selected: true,
+    },
     { type: "audio", id: 8, "ff-index": 4, lang: "en-US", title: "English" },
   ];
   const iina = {
@@ -74,8 +94,12 @@ function createPlugin({
         videoHeight: 1080,
       },
       subtitle: {
-        get id() { return selectedSubtitleId; },
-        set id(value) { selectedSubtitleId = Number(value); },
+        get id() {
+          return selectedSubtitleId;
+        },
+        set id(value) {
+          selectedSubtitleId = Number(value);
+        },
         async loadTrack(filePath) {
           loadedTracks.push(filePath);
           if (failSubtitleLoad) throw new Error("fixture load failure");
@@ -85,13 +109,23 @@ function createPlugin({
             return;
           }
           if (subtitleTrackVisible) {
-            const track = { type: "sub", id: 20 + loadedTracks.length, "external-filename": filePath };
+            const track = {
+              type: "sub",
+              id: 20 + loadedTracks.length,
+              "external-filename": filePath,
+            };
             tracks.push(track);
             lastLoadedTrackId = track.id;
           }
         },
       },
-      ...(exposesCoreOpen ? { open(url) { coreOpenCalls.push(url); } } : {}),
+      ...(exposesCoreOpen
+        ? {
+            open(url) {
+              coreOpenCalls.push(url);
+            },
+          }
+        : {}),
     },
     event: { on: (name, callback) => eventHandlers.set(name, callback) },
     file: {
@@ -100,15 +134,20 @@ function createPlugin({
         return subtitleContents[filePath];
       },
       write(filePath, content) {
-        const resolvedPath = filePath.startsWith("@data/") ? `/tmp/iina/data/${filePath.slice(6)}` : filePath;
+        const resolvedPath = filePath.startsWith("@data/") ? `/tmp/iina/data/${filePath.slice(6)}` : filePath.startsWith("@tmp/") ? `/tmp/iina/tmp/${filePath.slice(5)}` : filePath;
         subtitleContents[resolvedPath] = content;
         fileWrites.push({ filePath, resolvedPath, content });
+      },
+      delete(filePath) {
+        delete subtitleContents[iina.utils.resolvePath(filePath)];
       },
     },
     console: { error: (message) => consoleErrors.push(message) },
     menu: {
       item: (name, action) => ({ name, action }),
-      addItem(item) { menuItems.push(item); },
+      addItem(item) {
+        menuItems.push(item);
+      },
     },
     mpv: {
       command(name, args) {
@@ -135,11 +174,15 @@ function createPlugin({
     },
     preferences: {
       get: (key) => preferenceValues[key],
-      set: (key, value) => { preferenceValues[key] = value; },
+      set: (key, value) => {
+        preferenceValues[key] = value;
+      },
       sync() {},
     },
     sidebar: {
-      show() { messages.push({ kind: "show-sidebar" }); },
+      show() {
+        messages.push({ kind: "show-sidebar" });
+      },
       loadFile(filePath) {
         sidebarHandlers.clear();
         if (!windowReady) throw new Error("window not available");
@@ -164,13 +207,9 @@ function createPlugin({
         execCalls.push({ file, args, cwd });
         if (file === "/bin/zsh") {
           if (args[1] === 'test -f "$1" && test -x "$1"') {
-            return configuredFFmpegValid
-              ? { status: 0, stdout: "", stderr: "" }
-              : { status: 1, stdout: "", stderr: "" };
+            return configuredFFmpegValid ? { status: 0, stdout: "", stderr: "" } : { status: 1, stdout: "", stderr: "" };
           }
-          return ffmpegSearchPath
-            ? { status: 0, stdout: `${ffmpegSearchPath}\n`, stderr: "" }
-            : { status: 127, stdout: "", stderr: "ffmpeg not found" };
+          return ffmpegSearchPath ? { status: 0, stdout: `${ffmpegSearchPath}\n`, stderr: "" } : { status: 127, stdout: "", stderr: "ffmpeg not found" };
         }
         if (file === "/usr/bin/test") {
           return configuredFFmpegValid ? { status: 0, stdout: "", stderr: "" } : { status: 1, stdout: "", stderr: "" };
@@ -179,6 +218,34 @@ function createPlugin({
           return { status: 0, stdout: "", stderr: "" };
         }
         if (file.endsWith("otoha-helper")) {
+          if (args[0] === "--check-languages-json") {
+            const request = JSON.parse(args[1]);
+            if (preflightGate) await preflightGate;
+            return { status: 0, stdout: JSON.stringify({ ...request, speech: preflightSpeech, translation: preflightTranslation }) };
+          }
+          if (["--read-subtitle-json", "--save-subtitle-file"].includes(args[0])) {
+            const request = JSON.parse(args[0] === "--save-subtitle-file" ? subtitleContents[args[1]] : args[1]);
+            if (args[0] === "--save-subtitle-file") {
+              subtitleContents[request.subtitlePath] = editedSubtitleContent;
+              subtitleEditSnapshot = {
+                ...subtitleEditSnapshot,
+                revision: "b".repeat(64),
+                cues: subtitleEditSnapshot.cues.map((cue, index) => ({
+                  ...cue,
+                  ...request.texts[index],
+                })),
+              };
+            }
+            return {
+              status: 0,
+              stdout: JSON.stringify({
+                protocolVersion: 1,
+                requestId: request.requestId,
+                snapshot: subtitleEditSnapshot,
+              }),
+              stderr: "",
+            };
+          }
           if (args[0] === "--list-subtitles-json") {
             const request = JSON.parse(args[1]);
             if (failedListingPath && request.outputDirectoryPath === failedListingPath) {
@@ -188,8 +255,19 @@ function createPlugin({
               status: 0,
               stdout: JSON.stringify({
                 rootDirectoryPath: outputDirectory || "/Users/test/Library/Application Support/Otoha/Subtitles",
-                files: existingSubtitles.map((subtitlePath) => ({ path: subtitlePath })),
+                files: existingSubtitles.map((subtitlePath) => ({
+                  path: subtitlePath,
+                })),
               }),
+              stderr: "",
+            };
+          }
+          if (args[0] === "--export-srt-json") {
+            const request = JSON.parse(args[1]);
+            const modeName = request.mode[0].toUpperCase() + request.mode.slice(1);
+            return {
+              status: 0,
+              stdout: JSON.stringify({ path: `${request.destinationDirectoryPath}/Anime episode [${modeName}].srt` }),
               stderr: "",
             };
           }
@@ -204,6 +282,10 @@ function createPlugin({
             message: "正在转录",
           }) + "\n");
           if (waitForCancel) await new Promise((resolve) => { resumeHelper = resolve; });
+          if (phaseAfterCancel) stdoutHook(`${JSON.stringify({
+            protocolVersion: 1, type: "phase", jobId: request.jobId,
+            phase: "translating", message: "late phase", progress: 0.5,
+          })}\n`);
           if (changeMediaBeforeCompletion) {
             iina.core.status.url = "file:///Users/test/Another%20video.mkv";
           }
@@ -219,18 +301,24 @@ function createPlugin({
           };
           stdoutHook(`${JSON.stringify(terminalEvent)}\n`);
           if (duplicateTerminal) {
-            stdoutHook(`${JSON.stringify({
-              ...terminalEvent,
-              type: duplicateTerminal,
-              ...(duplicateTerminal === "error" ? { code: "helper.unknown" } : {}),
-            })}\n`);
+            stdoutHook(
+              `${JSON.stringify({
+                ...terminalEvent,
+                type: duplicateTerminal,
+                ...(duplicateTerminal === "error" ? { code: "helper.unknown" } : {}),
+              })}\n`,
+            );
           }
+          if (waitAfterTerminal) await new Promise(resolve => { finishHelperResolver = resolve; });
           return { status: 0, stdout: "", stderr: "" };
         }
         if (file === "/usr/bin/touch" && waitForCancel) resumeHelper?.();
         return { status: 0, stdout: "", stderr: "" };
       },
-      async chooseFile() { return null; },
+      async chooseFile(title, options) {
+        chooseFileCalls.push({ title, options });
+        throw new Error("Native file pickers are unavailable in this host fixture");
+      },
       open(filePath) { messages.push({ kind: "open", filePath }); },
     },
   };
@@ -240,18 +328,26 @@ function createPlugin({
     Date: { now: () => clock },
     Math,
     Promise,
-    setTimeout(callback, delay = 0) { pendingTimers.push({ callback, delay }); },
+    setTimeout(callback, delay = 0) {
+      pendingTimers.push({ callback, delay });
+    },
     iina,
     require(id) {
       if (id === "./controller.js") return controller;
       if (id === "./iina-adapter.js") return require("../iina-adapter.js");
       if (id === "./job-controller.js") return require("../job-controller.js");
+      if (id === "./language-preflight-client.js") return require("../language-preflight-client.js");
+      if (id === "./subtitle-editor-controller.js") return require("../subtitle-editor-controller.js");
       if (id === "./runtime-store.js") return require("../runtime-store.js");
       if (id === "./subtitle-track-manager.js") return require("../subtitle-track-manager.js");
       if (id === "./sidebar-lifecycle.js") return require("../sidebar-lifecycle.js");
       if (id === "./settings-controller.js") return require("../settings-controller.js");
       if (id === "./settings-schema.js") return require("../settings-schema.js");
       if (id === "./subtitle-library-client.js") return require("../subtitle-library-client.js");
+      if (id === "./subtitle-export-controller.js") return require("../subtitle-export-controller.js");
+      if (id === "./media-context.js") return require("../media-context.js");
+      if (id === "./subtitle-deletion-runtime.js") return require("../subtitle-deletion-runtime.js");
+      if (id === "./media-snapshot.js") return require("../media-snapshot.js");
       if (id === "./subtitle-settings.js") return require("../subtitle-settings.js");
       if (id === "./subtitle-display.js") return subtitleDisplay;
       throw new Error(`Unexpected plugin module: ${id}`);
@@ -261,6 +357,7 @@ function createPlugin({
   return {
     eventHandlers,
     execCalls,
+    chooseFileCalls,
     fileWrites,
     loadedTracks,
     menuItems,
@@ -271,14 +368,22 @@ function createPlugin({
     coreOpenCalls,
     mpvCommands,
     preferenceValues,
-    get selectedSubtitleId() { return selectedSubtitleId; },
-    get lastLoadedTrackId() { return lastLoadedTrackId; },
+    get selectedSubtitleId() {
+      return selectedSubtitleId;
+    },
+    get lastLoadedTrackId() {
+      return lastLoadedTrackId;
+    },
     setWindowReady(value) {
       windowReady = value;
       iina.core.window.loaded = value;
     },
-    setMediaURL(value) { iina.core.status.url = value; },
-    setAudioLanguage(value) { tracks[0].lang = value; },
+    setMediaURL(value) {
+      iina.core.status.url = value;
+    },
+    setAudioLanguage(value) {
+      tracks[0].lang = value;
+    },
     runSidebarLoad() {
       this.runPendingTimers();
       this.runPendingTimers();
@@ -297,7 +402,10 @@ function createPlugin({
       }
       assert.ok(runs < 100, "timer queue should settle");
     },
-    finishHelper() { resumeHelper?.(); },
+    finishHelper() {
+      resumeHelper?.();
+      finishHelperResolver?.();
+    },
   };
 }
 

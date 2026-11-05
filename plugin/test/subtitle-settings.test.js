@@ -6,6 +6,12 @@ const mediaPath = "/videos/episode.mkv";
 const japaneseSubtitle = { path: "/library/episode [ja to zh-Hans].ass" };
 const englishSubtitle = { path: "/library/episode [en to zh-Hans].ass" };
 
+test("numbered generated subtitles retain their language pair", () => {
+  assert.deepEqual(subtitleLanguages("/library/episode [en to ja] (2).ass"), {
+    sourceLanguage: "en", targetLanguage: "ja",
+  });
+});
+
 function createPreferences(values = {}) {
   return {
     values,
@@ -193,4 +199,17 @@ test("invalid display mode writes are ignored", () => {
   settings.rememberDisplayMode("__proto__", "bilingual");
 
   assert.equal(preferences.values.video_settings, before);
+});
+
+test("deleting a selected subtitle clears only that selection", () => {
+  const preferences = createPreferences();
+  const settings = createSubtitleSettings(preferences);
+  settings.rememberGeneration(mediaPath, { sourceLanguage: "ja", targetLanguage: "zh-Hans" }, japaneseSubtitle.path);
+  settings.rememberDisplayMode(mediaPath, "translation");
+  settings.forgetSelection(mediaPath, japaneseSubtitle.path);
+  const record = JSON.parse(preferences.values.video_settings)[mediaPath];
+  assert.equal(record.subtitlePath, null);
+  assert.equal(record.sourceLanguage, "ja");
+  assert.equal(record.targetLanguage, "zh-Hans");
+  assert.equal(record.displayMode, "translation");
 });

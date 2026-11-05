@@ -1,0 +1,77 @@
+.export-mode {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.export-mode legend {
+  margin-bottom: 5px;
+  color: var(--muted-text);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.export-mode-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.export-mode-options label {
+  display: flex;
+  min-width: 0;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--quiet-border);
+  border-radius: 5px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.export-mode-options input {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  accent-color: #2778c4;
+}
+
+.export-mode-options label:focus-within {
+  outline: 2px solid #2778c4;
+  outline-offset: 1px;
+}
+
+.export-button {
+  width: 100%;
+}
+
+.export-result {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+  border-left: 2px solid color-mix(in srgb, CanvasText 24%, transparent);
+  background: color-mix(in srgb, CanvasText 4%, Canvas);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.export-result[data-kind="error"] {
+  border-left-color: #b42318;
+}
+
+#export-message {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#reveal-export-button {
+  flex: none;
+  padding-inline: 6px;
+  white-space: nowrap;
+}

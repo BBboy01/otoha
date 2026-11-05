@@ -121,3 +121,60 @@ struct SubtitleListingResponse: Encodable {
     let rootDirectoryPath: String
     let files: [Entry]
 }
+
+struct SubtitleExportRequest: Decodable {
+    let protocolVersion: Int
+    let mediaPath: String
+    let subtitlePath: String
+    let libraryRootPath: String
+    let destinationDirectoryPath: String
+    let mode: SRTExportMode
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let protocolVersion = try values.decode(Int.self, forKey: .protocolVersion)
+        let mediaPath = try values.decode(String.self, forKey: .mediaPath)
+        let subtitlePath = try values.decode(String.self, forKey: .subtitlePath)
+        let libraryRootPath = try values.decode(String.self, forKey: .libraryRootPath)
+        let destinationDirectoryPath = try values.decode(String.self, forKey: .destinationDirectoryPath)
+        guard protocolVersion == HelperProtocol.version,
+              Self.isAbsolute(mediaPath), Self.isAbsolute(subtitlePath),
+              Self.isAbsolute(libraryRootPath), Self.isAbsolute(destinationDirectoryPath) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .protocolVersion,
+                in: values,
+                debugDescription: "Export protocol version and paths are invalid."
+            )
+        }
+        self.protocolVersion = protocolVersion
+        self.mediaPath = mediaPath
+        self.subtitlePath = subtitlePath
+        self.libraryRootPath = libraryRootPath
+        self.destinationDirectoryPath = destinationDirectoryPath
+        mode = try values.decode(SRTExportMode.self, forKey: .mode)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case protocolVersion, mediaPath, subtitlePath, libraryRootPath, destinationDirectoryPath, mode
+    }
+
+    private static func isAbsolute(_ value: String) -> Bool {
+        value.hasPrefix("/") && !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var outputURL: URL {
+        get throws {
+            try SRTExportStore.write(
+                subtitleURL: URL(fileURLWithPath: subtitlePath),
+                mediaURL: URL(fileURLWithPath: mediaPath),
+                libraryRoot: URL(fileURLWithPath: libraryRootPath, isDirectory: true),
+                destinationDirectory: URL(fileURLWithPath: destinationDirectoryPath, isDirectory: true),
+                mode: mode
+            )
+        }
+    }
+}
+
+struct SubtitleExportResponse: Encodable {
+    let path: String
+}

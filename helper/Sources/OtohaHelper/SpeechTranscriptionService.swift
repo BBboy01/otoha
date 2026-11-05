@@ -33,17 +33,8 @@ enum SpeechTranscriptionService {
         emit: @escaping @Sendable (HelperEvent) -> Void
     ) async throws -> PreparedSpeechTranscriber {
         try checkCancellation(cancellationFileURL)
-        let requestedLocale = Locale(identifier: sourceLanguage)
-        guard let locale = await SpeechTranscriber.supportedLocale(equivalentTo: requestedLocale) else {
-            throw SpeechTranscriptionError.unsupportedLanguage(sourceLanguage)
-        }
+        let transcriber = try await supportedTranscriber(sourceLanguage: sourceLanguage)
         try checkCancellation(cancellationFileURL)
-        let transcriber = SpeechTranscriber(
-            locale: locale,
-            transcriptionOptions: [],
-            reportingOptions: [],
-            attributeOptions: [.audioTimeRange]
-        )
         if let installationRequest = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
             try checkCancellation(cancellationFileURL)
             let progressTask = Task {
@@ -134,6 +125,26 @@ enum SpeechTranscriptionService {
         if Task.isCancelled || FileManager.default.fileExists(atPath: url.path) {
             throw CancellationError()
         }
+    }
+
+    static func languageAvailability(sourceLanguage: String) async -> LanguageResourceStatus {
+        guard let transcriber = try? await supportedTranscriber(sourceLanguage: sourceLanguage) else {
+            return .unsupported
+        }
+        switch await AssetInventory.status(forModules: [transcriber]) {
+        case .installed: return .installed
+        case .downloading: return .downloading
+        case .supported: return .supported
+        case .unsupported: return .unsupported
+        @unknown default: return .unsupported
+        }
+    }
+
+    private static func supportedTranscriber(sourceLanguage: String) async throws -> SpeechTranscriber {
+        guard let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: sourceLanguage)) else {
+            throw SpeechTranscriptionError.unsupportedLanguage(sourceLanguage)
+        }
+        return SpeechTranscriber(locale: locale, transcriptionOptions: [], reportingOptions: [], attributeOptions: [.audioTimeRange])
     }
 }
 

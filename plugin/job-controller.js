@@ -1,4 +1,4 @@
-function createJobController() {
+function createJobController({ now = Date.now } = {}) {
   let active = null;
 
   return {
@@ -6,6 +6,8 @@ function createJobController() {
       if (active) return null;
       active = {
         id: input.id,
+        startedAt: now(),
+        finishedAt: null,
         cancelPath: input.cancelPath || null,
         mediaPath: input.mediaPath || null,
         parser: null,
@@ -20,6 +22,13 @@ function createJobController() {
     },
     current() {
       return active;
+    },
+    withTiming(job) {
+      if (!active || active.id !== job.jobId) return job;
+      if (!["running", "loading"].includes(job.status) && active.finishedAt === null) {
+        active.finishedAt = now();
+      }
+      return { ...job, startedAt: active.startedAt, finishedAt: active.finishedAt };
     },
     matches({ id, mediaPath, fileLoadedSequence } = {}) {
       return Boolean(active)

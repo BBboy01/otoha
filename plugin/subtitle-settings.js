@@ -11,7 +11,7 @@ function languagePair(value) {
 
 function subtitleLanguages(filePath) {
   if (typeof filePath !== "string") return {};
-  const match = filePath.split("/").pop().match(/ \[([^\[\]]+) to ([^\[\]]+)\]\.ass$/i);
+  const match = filePath.split("/").pop().match(/ \[([^[\]]+) to ([^[\]]+)\](?: \((?:[2-9]\d*|1\d+)\))?\.ass$/i);
   return match ? languagePair({ sourceLanguage: match[1], targetLanguage: match[2] }) : {};
 }
 
@@ -76,6 +76,10 @@ function createSubtitleSettings(preferences) {
       const available = (Array.isArray(files) ? files : []).filter((file) => file && absolutePath(file.path));
       const savedPath = record(read(), mediaPath).subtitlePath;
       return available.find((file) => file.path === savedPath) || available[0] || null;
+    },
+
+    forgetSelection(mediaPath, subtitlePath) {
+      if (record(read(), mediaPath).subtitlePath === subtitlePath) update(mediaPath, { subtitlePath: null });
     },
 
     displayMode(mediaPath) {
