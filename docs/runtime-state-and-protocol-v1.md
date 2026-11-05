@@ -22,6 +22,7 @@
   "effectiveOutputDirectory": "/Users/me/Library/Application Support/Otoha/Subtitles",
   "availableSubtitles": [{ "path": "/.../episode [ja to zh-Hans].ass", "sourceLanguage": "ja", "targetLanguage": "zh-Hans" }],
   "subtitleLibraryLoading": false,
+  "editorOpen": false,
   "ffmpegPath": "/opt/homebrew/bin/ffmpeg",
   "job": {
     "jobId": "1760000000000-abcd",
@@ -167,8 +168,27 @@ SRT 导出通过 `--export-srt-json` 调用 helper，输入协议版本、当前
 | `subtitle.publishFailed` | ASS 写入或替换失败 |
 | `subtitle.libraryFailed` | 字幕列表读取失败 |
 | `subtitle.loadFailed` | IINA 未确认外挂字幕轨道加载 |
+| `subtitle.editUnsupported` | 不是可校对的 Otoha 双语 ASS，包含内联样式或不支持的格式 |
+| `subtitle.editInvalidText` | 缺少原文/译文、片段数量不匹配或文本含 NUL |
+| `subtitle.editOutsideLibrary` | 目标不在当前视频字幕库、是符号链接，或编辑期间切换了视频/字幕库 |
+| `subtitle.editConflict` | 外部修改使文件 SHA-256 与读取版本不符 |
+| `subtitle.editTooLarge` | 原文件/保存结果超过 16 MiB，或请求超过 32 MiB |
 | `job.cancelled` | 用户或媒体切换取消任务 |
 
-## 7. 兼容与演进
+## 8. 兼容与演进
 
-v1 保持现有字段、事件状态机和错误码语义不变。新增只读命令及错误码 registry 必须随插件/helper 同包更新，并同步 Node/Swift 契约测试；改变已有字段含义、事件状态机或错误码含义时递增 `protocolVersion`。旧插件不会隐式接受未知错误码，避免把未理解的错误当成成功。
+v1 可增加可选字段、独立命令和 registry 条目。改变已有字段、事件状态机或错误码的含义时递增 `protocolVersion`，并在插件和 helper 同一个 PR 中更新 Node/Swift 契约测试。旧事件不做隐式兼容，避免把失真的进度或错误当成成功。
+
+## 9. 字幕校对
+
+校对是独立的后台命令，不启动 FFmpeg、Speech、Translation 或原生窗口。`--read-subtitle-json <JSON>` 读取当前视频字幕库中的 canonical ASS；`--save-subtitle-file <绝对路径>` 读取 `otoha-edit-*.json` 保存请求，避免长字幕超过进程参数上限或出现在 IINA 的参数日志中。插件在 `@tmp` 写请求，并在 helper 返回后删除；进程异常退出遗留的文件由 IINA 临时目录生命周期管理。
+
+两个命令的请求均含 `protocolVersion: 1`、非空 `requestId`、绝对路径 `mediaPath` / `subtitlePath` 和可选 `outputDirectoryPath`。保存还要求读取时的 `revision`（原文件 SHA-256）与按读取顺序排列的 `texts: [{source, translation}]`。请求不得增删 cue 或更改时间。读取限制 16 MiB，请求限制 32 MiB。
+
+每次输出一行 `{protocolVersion, requestId, snapshot}`，其中 `snapshot` 为 `{path, revision, cues: [{start, end, source, translation}]}`，时间单位为秒。失败输出 `{protocolVersion, requestId, code, message}`，使用上述 registry；业务错误不会作为成功快照提交。未知版本、错误码、请求 ID 或无效片段均拒绝。
+
+解析器保留头部、样式、事件顺序、时间、非文本字段和 LF/CRLF；相同时间的重复 cue 按出现顺序配对，只有 `OtohaSource` / `OtohaTranslation` 文本可修改。内联 ASS override 等无法安全还原的文本会拒绝编辑。修改的文本复用字体测量换行，遵循原画布、字体、水平缩放和边距；未修改文本逐字保留。
+
+保存会再次确认目标属于该视频字幕库且不经过符号链接，并在同目录创建独占临时文件、写入/fsync、再次检查版本后 rename 替换。保存失败清理临时文件，旧 ASS 保持完整。版本检查是乐观并发保护，不是跨进程文件锁。
+
+`editor` 消息按 `sessionId` 发送 `loading / ready / saving / saved / error / closed` 快照。未保存草稿仅在侧栏本地；关闭需要确认，保存中不允许退出。切换视频后保留草稿并禁用保存/定位，回到原视频后可继续；helper 结束时仍校验当前上下文。保存后刷新字幕列表，在原文/译文模式重建显示缓存，已存在轨道调用一次 `sub-reload`，否则加载一次；IINA 加载失败保留已保存 ASS 和重试入口。校对不修改每视频语言/显示方式记忆。

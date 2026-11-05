@@ -19,6 +19,9 @@ subtitle-deletion-controller.js
 subtitle-deletion-runtime.js
 media-snapshot.js
 subtitle-track-manager.js
+subtitle-editor-controller.js
+subtitle-editor.js
+subtitle-editor.css
 sidebar.html
 sidebar.css
 subtitle-export.css

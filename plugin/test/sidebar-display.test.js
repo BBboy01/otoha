@@ -4,9 +4,18 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-const sidebarSource = fs.readFileSync(path.join(__dirname, "../sidebar.js"), "utf8");
-const sidebarMarkup = fs.readFileSync(path.join(__dirname, "../sidebar.html"), "utf8");
-const sidebarStyles = fs.readFileSync(path.join(__dirname, "../sidebar.css"), "utf8");
+const sidebarSource = fs.readFileSync(
+  path.join(__dirname, "../sidebar.js"),
+  "utf8",
+);
+const sidebarMarkup = fs.readFileSync(
+  path.join(__dirname, "../sidebar.html"),
+  "utf8",
+);
+const sidebarStyles = fs.readFileSync(
+  path.join(__dirname, "../sidebar.css"),
+  "utf8",
+);
 
 function createSidebar() {
   const selectors = [
@@ -17,22 +26,50 @@ function createSidebar() {
     "#target-language-error", "#subtitle-loaded", "#display-mode", "#job-elapsed",
     "#language-resource-status", "#language-resource-message", "#check-languages",
     "#export-button", "#export-message", "#export-result", "#reveal-export-button",
+    "#edit-subtitle-button",
   ];
-  const elements = new Map(selectors.map((selector) => [selector, {
-    children: [], hidden: false, disabled: false, checked: false, value: "", textContent: "",
-    attributes: new Map(), dataset: {}, listeners: new Map(),
-    add(option) { this.children.push(option); },
-    addEventListener(name, callback) { this.listeners.set(name, callback); },
-    replaceChildren(...children) { this.children = children; },
-    focus() { this.focused = true; },
-    setAttribute(name, value) { this.attributes.set(name, String(value)); },
-    getAttribute(name) { return this.attributes.get(name) ?? null; },
-  }]));
+  const elements = new Map(
+    selectors.map((selector) => [
+      selector,
+      {
+        children: [],
+        hidden: false,
+        disabled: false,
+        checked: false,
+        value: "",
+        textContent: "",
+        attributes: new Map(),
+        dataset: {},
+        listeners: new Map(),
+        add(option) {
+          this.children.push(option);
+        },
+        addEventListener(name, callback) {
+          this.listeners.set(name, callback);
+        },
+        replaceChildren(...children) {
+          this.children = children;
+        },
+        focus() {
+          this.focused = true;
+        },
+        setAttribute(name, value) {
+          this.attributes.set(name, String(value));
+        },
+        getAttribute(name) {
+          return this.attributes.get(name) ?? null;
+        },
+      },
+    ]),
+  );
   const handlers = new Map();
   const posts = [];
   const exportModes = ["source", "translation", "bilingual"].map((value) => ({ value, checked: value === "bilingual", disabled: false }));
   class Option {
-    constructor(text, value) { this.text = text; this.value = value; }
+    constructor(text, value) {
+      this.text = text;
+      this.value = value;
+    }
   }
   vm.runInNewContext(sidebarSource, {
     document: {
@@ -42,7 +79,10 @@ function createSidebar() {
     iina: { onMessage: (name, callback) => handlers.set(name, callback), postMessage: (name, payload) => posts.push({ name, payload }) },
     Option,
     URL,
-    window: { location: { href: "file:///tmp/Otoha/sidebar.html" }, setInterval() {} },
+    window: {
+      location: { href: "file:///tmp/Otoha/sidebar.html" },
+      setInterval() {},
+    },
   });
   return { elements, exportModes, handlers, posts };
 }
@@ -62,11 +102,14 @@ function videoState(overrides = {}) {
 }
 
 test("sidebar exposes the three display modes in an accessible compact select", () => {
-  assert.match(sidebarMarkup, /<label[^>]*for="display-mode">显示<\/label>/);
-  assert.match(sidebarMarkup, /<select[^>]*id="display-mode"/);
+  assert.match(sidebarMarkup, /<label[\s\S]*?for="display-mode">显示<\/label>/);
+  assert.match(sidebarMarkup, /<select[\s\S]*?id="display-mode"/);
   assert.match(sidebarMarkup, /<option[^>]*value="source">原文<\/option>/);
   assert.match(sidebarMarkup, /<option[^>]*value="translation">译文<\/option>/);
-  assert.match(sidebarMarkup, /<option[^>]*value="bilingual"[^>]*>双语<\/option>/);
+  assert.match(
+    sidebarMarkup,
+    /<option[^>]*value="bilingual"[^>]*>双语<\/option>/,
+  );
   assert.doesNotMatch(sidebarMarkup, /display-mode-options/);
   assert.match(sidebarStyles, /\.display-mode-row \{/);
   assert.doesNotMatch(sidebarStyles, /\.display-mode-options/);
@@ -77,7 +120,12 @@ test("sidebar defaults to bilingual and restores the current video's display mod
   sidebar.handlers.get("state")(videoState({ displayMode: undefined }));
   assert.equal(sidebar.elements.get("#display-mode").value, "bilingual");
 
-  sidebar.handlers.get("state")(videoState({ media: { path: "/Users/test/other.mp4", name: "other.mp4" }, displayMode: "source" }));
+  sidebar.handlers.get("state")(
+    videoState({
+      media: { path: "/Users/test/other.mp4", name: "other.mp4" },
+      displayMode: "source",
+    }),
+  );
   assert.equal(sidebar.elements.get("#display-mode").value, "source");
 });
 
@@ -87,8 +135,14 @@ test("sidebar sends only the selected display mode for a local video", () => {
   const mode = sidebar.elements.get("#display-mode");
   mode.value = "source";
   mode.listeners.get("change")();
-  assert.deepEqual(sidebar.posts.at(-1), { name: "setDisplayMode", payload: "source" });
-  assert.equal(sidebar.posts.filter((message) => message.name === "setDisplayMode").length, 1);
+  assert.deepEqual(sidebar.posts.at(-1), {
+    name: "setDisplayMode",
+    payload: "source",
+  });
+  assert.equal(
+    sidebar.posts.filter((message) => message.name === "setDisplayMode").length,
+    1,
+  );
 });
 
 test("sidebar disables display modes without a video or while loading", () => {
@@ -100,6 +154,8 @@ test("sidebar disables display modes without a video or while loading", () => {
   mode.listeners.get("change")();
   assert.equal(sidebar.posts.length, postsBefore);
 
-  sidebar.handlers.get("state")(videoState({ job: { status: "loading", message: "正在加载字幕" } }));
+  sidebar.handlers.get("state")(
+    videoState({ job: { status: "loading", message: "正在加载字幕" } }),
+  );
   assert.equal(mode.disabled, true);
 });

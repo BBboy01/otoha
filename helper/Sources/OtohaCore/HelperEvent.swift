@@ -25,6 +25,11 @@ public enum HelperErrorCode: String, Codable, Sendable {
     case subtitleDeleteOutsideLibrary = "subtitle.deleteOutsideLibrary"
     case subtitleDeleteMissing = "subtitle.deleteMissing"
     case subtitleDeleteFailed = "subtitle.deleteFailed"
+    case subtitleEditUnsupported = "subtitle.editUnsupported"
+    case subtitleEditInvalidText = "subtitle.editInvalidText"
+    case subtitleEditOutsideLibrary = "subtitle.editOutsideLibrary"
+    case subtitleEditConflict = "subtitle.editConflict"
+    case subtitleEditTooLarge = "subtitle.editTooLarge"
     case jobCancelled = "job.cancelled"
 }
 

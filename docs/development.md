@@ -145,6 +145,19 @@ ASS 写入必须经过临时文件和成功后的替换路径。SRT 是明示的
 
 ## 验证范围
 
+### 字幕校对回归
+
+自动化使用自编内容：`ASSEditingTests` 覆盖中日文/混排、显式换行、长文本与窄画面换行、CRLF、重复时间、文本转义、原子失败、外部版本冲突和路径/符号链接边界。`subtitle-editor-controller` / `subtitle-editor-ui` 测试覆盖临时请求清理、草稿保留、退出确认、保存失败和视频切换；`main-editor` 覆盖三种显示模式保存后恰好一次重载、语言记忆不变。可分别运行：
+
+```bash
+swift test --package-path helper --filter 'ASSEditingTests|ASSWriterTests'
+node --test plugin/test/subtitle-editor-controller.test.js plugin/test/subtitle-editor-ui.test.js plugin/test/main-editor.test.js
+```
+
+实际 IINA 验收使用合成视频及自编的 canonical ASS：逐句修改中日文/长文本/显式换行，切换片段，取消并核对文件未改，保存并分别检查原文/译文/双语轨道只刷新一次，再模拟目录无写权限与外部编辑冲突。用键盘与 VoiceOver 检查对话框焦点、时间范围、片段定位和未保存确认。浏览器页面验证可覆盖布局和交互，但不代表 IINA WebKit、mpv 字幕渲染或 VoiceOver 已通过。
+
+侧栏未保存草稿不持久化，IINA 强制退出或插件 reload 可能丢失草稿；页面 `beforeunload` 只是补充保护，可靠的确认发生在侧栏内的关闭操作。保存中的退出被禁止，保存错误不清空输入。不要将 IINA 单语言显示缓存当作 canonical ASS 编辑。
+
 CI 和单元测试验证插件状态与协议、Swift 字幕流水线、包资源完整性和发布归档。它们不能代替以下需要 macOS 与 IINA 的人工检查：
 
 - Apple Speech 和 Translation 首次准备资源时的系统提示。

@@ -41,6 +41,8 @@ flowchart TB
 | `plugin/subtitle-library-client.js` | 调用 helper 列出当前视频字幕，自动加载已有文件 | 生成字幕内容 |
 | `plugin/subtitle-deletion-controller.js` | 确认单个文件删除并验证 helper 响应 | 直接操作文件系统 |
 | `plugin/subtitle-track-manager.js` | 加载 ASS、按显示模式生成 IINA 内存缓存、移除旧轨道 | 修改源 ASS 文件 |
+| `plugin/subtitle-editor-controller.js` | 隔离校对会话、helper 请求和保存后刷新 | 保存草稿、改变时间或语言记忆 |
+| `plugin/subtitle-editor.js` | 片段导航、原文/译文草稿、未保存确认和焦点恢复 | 写入字幕文件 |
 | `OtohaHelper` | 后台入口、JSONL 输出、系统版本检查、任务生命周期 | 保存插件偏好 |
 | `OtohaCore` | FFmpeg 配置、取消、转录/翻译流水线、ASS 原子发布 | 访问 IINA API |
 | 用户 FFmpeg | 读取视频并提取选定的 FFmpeg stream index | 转录或翻译 |
@@ -107,6 +109,8 @@ Application Support
 ```
 
 helper 的后台模式设置 `NSApplicationActivationPolicy.prohibited`，正常任务不创建可见窗口；仅传入 `--ui` 或调试 bundle 环境变量时才启用调试窗口。首次 Apple 资源准备仍可能触发 macOS 自己的权限或下载提示。
+
+字幕校对通过独立读/写命令访问 `ASSEditStore`；它核对当前视频的字幕库路径与文件版本，`ASSEditDocument` 只替换原文/译文文本，`ASSOutput.replace` 原子发布。编辑会话存在期间暂停自动加载和新生成；草稿不进入共享运行状态。保存后刷新列表和当前显示轨道，失败时保留草稿或已保存文件。协议和限制见 [字幕校对](runtime-state-and-protocol-v1.md#7-字幕校对)。
 
 ## 安全和可靠性边界
 
