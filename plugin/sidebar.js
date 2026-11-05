@@ -126,6 +126,7 @@ function updateLanguageErrors() {
 }
 
 function renderState(nextState) {
+  const focused = document.activeElement;
   window.subtitleEditorUI?.onState(nextState);
   const previousMediaPath = currentMediaPath;
   state = nextState;
@@ -178,8 +179,7 @@ function renderState(nextState) {
   fillLanguages(elements.sourceLanguage, selectedSourceLanguage);
   fillLanguages(elements.targetLanguage, selectedTargetLanguage);
 
-  const busy =
-    state.job && ["running", "canceling", "loading"].includes(state.job.status);
+  const busy = state.jobActive || state.job && ["running", "canceling", "loading"].includes(state.job.status);
   const checkingSubtitles = Boolean(
     state.media && state.subtitleLibraryLoading,
   );
@@ -240,20 +240,24 @@ function renderState(nextState) {
   );
   updateLanguageErrors();
   updateGeneration();
-  renderJob(
-    checkingSubtitles && (!state.job || state.job.status === "idle")
+  renderJob(checkingSubtitles && (!state.job || state.job.status === "idle")
       ? { status: "checking", message: "正在检查字幕列表" }
-      : state.job,
-  );
+      : state.job);
+  restoreJobFocus(focused);
 }
-
+function restoreJobFocus(focused) {
+  if (![elements.cancel, elements.jobMessage].includes(focused)) return;
+  if (focused === elements.cancel && !elements.cancel.hidden && !elements.cancel.disabled) return;
+  const target = !elements.start.disabled ? elements.start
+    : !elements.jobStatus.hidden ? elements.jobMessage : null;
+  if (!target || target === focused) return;
+  if (target === elements.jobMessage) target.tabIndex = -1;
+  target.focus();
+}
 function updateGeneration() {
   if (!state) return;
-  const busy =
-    state.job && ["running", "canceling", "loading"].includes(state.job.status);
-  const availableTrack = (state.tracks || []).some(
-    (track) => track.available && String(track.id) === String(selectedTrackId),
-  );
+  const busy = state.jobActive || state.job && ["running", "canceling", "loading"].includes(state.job.status);
+  const availableTrack = (state.tracks || []).some((track) => track.available && String(track.id) === String(selectedTrackId));
   elements.start.disabled =
     !state.media ||
     !availableTrack ||
@@ -263,15 +267,12 @@ function updateGeneration() {
     !selectedSourceLanguage ||
     !selectedTargetLanguage ||
     selectedSourceLanguage === selectedTargetLanguage;
-  const matchingSubtitle = (state.availableSubtitles || []).some(
-    (subtitle) =>
+  const matchingSubtitle = (state.availableSubtitles || []).some((subtitle) =>
       subtitle.sourceLanguage === selectedSourceLanguage &&
-      subtitle.targetLanguage === selectedTargetLanguage,
-  );
+      subtitle.targetLanguage === selectedTargetLanguage);
   elements.start.textContent = matchingSubtitle ? "重新生成" : "生成";
   renderLanguagePreflight(busy);
 }
-
 function renderLanguagePreflight(busy) {
   const valid = state.media && selectedSourceLanguage && selectedTargetLanguage && selectedSourceLanguage !== selectedTargetLanguage;
   elements.languageResourceStatus.hidden = !valid || Boolean(busy);
@@ -395,10 +396,7 @@ elements.autoLoad.addEventListener("change", () => {
 });
 
 function setDisplayMode(mode) {
-  const busy =
-    state &&
-    state.job &&
-    ["running", "canceling", "loading"].includes(state.job.status);
+  const busy = state && (state.jobActive || state.job && ["running", "canceling", "loading"].includes(state.job.status));
   if (
     !state ||
     !state.media ||
@@ -478,12 +476,14 @@ iina.onMessage("exportResult", (result) => {
   if (state) renderState(state);
 });
 iina.onMessage("job", (job) => {
+  const focused = document.activeElement;
   if (state) {
     state.job = job;
     state.hasOutput = Boolean(job.path || state.hasOutput);
   }
   renderJob(job);
   updateGeneration();
+  restoreJobFocus(focused);
 });
 
 const helperURL = new URL(

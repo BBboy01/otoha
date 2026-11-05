@@ -36,6 +36,7 @@ function createPlugin({
   preflightSpeech = "installed",
   preflightTranslation = "installed",
   preflightGate = null,
+  waitAfterTerminal = false,
   fileLoadedBeforeCompletion = "",
   subtitleScale = 100,
   existingSubtitles = [],
@@ -62,6 +63,7 @@ function createPlugin({
   let windowReady = windowReadyAtStart;
   let remainingLoadFileFailures = loadFileFailures;
   let resumeHelper;
+  let finishHelperResolver;
   const preferenceValues = {
     ffmpeg_path: ffmpegPath,
     output_directory: outputDirectory,
@@ -307,6 +309,7 @@ function createPlugin({
               })}\n`,
             );
           }
+          if (waitAfterTerminal) await new Promise(resolve => { finishHelperResolver = resolve; });
           return { status: 0, stdout: "", stderr: "" };
         }
         if (file === "/usr/bin/touch" && waitForCancel) resumeHelper?.();
@@ -401,6 +404,7 @@ function createPlugin({
     },
     finishHelper() {
       resumeHelper?.();
+      finishHelperResolver?.();
     },
   };
 }
