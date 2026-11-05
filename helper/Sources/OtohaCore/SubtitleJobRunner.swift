@@ -1,15 +1,18 @@
 import Foundation
 
 public struct SubtitleJobRunnerDependencies: Sendable {
+    public let preflight: @Sendable () async throws -> Void
     public let prepareTranslation: @Sendable () async throws -> Void
     public let transcribe: @Sendable () async throws -> TranscriptionOutput
     public let translate: @Sendable ([TranscribedCue]) async throws -> [String]
 
     public init(
+        preflight: @escaping @Sendable () async throws -> Void = {},
         prepareTranslation: @escaping @Sendable () async throws -> Void,
         transcribe: @escaping @Sendable () async throws -> TranscriptionOutput,
         translate: @escaping @Sendable ([TranscribedCue]) async throws -> [String]
     ) {
+        self.preflight = preflight
         self.prepareTranslation = prepareTranslation
         self.transcribe = transcribe
         self.translate = translate
@@ -30,7 +33,10 @@ public struct SubtitleJobRunner: Sendable {
     ) async throws -> URL {
         emit(.phase(.checkingEnvironment, message: "正在检查环境"))
         try configuration.validate()
-        try FileManager.default.createDirectory(at: configuration.outputDirectory, withIntermediateDirectories: true)
+        try cancellation.check()
+
+        emit(.phase(.checkingEnvironment, message: "正在检查语言支持与资源"))
+        try await dependencies.preflight()
         try cancellation.check()
 
         emit(.phase(.preparingLanguageResources, message: "正在准备翻译语言资源"))
@@ -52,6 +58,7 @@ public struct SubtitleJobRunner: Sendable {
             return SubtitleCue(start: start, end: end, source: cue.source, translation: translations[index])
         }
         emit(.phase(.saving, message: "正在保存双语 ASS 字幕"))
+        try FileManager.default.createDirectory(at: configuration.outputDirectory, withIntermediateDirectories: true)
         return try ASSOutput.publish(
             cues,
             baseName: SubtitleFilename.generatedBaseName(

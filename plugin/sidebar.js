@@ -29,6 +29,9 @@ const elements = {
   jobIcon: document.querySelector("#job-icon"),
   jobDetailToggle: document.querySelector("#job-detail-toggle"),
   jobDetailMessage: document.querySelector("#job-detail-message"),
+  languageResourceStatus: document.querySelector("#language-resource-status"),
+  languageResourceMessage: document.querySelector("#language-resource-message"),
+  checkLanguages: document.querySelector("#check-languages"),
   mediaError: document.querySelector("#media-error"),
   mediaName: document.querySelector("#media-name"),
   progress: document.querySelector("#translation-progress"),
@@ -55,6 +58,7 @@ let lastResolvedSubtitlePath;
 let lastFeedbackKey = "";
 let languageValidationRequested = false;
 let feedbackJob = null;
+let lastPreflightKey = "";
 
 function post(name, payload) {
   iina.postMessage(name, payload);
@@ -210,6 +214,27 @@ function updateGeneration() {
     subtitle.sourceLanguage === selectedSourceLanguage && subtitle.targetLanguage === selectedTargetLanguage
   ));
   elements.start.textContent = matchingSubtitle ? "重新生成" : "生成";
+  renderLanguagePreflight(busy);
+}
+
+function renderLanguagePreflight(busy) {
+  const valid = state.media && selectedSourceLanguage && selectedTargetLanguage && selectedSourceLanguage !== selectedTargetLanguage;
+  elements.languageResourceStatus.hidden = !valid || Boolean(busy);
+  elements.checkLanguages.disabled = Boolean(busy);
+  if (!valid) { lastPreflightKey = ""; return; }
+  const key = JSON.stringify([currentMediaPath, selectedSourceLanguage, selectedTargetLanguage]);
+  const check = state.languagePreflight;
+  const matches = check && check.mediaPath === currentMediaPath
+    && check.sourceLanguage === selectedSourceLanguage && check.targetLanguage === selectedTargetLanguage;
+  const status = matches ? check.status : "checking";
+  elements.languageResourceMessage.textContent = matches ? check.message || "正在检查语言资源" : "正在检查语言资源";
+  elements.languageResourceStatus.setAttribute("aria-busy", String(status === "checking"));
+  elements.checkLanguages.hidden = status === "checking";
+  elements.start.disabled = elements.start.disabled || !matches || status !== "ready";
+  if (!busy && key !== lastPreflightKey) {
+    lastPreflightKey = key;
+    post("checkLanguages", { sourceLanguage: selectedSourceLanguage, targetLanguage: selectedTargetLanguage });
+  }
 }
 
 function renderJob(job) {
@@ -321,6 +346,7 @@ elements.jobForm.addEventListener("submit", (event) => {
     renderJob({ status: "validation", message: "请选择不同的转录语言和翻译语言。" });
     return;
   }
+  if (elements.start.disabled) return;
   post("start", {
     trackId: selectedTrackId,
     sourceLanguage: selectedSourceLanguage,
@@ -329,6 +355,11 @@ elements.jobForm.addEventListener("submit", (event) => {
 });
 
 elements.cancel.addEventListener("click", () => post("cancel"));
+elements.checkLanguages.addEventListener("click", () => {
+  lastPreflightKey = "";
+  if (state) state.languagePreflight = null;
+  updateGeneration();
+});
 elements.subtitleChoice.addEventListener("change", () => {
   selectedSubtitlePath = elements.subtitleChoice.value;
   renderJob(state && state.job);

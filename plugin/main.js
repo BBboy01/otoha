@@ -10,6 +10,7 @@ const {
 } = require("./controller.js");
 const { createIinaAdapter } = require("./iina-adapter.js");
 const { createJobController } = require("./job-controller.js");
+const { createLanguagePreflightClient } = require("./language-preflight-client.js");
 const { createRuntimeStore } = require("./runtime-store.js");
 const { createSidebarLifecycle } = require("./sidebar-lifecycle.js");
 const { createSettingsController } = require("./settings-controller.js");
@@ -22,6 +23,7 @@ const iinaAdapter = createIinaAdapter(iina);
 const { console: hostConsole, core, event, file, menu, mpv, preferences, sidebar, utils } = iinaAdapter;
 const subtitleSettings = createSubtitleSettings(preferences);
 const jobController = createJobController({ now: () => Date.now() });
+const languagePreflightClient = createLanguagePreflightClient({ exec: (...args) => utils.exec(...args), helperPath: () => helperPath, onUpdated: () => sendState() });
 const runtimeStore = createRuntimeStore({
   job: { jobId: null, status: "idle", phase: "", message: "", progress: null, path: null, loaded: false, errorCode: null },
   subtitleLibrary: { mediaPath: null, outputDirectoryPath: null, rootDirectoryPath: "", files: [], loading: false },
@@ -148,6 +150,7 @@ function loadSidebarPage(show = false) {
       sendState();
     });
     sidebar.onMessage("start", (payload) => startJob(payload));
+    sidebar.onMessage("checkLanguages", (payload) => !currentJob() && languagePreflightClient.check({ ...payload, mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url) }, true));
     sidebar.onMessage("loadExisting", (filePath) => {
       if (!currentJob() && subtitleLibraryState().files.some((subtitle) => subtitle.path === filePath)) loadSubtitle(filePath, null, true);
     });
@@ -286,10 +289,10 @@ function sendState(mediaURLOverride = null) {
     subtitleLibraryLoading: Boolean(media && subtitleLibrary.mediaPath === media.path && subtitleLibrary.loading),
     ffmpegPath: preferences.get("ffmpeg_path") || "",
     job: jobState(),
+    languagePreflight: languagePreflightClient.getState(),
     hasOutput: Boolean(lastOutputPath || availableSubtitles.length),
   });
 }
-
 async function startJob(payload = {}, mediaOverride = null) {
   if (currentJob()) return;
   runtimeStore.begin("display");
@@ -312,10 +315,11 @@ async function startJob(payload = {}, mediaOverride = null) {
     if (!claimedJob) return;
     replaceJob({ jobId, status: "running", phase: "checkingEnvironment", message: "正在启动", progress: null, path: null, loaded: false, errorCode: null });
     sendState(mediaOverride ? media.path : undefined);
-
+    await languagePreflightClient.check({ sourceLanguage, targetLanguage, mediaPath: media.path });
+    const check = languagePreflightClient.getState(); if (check.status !== "ready") throw Object.assign(new Error(check.message || "请重试语言检查。"), { code: check.errorCode });
     const ffmpegPath = await resolveFFmpegPath(preferences, (...args) => utils.exec(...args));
     if (claimedJob.cancelRequested || jobFileLoadedSequence !== fileLoadedSequence || mediaPathForURL(latestFileLoadedURL || core.status.url) !== media.path) {
-      jobController.markTerminal(); replaceJob({ ...jobState(), status: "cancelled", phase: "", message: "视频已切换，任务已取消", progress: null, path: null, loaded: false, errorCode: "job.cancelled" }); send("job", jobState()); return;
+      jobController.markTerminal(); replaceJob({ ...jobState(), status: "cancelled", phase: "", message: "已取消", progress: null, path: null, loaded: false, errorCode: "job.cancelled" }); send("job", jobState()); return;
     }
     const request = {
       protocolVersion: PROTOCOL_VERSION,
@@ -331,22 +335,15 @@ async function startJob(payload = {}, mediaOverride = null) {
       outputDirectoryPath: readSetting(preferences, "output_directory"),
       cancellationFilePath: cancelPath,
     };
-
     const parser = createJsonLineParser(handleHelperEvent, (error) => {
       hostConsole.error(`Otoha: 忽略无效 helper 事件：${error.message}`);
     });
     claimedJob.parser = parser;
     let stderr = "";
     const args = ["--request-json", JSON.stringify(request)];
-    const result = await utils.exec(
-      helperPath,
-      args,
-      null,
+    const result = await utils.exec(helperPath, args, null,
       (chunk) => parser.push(chunk),
-      (chunk) => {
-        stderr = `${stderr}${chunk}`.slice(-4000);
-      },
-    );
+      (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
     parser.flush();
     if (claimedJob.completion) await claimedJob.completion;
     if (!claimedJob.terminal) {
@@ -357,7 +354,10 @@ async function startJob(payload = {}, mediaOverride = null) {
       }
     }
   } catch (error) {
-    setJobError(error.message || String(error));
+    if (currentJob() && !runtimeStore.isCurrent(currentJob().mediaOperation)) replaceJob({ jobId: null, status: "idle", message: "", phase: "", progress: null, path: null, loaded: false, errorCode: null });
+    else if (currentJob()?.cancelRequested) {
+      replaceJob({ ...jobState(), status: "cancelled", message: "已取消", phase: "", progress: null, errorCode: "job.cancelled" }); send("job", jobState());
+    } else setJobError(error.message || String(error), error.code);
   } finally {
     const runningJob = currentJob();
     if (runningJob && runningJob.id === jobId && runningJob.cancelPath) {

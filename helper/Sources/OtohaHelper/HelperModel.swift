@@ -53,6 +53,7 @@ final class HelperModel: ObservableObject {
         terminateAfterShowingResult()
     }
 
+    @available(macOS 26.4, *)
     func run(using session: TranslationSession) async {
         guard !hasStarted, let request else { return }
         hasStarted = true
@@ -73,6 +74,12 @@ final class HelperModel: ObservableObject {
 
         do {
             let runner = SubtitleJobRunner(dependencies: .init(
+                preflight: {
+                    let result = try await LanguagePreflightService.check(LanguagePreflightRequest(
+                        requestId: request.jobId, sourceLanguage: request.sourceLanguage,
+                        targetLanguage: request.targetLanguage))
+                    guard result.canGenerate else { throw LanguagePreflightFailure(result) }
+                },
                 prepareTranslation: {
                     try await self.translationProvider.prepare(using: sessionHandle)
                 },
@@ -190,6 +197,8 @@ final class HelperModel: ObservableObject {
 
     private static func errorCode(for error: Error) -> HelperErrorCode {
         switch error {
+        case let failure as LanguagePreflightFailure:
+            failure.result.errorCode ?? .helperUnknown
         case JobConfigurationError.ffmpegNotExecutable, FFprobeError.notFound:
             .ffmpegNotFound
         case JobConfigurationError.invalidAudioStream:

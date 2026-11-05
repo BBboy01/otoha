@@ -33,6 +33,9 @@ function createPlugin({
   duplicateTerminal = "",
   waitForCancel = false,
   phaseAfterCancel = false,
+  preflightSpeech = "installed",
+  preflightTranslation = "installed",
+  preflightGate = null,
   fileLoadedBeforeCompletion = "",
   subtitleScale = 100,
   existingSubtitles = [],
@@ -180,6 +183,11 @@ function createPlugin({
           return { status: 0, stdout: "", stderr: "" };
         }
         if (file.endsWith("otoha-helper")) {
+          if (args[0] === "--check-languages-json") {
+            const request = JSON.parse(args[1]);
+            if (preflightGate) await preflightGate;
+            return { status: 0, stdout: JSON.stringify({ ...request, speech: preflightSpeech, translation: preflightTranslation }) };
+          }
           if (args[0] === "--list-subtitles-json") {
             const request = JSON.parse(args[1]);
             if (failedListingPath && request.outputDirectoryPath === failedListingPath) {
@@ -251,6 +259,7 @@ function createPlugin({
       if (id === "./controller.js") return controller;
       if (id === "./iina-adapter.js") return require("../iina-adapter.js");
       if (id === "./job-controller.js") return require("../job-controller.js");
+      if (id === "./language-preflight-client.js") return require("../language-preflight-client.js");
       if (id === "./runtime-store.js") return require("../runtime-store.js");
       if (id === "./subtitle-track-manager.js") return require("../subtitle-track-manager.js");
       if (id === "./sidebar-lifecycle.js") return require("../sidebar-lifecycle.js");

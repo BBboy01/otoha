@@ -50,11 +50,7 @@ public struct JobConfiguration: Codable, Sendable {
         guard audioStreamIndex >= 0 else {
             throw JobConfigurationError.invalidAudioStream
         }
-        guard Self.isLanguageIdentifier(sourceLanguage),
-              Self.isLanguageIdentifier(targetLanguage),
-              sourceLanguage != targetLanguage else {
-            throw JobConfigurationError.invalidLanguages
-        }
+        try Self.validateLanguages(source: sourceLanguage, target: targetLanguage)
         guard subtitleScale.isFinite, (0.8...1.4).contains(subtitleScale) else {
             throw JobConfigurationError.invalidSubtitleScale
         }
@@ -78,6 +74,13 @@ public struct JobConfiguration: Codable, Sendable {
             let parent = candidate.deletingLastPathComponent()
             if parent.path == candidate.path { return nil }
             candidate = parent
+        }
+    }
+
+    public static func validateLanguages(source: String, target: String) throws {
+        guard isLanguageIdentifier(source), isLanguageIdentifier(target),
+              source.lowercased() != target.lowercased() else {
+            throw JobConfigurationError.invalidLanguages
         }
     }
 

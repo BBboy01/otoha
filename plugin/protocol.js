@@ -22,6 +22,8 @@ const ERROR_CODES = Object.freeze([
   "speech.noSpeech",
   "speech.missingFormat",
   "translation.failed",
+  "translation.unsupportedLanguage",
+  "translation.resourcesMissing",
   "subtitle.incompleteTranslation",
   "subtitle.publishFailed",
   "subtitle.libraryFailed",

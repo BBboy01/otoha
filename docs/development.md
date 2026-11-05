@@ -102,6 +102,12 @@ make clean-package package verify-package
 focused tests：`node --test plugin/test/job-controller.test.js plugin/test/job-feedback.test.js plugin/test/protocol.test.js plugin/test/sidebar.test.js plugin/test/sidebar-display.test.js`。覆盖省略百分比的 JSONL、阶段切换、计时冻结、迟到阶段及终态、加载与侧栏状态。
 
 实机验收须单独记录：使用较长的合成或获授权语音媒体，确认提取、资源准备、转录、翻译、保存和 IINA 加载阶段持续可见；转录没有固定百分比，耗时增长且能取消；媒体切换后不显示旧任务进度；失败可重新生成，加载失败可重试。记录 macOS 权限/资源提示、helper 是否抢焦点及 VoiceOver 读出的阶段。浏览器注入状态和 fake helper 测试不替代这项实机验收。
+## 语言资源预检（#26）
+
+- Node：`node --test plugin/test/language-preflight.test.js plugin/test/main-preflight.test.js plugin/test/sidebar-preflight.test.js`，覆盖支持、缺资源、失败重试、错误协议、切换语言及迟到结果。
+- Swift：`swift test --package-path helper --filter LanguagePreflightTests`，覆盖请求校验、资源状态、失败前不创建输出目录、取消后保留旧 ASS。
+- 实机 CLI：打包后运行 `otoha-helper --check-languages-json '{"protocolVersion":1,"requestId":"manual-check","sourceLanguage":"en","targetLanguage":"ja"}'`。这是实际 Apple 能力检查，不是转录验证；不依赖用户媒体。
+- IINA 单独验收：改变语言后按钮等待预检；不支持或缺资源时显示原因，语言可改、资源可重新检查；Speech 资源准备仍可取消；视频切换和失败后已有字幕可继续播放。记录 macOS 权限/下载提示及 helper 是否抢焦点。
 
 ## 代码分层
 

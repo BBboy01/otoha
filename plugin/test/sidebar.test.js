@@ -13,6 +13,7 @@ function createSidebar() {
     "#audio-track", "#auto-load", "#auto-load-help", "#cancel-button",
     "#existing-subtitles", "#job-form", "#job-message", "#job-status", "#job-icon",
     "#job-detail-toggle", "#job-detail-message", "#subtitle-loaded", "#media-error", "#job-elapsed",
+    "#language-resource-status", "#language-resource-message", "#check-languages",
     "#media-name", "#subtitle-choice", "#translation-progress",
     "#reveal-button", "#retry-button", "#source-language", "#start-button", "#target-language",
     "#display-mode", "#source-language-error", "#target-language-error", "#generation-error",

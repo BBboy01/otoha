@@ -23,4 +23,9 @@ printf '%s\n' "$list_output" | node -e '
   if (response.rootDirectoryPath !== "/tmp/otoha-subtitles" || !Array.isArray(response.files)) process.exit(1);
 '
 
+if "$HELPER_BIN" --check-languages-json '{"protocolVersion":2,"requestId":"invalid","sourceLanguage":"en","targetLanguage":"ja"}'; then
+  printf 'Language preflight accepted an unsupported protocol version.\n' >&2
+  exit 1
+fi
+
 printf 'Packaged helper CLI smoke tests passed.\n'
