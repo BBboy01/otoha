@@ -2,6 +2,8 @@
 
 本项目由 IINA JavaScript 插件和 Swift Package helper 组成。开发时优先修改小模块，并用对应测试验证。字幕渲染和 UI 检查使用合成或已获授权的测试素材。
 
+UI 样式遵循 [主题变量规范](ui-theme.md)：设计值集中在 `plugin/theme.css`，组件引用变量，不直接写入间距、尺寸和色值。
+
 ## 环境
 
 | 工具 | 要求 |

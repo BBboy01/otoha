@@ -23,6 +23,7 @@ subtitle-editor-controller.js
 subtitle-editor.js
 subtitle-editor.css
 sidebar.html
+theme.css
 sidebar.css
 subtitle-export.css
 sidebar-deletion.css
@@ -32,3 +33,4 @@ sidebar-workflow.js
 sidebar-workflow.css
 icons/LICENSE
 preferences.html
+preferences.css
