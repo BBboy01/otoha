@@ -46,6 +46,7 @@ function createPlugin({
   const eventHandlers = new Map();
   const messages = [];
   const execCalls = [];
+  const chooseFileCalls = [];
   const fileWrites = [];
   const loadedTracks = [];
   const menuItems = [];
@@ -202,6 +203,15 @@ function createPlugin({
               stderr: "",
             };
           }
+          if (args[0] === "--export-srt-json") {
+            const request = JSON.parse(args[1]);
+            const modeName = request.mode[0].toUpperCase() + request.mode.slice(1);
+            return {
+              status: 0,
+              stdout: JSON.stringify({ path: `${request.destinationDirectoryPath}/Anime episode [${modeName}].srt` }),
+              stderr: "",
+            };
+          }
           const request = JSON.parse(args[1]);
           const mediaPath = typeof request.mediaPath === "string" ? request.mediaPath : "/Users/test/Anime episode.mkv";
           const outputPath = mediaPath.replace(/\.[^/.]+$/, ".otoha.ass");
@@ -243,7 +253,10 @@ function createPlugin({
         if (file === "/usr/bin/touch" && waitForCancel) resumeHelper?.();
         return { status: 0, stdout: "", stderr: "" };
       },
-      async chooseFile() { return null; },
+      async chooseFile(title, options) {
+        chooseFileCalls.push({ title, options });
+        throw new Error("Native file pickers are unavailable in this host fixture");
+      },
       open(filePath) { messages.push({ kind: "open", filePath }); },
     },
   };
@@ -266,6 +279,8 @@ function createPlugin({
       if (id === "./settings-controller.js") return require("../settings-controller.js");
       if (id === "./settings-schema.js") return require("../settings-schema.js");
       if (id === "./subtitle-library-client.js") return require("../subtitle-library-client.js");
+      if (id === "./subtitle-export-controller.js") return require("../subtitle-export-controller.js");
+      if (id === "./media-context.js") return require("../media-context.js");
       if (id === "./subtitle-settings.js") return require("../subtitle-settings.js");
       if (id === "./subtitle-display.js") return subtitleDisplay;
       throw new Error(`Unexpected plugin module: ${id}`);
@@ -275,6 +290,7 @@ function createPlugin({
   return {
     eventHandlers,
     execCalls,
+    chooseFileCalls,
     fileWrites,
     loadedTracks,
     menuItems,

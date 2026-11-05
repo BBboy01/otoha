@@ -16,6 +16,7 @@ function createSidebar() {
     "#retry-button", "#source-language", "#source-language-error", "#start-button", "#target-language",
     "#target-language-error", "#subtitle-loaded", "#display-mode", "#job-elapsed",
     "#language-resource-status", "#language-resource-message", "#check-languages",
+    "#export-button", "#export-message", "#export-result", "#reveal-export-button",
   ];
   const elements = new Map(selectors.map((selector) => [selector, {
     children: [], hidden: false, disabled: false, checked: false, value: "", textContent: "",
@@ -29,17 +30,21 @@ function createSidebar() {
   }]));
   const handlers = new Map();
   const posts = [];
+  const exportModes = ["source", "translation", "bilingual"].map((value) => ({ value, checked: value === "bilingual", disabled: false }));
   class Option {
     constructor(text, value) { this.text = text; this.value = value; }
   }
   vm.runInNewContext(sidebarSource, {
-    document: { querySelector: (selector) => elements.get(selector) },
+    document: {
+      querySelector: (selector) => elements.get(selector),
+      querySelectorAll: (selector) => selector === "input[name='export-mode']" ? exportModes : [],
+    },
     iina: { onMessage: (name, callback) => handlers.set(name, callback), postMessage: (name, payload) => posts.push({ name, payload }) },
     Option,
     URL,
     window: { location: { href: "file:///tmp/Otoha/sidebar.html" }, setInterval() {} },
   });
-  return { elements, handlers, posts };
+  return { elements, exportModes, handlers, posts };
 }
 
 function videoState(overrides = {}) {

@@ -135,7 +135,7 @@ focused tests：`node --test plugin/test/job-controller.test.js plugin/test/job-
 
 ### 修改字幕输出
 
-ASS 写入必须经过临时文件和成功后的替换路径。不要直接覆盖最终文件，也不要把 IINA 内存显示模式缓存写回字幕库。默认源文 38px、译文 34px，字号比例由 Preferences 的 80% 至 140% 设置控制。源文约 31% 透明度，二者使用黑色描边和轻阴影。
+ASS 写入必须经过临时文件和成功后的替换路径。SRT 是明示的导出副本，helper 只读当前视频库里的 ASS，并通过不覆盖写入处理重名。不要直接覆盖最终文件，也不要把 IINA 内存显示模式缓存写回字幕库。默认源文 38px、译文 34px，字号比例由 Preferences 的 80% 至 140% 设置控制。源文约 31% 透明度，二者使用黑色描边和轻阴影。
 
 `ASSWriter` 使用固定逻辑高度 1080，逻辑宽度由视频宽高比计算，`PlayRes` 与 `LayoutRes` 一致；左右各留约 5% 边距。同一画面比例在不同像素分辨率下输出相同布局，缺少有效尺寸时回退到 1920×1080。保持 Translation 事件在前、Source 在后且同为 Layer 0，让 libass 碰撞避让将源文放在多行译文上方。
 

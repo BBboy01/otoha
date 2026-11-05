@@ -81,6 +81,8 @@ sequenceDiagram
 
 打开视频后，插件调用 helper 的 `--list-subtitles-json` 查询字幕库。只有自动加载开启且列表非空时，插件才加载字幕；生成仍由用户手动触发。用户侧行为见 [README](../README.md#自动加载)。
 
+ASS 是字幕库中的规范文件；SRT 导出副本统一写入字幕库根目录下的 `Exports` 子目录，支持原文、译文或双语文本，不污染视频目录。导出保留时间轴，只承诺字幕文本与时间，不保留 ASS 样式；重名文件使用编号副本，避免覆盖用户文件。导出完成后可从侧栏在 Finder 中定位文件。IINA 1.5.0 的 `utils.chooseFile` 在取消时不结束 Promise，因此不使用其原生目录面板。
+
 ## 异步任务与取消
 
 语言选择触发 `language-preflight-client.js` 调用 helper `--check-languages-json`，结果按媒体、语言对和请求序号隔离。Swift 通过 `SpeechTranscriber.supportedLocale`、`AssetInventory.status` 和高保真 `LanguageAvailability` 读取本机能力；Speech 预检和实际准备共享同一 transcriber 创建逻辑。预检不读取媒体或创建输出目录。`SubtitleJobRunner` 在所有准备和提取工作前复查能力，并在成功保存时才创建输出目录；无法使用的语言对不会启动长任务或改动旧字幕。

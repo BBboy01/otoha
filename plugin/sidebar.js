@@ -21,6 +21,10 @@ const elements = {
   autoLoadHelp: document.querySelector("#auto-load-help"),
   cancel: document.querySelector("#cancel-button"),
   displayMode: document.querySelector("#display-mode"),
+  exportButton: document.querySelector("#export-button"),
+  exportMessage: document.querySelector("#export-message"),
+  exportResult: document.querySelector("#export-result"),
+  exportModes: document.querySelectorAll("input[name='export-mode']"),
   existingSubtitles: document.querySelector("#existing-subtitles"),
   jobForm: document.querySelector("#job-form"),
   jobMessage: document.querySelector("#job-message"),
@@ -36,6 +40,7 @@ const elements = {
   mediaName: document.querySelector("#media-name"),
   progress: document.querySelector("#translation-progress"),
   reveal: document.querySelector("#reveal-button"),
+  revealExport: document.querySelector("#reveal-export-button"),
   retry: document.querySelector("#retry-button"),
   sourceLanguage: document.querySelector("#source-language"),
   sourceLanguageError: document.querySelector("#source-language-error"),
@@ -59,6 +64,8 @@ let lastFeedbackKey = "";
 let languageValidationRequested = false;
 let feedbackJob = null;
 let lastPreflightKey = "";
+let exporting = false;
+let lastExportedPath = "";
 
 function post(name, payload) {
   iina.postMessage(name, payload);
@@ -138,6 +145,10 @@ function renderState(nextState) {
   if (mediaChanged) {
     selectedSubtitlePath = "";
     languageValidationRequested = false;
+    lastExportedPath = "";
+    exporting = false;
+    elements.exportResult.hidden = true;
+    elements.revealExport.hidden = true;
   }
   const selectedTrackChanged = String(lastPlayerTrackId) !== String(state.selectedTrackId);
   if (mediaChanged || selectedTrackChanged || selectedTrackId === null) {
@@ -193,6 +204,8 @@ function renderState(nextState) {
   }
   elements.subtitleChoice.value = selectedSubtitlePath;
   elements.subtitleChoice.disabled = subtitles.length === 0 || busy;
+  for (const radio of elements.exportModes) radio.disabled = subtitles.length === 0 || busy || exporting;
+  elements.exportButton.disabled = !state.media || subtitles.length === 0 || busy || checkingSubtitles || exporting;
   elements.reveal.setAttribute(
     "aria-label",
     selectedSubtitlePath ? `在 Finder 中显示 ${selectedSubtitlePath.split("/").pop()}` : "在 Finder 中显示所选字幕",
@@ -367,7 +380,33 @@ elements.subtitleChoice.addEventListener("change", () => {
 });
 elements.retry.addEventListener("click", () => post("retryLoad"));
 elements.reveal.addEventListener("click", () => post("reveal", elements.subtitleChoice.value));
+elements.exportButton.addEventListener("click", () => {
+  const selectedMode = Array.from(elements.exportModes).find((radio) => radio.checked);
+  if (!selectedSubtitlePath || !selectedMode || elements.exportButton.disabled) return;
+  post("exportSubtitle", { subtitlePath: selectedSubtitlePath, mode: selectedMode.value });
+});
+elements.revealExport.addEventListener("click", () => {
+  if (lastExportedPath) post("reveal", lastExportedPath);
+});
 iina.onMessage("state", renderState);
+iina.onMessage("exportResult", (result) => {
+  const current = result || {};
+  exporting = current.status === "running";
+  elements.exportResult.hidden = current.status === "cancelled";
+  elements.exportResult.dataset.kind = current.status === "error" ? "error" : "info";
+  if (current.status === "success") {
+    lastExportedPath = current.path;
+    elements.exportMessage.textContent = `已导出：${String(current.path || "").split("/").pop()}`;
+    elements.revealExport.hidden = !lastExportedPath;
+  } else if (current.status === "running") {
+    elements.exportMessage.textContent = "正在导出 SRT…";
+    elements.revealExport.hidden = true;
+  } else if (current.status === "error") {
+    elements.exportMessage.textContent = `导出失败：${current.message || "请重试。"}`;
+    elements.revealExport.hidden = true;
+  }
+  if (state) renderState(state);
+});
 iina.onMessage("job", (job) => {
   if (state) {
     state.job = job;

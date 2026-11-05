@@ -140,7 +140,10 @@ Speech 的 `supported/downloading` 可继续，在生成时通过原有可取消
 
 详见 Apple [LanguageAvailability](https://developer.apple.com/documentation/translation/languageavailability) 和 [installedSource 会话](https://developer.apple.com/documentation/translation/translationsession/init(installedsource:target:preferredstrategy:)) 的下载边界。
 
-## 6. 稳定错误码
+## 6. SRT 导出（#27）
+SRT 导出通过 `--export-srt-json` 调用 helper，输入协议版本、当前视频路径、已选 ASS 路径、字幕库根目录、`destinationDirectoryPath` 和 `source` / `translation` / `bilingual` 模式，成功时输出 `{ "path": "...srt" }`。插件将目标目录设为字幕库根目录下的 `Exports`；helper 仅自动创建这个约定子目录，其他显式目标目录必须已存在，拒绝目标目录本身为符号链接。helper 只读取当前视频的 Otoha 字幕库内 ASS，并创建不覆盖已有文件的 SRT；连续导出会加 `(2)`、`(3)` 后缀。导出失败通过 stderr 和非零退出码返回，不更改原 ASS。媒体切换后不会向新视频侧栏发布旧导出的成功或失败反馈。
+
+## 7. 稳定错误码
 
 `helper.*`、`ffmpeg.*`、`speech.*` 和 `translation.*` 由 Swift helper 产生；`subtitle.libraryFailed` 与 `subtitle.loadFailed` 由插件在字幕库/IINA 加载边界产生，但共用同一 registry 和展示语义。
 

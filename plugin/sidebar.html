@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Otoha</title>
     <link rel="stylesheet" href="sidebar.css" />
+    <link rel="stylesheet" href="subtitle-export.css" />
     <script defer src="sidebar.js"></script>
   </head>
   <body>
@@ -30,6 +31,19 @@
         <div class="subtitle-row">
           <select id="subtitle-choice" aria-label="选择字幕"></select>
           <button id="reveal-button" class="secondary" type="button" title="在 Finder 中显示所选字幕">在 Finder 中显示</button>
+        </div>
+        <fieldset class="export-mode">
+          <legend>导出内容</legend>
+          <div class="export-mode-options">
+            <label><input type="radio" name="export-mode" value="source" /><span>原文</span></label>
+            <label><input type="radio" name="export-mode" value="translation" /><span>译文</span></label>
+            <label><input type="radio" name="export-mode" value="bilingual" checked /><span>双语</span></label>
+          </div>
+        </fieldset>
+        <button id="export-button" class="secondary export-button" type="button">导出为 SRT</button>
+        <div id="export-result" class="export-result" role="status" aria-live="polite" aria-atomic="true" hidden>
+          <p id="export-message"></p>
+          <button id="reveal-export-button" class="status-action" type="button" hidden>在 Finder 中显示</button>
         </div>
       </section>
 

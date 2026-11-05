@@ -56,6 +56,12 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
             NSApp.terminate(nil)
             return
         }
+        if let index = CommandLine.arguments.firstIndex(of: "--export-srt-json"),
+           CommandLine.arguments.indices.contains(index + 1) {
+            Self.exportSRT(json: CommandLine.arguments[index + 1])
+            NSApp.terminate(nil)
+            return
+        }
 
         let parsed = Self.parseRequest()
         let model = HelperModel(request: parsed.request, startupError: parsed.error, jobId: parsed.jobId)
@@ -120,6 +126,19 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
             FileHandle.standardOutput.write(data)
         } catch {
             FileHandle.standardError.write(Data("字幕库读取失败：\(error.localizedDescription)\n".utf8))
+            exit(EXIT_FAILURE)
+        }
+    }
+
+    private static func exportSRT(json: String) {
+        do {
+            let request = try JSONDecoder().decode(SubtitleExportRequest.self, from: Data(json.utf8))
+            let response = SubtitleExportResponse(path: try request.outputURL.path)
+            var data = try JSONEncoder().encode(response)
+            data.append(0x0A)
+            FileHandle.standardOutput.write(data)
+        } catch {
+            FileHandle.standardError.write(Data("SRT 导出失败：\(error.localizedDescription)\n".utf8))
             exit(EXIT_FAILURE)
         }
     }
