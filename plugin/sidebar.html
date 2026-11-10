@@ -35,12 +35,17 @@
           <h2 id="subtitle-heading">当前字幕</h2>
         </div>
         <div class="subtitle-row">
-          <select id="subtitle-choice" aria-label="选择字幕"></select>
-          <span id="subtitle-loaded" class="subtitle-loaded" role="status" aria-label="字幕已加载" title="字幕已加载" hidden>✓</span>
+          <div class="subtitle-selection">
+            <select id="subtitle-choice" aria-label="选择字幕"></select>
+            <div class="subtitle-meta" aria-label="字幕信息">
+              <span id="subtitle-version" class="subtitle-version">版本 1</span>
+              <span id="subtitle-loaded" class="subtitle-loaded" role="status" aria-label="字幕已加载" title="字幕已加载" hidden>✓</span>
+            </div>
+          </div>
         </div>
         <details class="file-details"><summary>文件详情</summary><p id="subtitle-filename"></p></details>
         <div class="subtitle-actions">
-          <button id="edit-subtitle-button" class="primary" type="button" title="校对所选字幕" aria-label="校对所选字幕"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg>校对字幕</button>
+          <button id="edit-subtitle-button" class="secondary" type="button" title="校对所选字幕" aria-label="校对所选字幕"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg>校对字幕</button>
           <button id="open-export" class="icon-button" type="button" title="导出字幕" aria-label="导出字幕"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <path d="m7 10 5 5 5-5" /></svg></button>
           <details id="subtitle-more" class="more-menu">
             <summary title="更多字幕操作" aria-label="更多字幕操作"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1" /> <circle cx="19" cy="12" r="1" /> <circle cx="5" cy="12" r="1" /></svg></summary>
@@ -169,10 +174,14 @@
             <output id="editor-time" aria-label="片段时间范围"></output>
             <button id="editor-seek" class="icon-button" type="button" title="跳到片段开始" aria-label="跳到片段开始"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></button>
           </div>
-          <label for="editor-source">原文</label>
-          <textarea id="editor-source" rows="4" spellcheck="true"></textarea>
-          <label for="editor-translation">译文</label>
-          <textarea id="editor-translation" rows="4" spellcheck="true"></textarea>
+          <div class="editor-field editor-field-source">
+            <label for="editor-source">原文</label>
+            <textarea id="editor-source" rows="4" spellcheck="true"></textarea>
+          </div>
+          <div class="editor-field editor-field-translation">
+            <label for="editor-translation">译文</label>
+            <textarea id="editor-translation" rows="4" spellcheck="true"></textarea>
+          </div>
         </div>
         <div id="editor-save-area" class="editor-save-area" hidden><button id="editor-save" type="button">保存</button><button id="editor-save-next" class="primary" type="button">保存并下一句</button></div>
       </section>

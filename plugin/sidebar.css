@@ -20,8 +20,6 @@ main {
   justify-content: space-between;
   min-width: 0;
   padding-bottom: var(--otoha-space-section-inset);
-  border-bottom: var(--otoha-border-width) solid
-    var(--otoha-color-border-subtle);
 }
 
 h1,
@@ -31,9 +29,20 @@ p {
 }
 
 h1 {
+  position: relative;
   font-size: var(--otoha-font-size-heading);
   font-weight: var(--otoha-font-weight-heading);
   line-height: var(--otoha-line-height-heading);
+}
+
+.header h1::after {
+  display: block;
+  width: var(--otoha-brand-mark-width);
+  height: var(--otoha-brand-mark-height);
+  margin-top: var(--otoha-space-1);
+  border-radius: var(--otoha-radius-circle);
+  background: var(--otoha-color-accent);
+  content: "";
 }
 
 label {
@@ -64,8 +73,11 @@ h2 {
   font-size: var(--otoha-font-size-body);
   font-weight: var(--otoha-font-weight-medium);
   line-height: var(--otoha-line-height-title);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .media-row {
@@ -232,6 +244,21 @@ h2 {
   gap: var(--otoha-space-1-5);
 }
 
+.section-heading h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--otoha-space-1-5);
+}
+
+.section-heading h2::before {
+  width: var(--otoha-brand-mark-height);
+  height: var(--otoha-font-size-body);
+  flex: none;
+  border-radius: var(--otoha-radius-circle);
+  background: var(--otoha-color-accent);
+  content: "";
+}
+
 .subtitle-loaded {
   display: inline-grid;
   flex: none;
@@ -286,14 +313,12 @@ form {
   margin: 0;
   white-space: nowrap;
 }
-
 .language-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--otoha-space-2);
   margin-top: var(--otoha-space-0-5);
 }
-
 .field-error {
   min-height: 0;
   margin-top: var(--otoha-space-1);
@@ -301,7 +326,6 @@ form {
   font-size: var(--otoha-font-size-small);
   line-height: var(--otoha-line-height-title);
 }
-
 select,
 input,
 button {
@@ -311,7 +335,6 @@ button {
   border-radius: var(--otoha-radius-control);
   font: inherit;
 }
-
 select,
 input {
   width: 100%;
@@ -319,18 +342,15 @@ input {
   color: var(--otoha-color-text);
   background: var(--otoha-color-surface-inset);
 }
-
 button {
   padding: var(--otoha-space-label-gap) var(--otoha-space-2-5);
   color: var(--otoha-color-text);
   background: var(--otoha-color-surface-control);
   cursor: pointer;
 }
-
 button:hover:not(:disabled) {
   background: var(--otoha-color-surface-hover);
 }
-
 button:focus-visible,
 select:focus-visible,
 input:focus-visible,
@@ -338,12 +358,10 @@ summary:focus-visible {
   outline: var(--otoha-focus-width) solid var(--otoha-color-accent);
   outline-offset: var(--otoha-focus-offset);
 }
-
 button:disabled {
   opacity: var(--otoha-opacity-disabled);
   cursor: default;
 }
-
 button.primary {
   width: 100%;
   min-height: var(--otoha-control-height-primary);
@@ -353,11 +371,9 @@ button.primary {
   background: var(--otoha-color-accent);
   font-weight: var(--otoha-font-weight-heading);
 }
-
 button.primary:hover:not(:disabled) {
   background: var(--otoha-color-accent-hover);
 }
-
 .job-status {
   min-width: 0;
   padding: var(--otoha-space-row-gap) var(--otoha-space-2);
@@ -368,13 +384,11 @@ button.primary:hover:not(:disabled) {
   font-size: var(--otoha-font-size-small);
   line-height: var(--otoha-line-height-body);
 }
-
 .job-summary {
   display: flex;
   align-items: center;
   gap: var(--otoha-space-1);
 }
-
 .job-actions {
   display: flex;
   flex: none;
@@ -414,6 +428,12 @@ button.primary:hover:not(:disabled) {
 
 .job-status[data-kind="warning"] {
   border-left-color: var(--otoha-color-warning);
+}
+
+.job-status[data-kind="success"] {
+  border-left-color: var(--otoha-color-success);
+  background: var(--otoha-color-accent-subtle);
+  color: var(--otoha-color-text);
 }
 
 .job-summary .status-action {

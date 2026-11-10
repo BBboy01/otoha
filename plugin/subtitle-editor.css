@@ -92,7 +92,7 @@ dialog::backdrop {
   width: 100%;
   min-height: var(--otoha-editor-text-height);
   max-height: var(--otoha-editor-text-max-height);
-  margin: 0 0 var(--otoha-space-3);
+  margin: 0;
   padding: var(--otoha-space-row-gap);
   resize: vertical;
   border: var(--otoha-border-width) solid var(--otoha-color-border-subtle);
@@ -100,6 +100,36 @@ dialog::backdrop {
   font: inherit;
   color: var(--otoha-color-text);
   background: var(--otoha-color-field);
+}
+.editor-field {
+  position: relative;
+  display: grid;
+  gap: var(--otoha-space-1);
+  margin-bottom: var(--otoha-space-3);
+  padding-left: var(--otoha-space-2-5);
+}
+.editor-field::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--otoha-brand-mark-height);
+  border-radius: var(--otoha-radius-circle);
+  content: "";
+}
+.editor-field-source::before {
+  background: var(--otoha-color-border-strong);
+}
+.editor-field-translation {
+  padding: var(--otoha-space-2) var(--otoha-space-2-5);
+  border-radius: var(--otoha-radius-small);
+  background: var(--otoha-color-accent-subtle);
+}
+.editor-field-translation::before {
+  background: var(--otoha-color-accent);
+}
+.editor-field label {
+  margin: 0;
 }
 #editor-save {
   flex: 1;
@@ -132,7 +162,6 @@ dialog::backdrop {
   }
   #editor-fields textarea {
     min-height: var(--otoha-editor-text-height-compact);
-    margin-bottom: var(--otoha-space-2);
   }
 }
 .editor-confirm-actions {

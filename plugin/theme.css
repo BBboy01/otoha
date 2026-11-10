@@ -15,16 +15,15 @@
   --otoha-space-6: calc(var(--otoha-space-unit) * 6);
   --otoha-space-8: calc(var(--otoha-space-unit) * 8);
 
-  /* Preserve the current density until a visual redesign is approved. */
-  --otoha-space-action-gap: 3px;
-  --otoha-space-label-gap: 5px;
-  --otoha-space-row-gap: 7px;
-  --otoha-space-section-inset: 11px;
-  --otoha-sidebar-padding-top: 13px;
-  --otoha-space-section-gap: 15px;
-  --otoha-sidebar-padding-inline: var(--otoha-space-3);
+  --otoha-space-action-gap: var(--otoha-space-1);
+  --otoha-space-label-gap: var(--otoha-space-1);
+  --otoha-space-row-gap: var(--otoha-space-2);
+  --otoha-space-section-inset: var(--otoha-space-3);
+  --otoha-sidebar-padding-top: var(--otoha-space-4);
+  --otoha-space-section-gap: var(--otoha-space-4);
+  --otoha-sidebar-padding-inline: var(--otoha-space-4);
   --otoha-sidebar-padding-bottom: var(--otoha-space-4);
-  --otoha-dialog-padding: var(--otoha-space-3-5);
+  --otoha-dialog-padding: var(--otoha-space-4);
   --otoha-dialog-gutter: var(--otoha-space-6);
 
   --otoha-font-family:
@@ -75,11 +74,17 @@
     var(--otoha-color-text) 14%,
     var(--otoha-color-surface)
   );
-  --otoha-color-accent: #2778c4;
+  --otoha-color-accent: #0f766e;
   --otoha-control-accent: var(--otoha-color-accent);
-  --otoha-color-accent-hover: #1f69ad;
-  --otoha-color-accent-border: #1766a7;
+  --otoha-color-accent-hover: #0b5f59;
+  --otoha-color-accent-border: #0a625c;
+  --otoha-color-accent-subtle: color-mix(
+    in srgb,
+    var(--otoha-color-accent) 12%,
+    var(--otoha-color-surface)
+  );
   --otoha-color-on-accent: #fff;
+  --otoha-color-success: #267a45;
   --otoha-color-danger: #b42318;
   --otoha-color-on-danger: #fff;
   --otoha-color-error: #b42318;
@@ -117,8 +122,8 @@
   --otoha-focus-offset: 2px;
   --otoha-status-border-width: 2px;
   --otoha-radius-small: 4px;
-  --otoha-radius-control: 5px;
-  --otoha-radius-dialog: 6px;
+  --otoha-radius-control: 6px;
+  --otoha-radius-dialog: 8px;
   --otoha-radius-circle: 50%;
   --otoha-shadow-menu: 0 3px 12px #0002;
   --otoha-shadow-tooltip: 0 2px 8px color-mix(in srgb, #000 18%, transparent);
@@ -126,9 +131,9 @@
   --otoha-layer-tooltip: 2;
   --otoha-layer-menu: 3;
 
-  --otoha-control-height: 31px;
+  --otoha-control-height: 32px;
   --otoha-control-height-roomy: 32px;
-  --otoha-control-height-primary: 34px;
+  --otoha-control-height-primary: 36px;
   --otoha-control-size-small: 24px;
   --otoha-control-size-compact: 28px;
   --otoha-control-size: 32px;
@@ -139,7 +144,9 @@
   --otoha-progress-height: 3px;
   --otoha-sidebar-min-width: 210px;
   --otoha-tooltip-max-width: 230px;
-  --otoha-menu-width: 190px;
+  --otoha-menu-width: 208px;
+  --otoha-brand-mark-width: 24px;
+  --otoha-brand-mark-height: 2px;
   --otoha-dialog-width-small: 340px;
   --otoha-dialog-width: 400px;
   --otoha-dialog-width-wide: 460px;
@@ -163,6 +170,11 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    --otoha-color-accent: #5ed6c3;
+    --otoha-color-accent-hover: #83e5d5;
+    --otoha-color-accent-border: #5ed6c3;
+    --otoha-color-success: #86d99c;
+    --otoha-color-on-accent: #102b27;
     --otoha-color-error: #ff9b93;
     --otoha-color-warning: #e5b958;
   }

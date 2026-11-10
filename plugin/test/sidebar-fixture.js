@@ -12,7 +12,7 @@ function createSidebar() {
     "#language-resource-status", "#language-resource-message", "#check-languages",
     "#media-name", "#subtitle-choice", "#translation-progress",
     "#reveal-button", "#delete-button", "#retry-button", "#source-language", "#start-button", "#target-language",
-    "#display-mode", "#source-language-error", "#target-language-error", "#generation-error",
+    "#display-mode", "#source-language-error", "#target-language-error", "#generation-error", "#subtitle-version",
     "#export-button", "#export-message", "#export-result", "#reveal-export-button",
   ];
   const elements = new Map(selectors.map((selector) => [selector, {

@@ -36,8 +36,13 @@
       const filename = String(subtitle.path || "").split("/").pop();
       if (!subtitle.sourceLanguage || !subtitle.targetLanguage) return filename;
       const label = (language) => languages.find(([id]) => id === language)?.[1] || language;
-      const version = filename.match(/ \((\d+)\)\.ass$/i)?.[1] || "1";
-      return `${label(subtitle.sourceLanguage)} → ${label(subtitle.targetLanguage)} · 版本 ${version}`;
+      return `${label(subtitle.sourceLanguage)} → ${label(subtitle.targetLanguage)}`;
+    },
+    subtitleVersion(subtitle) {
+      if (!subtitle?.path) return "";
+      const filename = String(subtitle.path).split("/").pop();
+      const version = filename.match(/ \((\d+)\)\.ass$/i)?.[1];
+      return version ? `版本 ${version}` : "版本 1";
     },
     requestStart(payload, existing, start) {
       if (!existing) return start();

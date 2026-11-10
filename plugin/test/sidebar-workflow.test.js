@@ -77,8 +77,10 @@ test("the first resolved library collapses generation even without automatic sub
 
 test("version labels prioritize readable languages and preserve collision numbers", () => {
   const f = fixture();
-  assert.equal(f.ui.subtitleLabel({ path: "/movie [en to ja] (12).ass", sourceLanguage: "en", targetLanguage: "ja" }, [["en", "English"], ["ja", "日本語"]]), "English → 日本語 · 版本 12");
+  assert.equal(f.ui.subtitleLabel({ path: "/movie [en to ja] (12).ass", sourceLanguage: "en", targetLanguage: "ja" }, [["en", "English"], ["ja", "日本語"]]), "English → 日本語");
+  assert.equal(f.ui.subtitleVersion({ path: "/movie [en to ja] (12).ass", sourceLanguage: "en", targetLanguage: "ja" }), "版本 12");
   assert.equal(f.ui.subtitleLabel({ path: "/legacy.ass" }, []), "legacy.ass");
+  assert.equal(f.ui.subtitleVersion({ path: "/legacy.ass" }), "版本 1");
 });
 
 test("resource recovery distinguishes Speech and Translation without guessing a missing language", () => {

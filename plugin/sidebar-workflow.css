@@ -19,6 +19,24 @@
   display: flex;
   align-items: center;
 }
+.subtitle-selection {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: var(--otoha-space-1);
+}
+.subtitle-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--otoha-space-1-5);
+  min-height: var(--otoha-font-size-small);
+  color: var(--otoha-color-text-muted);
+  font-size: var(--otoha-font-size-small);
+  line-height: var(--otoha-line-height-compact);
+}
+.subtitle-version {
+  overflow-wrap: anywhere;
+}
 .subtitle-row select {
   flex: 1;
   min-width: 0;
@@ -34,6 +52,17 @@
   justify-content: center;
   gap: var(--otoha-space-1-5);
   margin: 0;
+}
+.subtitle-actions .secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--otoha-space-1-5);
+  flex: 1;
+  margin: 0;
+  border-color: var(--otoha-color-border-control);
+  color: var(--otoha-color-text);
+  background: var(--otoha-color-surface-control);
 }
 .file-details {
   color: var(--otoha-color-text-muted);
@@ -87,6 +116,9 @@
 #generation-options > summary {
   cursor: pointer;
   font-weight: var(--otoha-font-weight-medium);
+}
+#generation-options > summary::marker {
+  color: var(--otoha-color-accent);
 }
 #generation-options form {
   border-top: 0;

@@ -66,3 +66,10 @@ test("component styles use theme values instead of literal dimensions and colors
     }
   }
 });
+
+test("brand semantic tokens support accent surfaces and successful task feedback", () => {
+  const theme = read("theme.css");
+  assert.match(theme, /--otoha-color-accent-subtle\s*:/);
+  assert.match(theme, /--otoha-color-success\s*:/);
+  assert.match(theme, /--otoha-color-on-accent\s*:/);
+});
