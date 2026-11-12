@@ -1,42 +1,29 @@
 (() => {
   const node = (id) => document.getElementById(id);
-  const generation = node("generation-options");
   const confirmation = node("regenerate-dialog");
   let state = {};
   let mediaPath;
   let pending = null;
-  let hadSubtitles = false;
-  let libraryResolved = false;
-  function dismiss() {
+  const confirmationMotion = window.createDialogMotion(confirmation, node("start-button"), () => dismiss());
+  function dismiss(immediate = false) {
     pending = null;
-    if (confirmation.open) confirmation.close();
+    if (confirmation.open) confirmationMotion.close(immediate);
   }
-  node("regenerate-cancel").addEventListener("click", dismiss);
-  confirmation.addEventListener("cancel", dismiss);
+  node("regenerate-cancel").addEventListener("click", () => dismiss());
   node("regenerate-confirm").addEventListener("click", () => {
     const start = pending;
     dismiss();
     if (start && !state.jobActive && !state.editorOpen) start();
   });
   const exportDialog = node("export-dialog");
-  node("open-export").addEventListener("click", () => exportDialog.showModal());
-  node("close-export").addEventListener("click", () => exportDialog.close());
-  const menu = node("subtitle-more");
-  menu.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") { event.preventDefault(); menu.open = false; menu.querySelector("summary").focus(); }
-  });
-  document.addEventListener?.("click", (event) => {
-    if (menu.open && !menu.contains(event.target)) menu.open = false;
-  });
-  for (const id of ["delete-button", "reveal-button"]) {
-    node(id).addEventListener("click", () => { menu.open = false; });
-  }
+  const exportMotion = window.createDialogMotion(exportDialog, node("open-export"), () => exportMotion.close());
+  node("open-export").addEventListener("click", () => exportMotion.open());
+  node("close-export").addEventListener("click", () => exportMotion.close());
   window.sidebarWorkflow = {
-    subtitleLabel(subtitle, languages) {
+    subtitleLabel(subtitle) {
       const filename = String(subtitle.path || "").split("/").pop();
       if (!subtitle.sourceLanguage || !subtitle.targetLanguage) return filename;
-      const label = (language) => languages.find(([id]) => id === language)?.[1] || language;
-      return `${label(subtitle.sourceLanguage)} → ${label(subtitle.targetLanguage)}`;
+      return this.subtitleVersion(subtitle);
     },
     subtitleVersion(subtitle) {
       if (!subtitle?.path) return "";
@@ -48,30 +35,19 @@
       if (!existing) return start();
       pending = start;
       node("regenerate-description").textContent = "将生成一个新版本。现有字幕及人工校对会保留，可从字幕列表重新选择。";
-      confirmation.showModal();
+      confirmationMotion.open();
     },
     onState(next) {
       state = next;
       const path = next.media?.path || "";
-      const hasSubtitles = Boolean(next.availableSubtitles?.length);
       if (path !== mediaPath) {
-        libraryResolved = false;
         mediaPath = path;
-        dismiss();
-        if (exportDialog.open) exportDialog.close();
-        menu.open = false;
+        dismiss(true);
+        if (exportDialog.open) exportMotion.close(true);
       }
-      if (!next.subtitleLibraryLoading && !libraryResolved) {
-        generation.open = !hasSubtitles;
-        libraryResolved = true;
-      }
-      if (hadSubtitles && !hasSubtitles) generation.open = true;
-      hadSubtitles = hasSubtitles;
-      node("generation-heading").textContent = hasSubtitles ? "重新生成" : "生成字幕";
-      if (next.jobActive || next.editorOpen) dismiss();
+      if (next.jobActive || next.editorOpen) dismiss(true);
       if (next.editorOpen) {
-        if (exportDialog.open) exportDialog.close();
-        menu.open = false;
+        if (exportDialog.open) exportMotion.close(true);
       }
       node("open-export").disabled = node("export-button").disabled;
       const choice = node("subtitle-choice");
@@ -80,12 +56,11 @@
       choice.title = filename;
     },
     onJob(job) {
-      const running = ["running", "canceling", "loading"].includes(job.status);
-      if (running) generation.open = false;
       node("job-edit").hidden = job.status !== "completed" || !job.jobId || !job.path || job.path !== node("subtitle-choice").value;
       node("job-edit").disabled = node("edit-subtitle-button").disabled;
     },
     onPreflight(check) {
+      node("language-resource-status").setAttribute("data-status", check?.status || "checking");
       const speech = check?.speech;
       const translation = check?.translation;
       const translationMissing = check?.errorCode === "translation.resourcesMissing";

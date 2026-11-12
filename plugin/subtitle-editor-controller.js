@@ -49,6 +49,7 @@ function createSubtitleEditorController({
     if (!context.helperPath)
       throw new Error("字幕工具尚未就绪，请重新打开侧栏。");
     let temporaryPath = null;
+    const responsePath = `@tmp/otoha-edit-response-${Date.now()}-${++sequence}.json`;
     try {
       let argument = JSON.stringify(input);
       if (command === "--save-subtitle-file") {
@@ -57,10 +58,13 @@ function createSubtitleEditorController({
         argument = utils.resolvePath(temporaryPath);
         if (!argument) throw new Error("无法创建字幕保存请求。");
       }
-      const result = await utils.exec(context.helperPath, [command, argument]);
+      file.write(responsePath, "");
+      const responseFile = utils.resolvePath(responsePath);
+      if (!responseFile) throw new Error("无法创建字幕响应文件。");
+      const result = await utils.exec(context.helperPath, [command, argument, "--subtitle-response-file", responseFile]);
       if (!result || result.status !== 0)
         throw new Error(String(result?.stderr || "字幕工具运行失败，请重试。"));
-      const response = JSON.parse(result.stdout);
+      const response = JSON.parse(file.read(responseFile));
       if (
         response.protocolVersion !== PROTOCOL_VERSION ||
         response.requestId !== input.requestId
@@ -93,9 +97,9 @@ function createSubtitleEditorController({
         throw new Error("字幕工具返回无效片段。");
       return snapshot;
     } finally {
-      if (temporaryPath) {
+      for (const path of [temporaryPath, responsePath].filter(Boolean)) {
         try {
-          file.delete(temporaryPath);
+          file.delete(path);
         } catch {}
       }
     }

@@ -1,0 +1,21 @@
+dialog[data-motion] {
+  overflow: auto;
+}
+dialog[data-motion]::backdrop {
+  opacity: 0;
+  transition: opacity var(--otoha-motion-duration-dialog)
+    var(--otoha-motion-ease-standard);
+}
+dialog[data-motion="open"]::backdrop {
+  opacity: 1;
+}
+@starting-style {
+  dialog[data-motion="open"]::backdrop {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog[data-motion]::backdrop {
+    transition: none;
+  }
+}

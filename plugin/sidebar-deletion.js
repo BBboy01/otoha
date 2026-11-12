@@ -7,17 +7,19 @@
   const message = document.querySelector("#delete-error");
   let requestId = "";
   let deleting = false;
+  const motion = window.createDialogMotion(dialog, trigger, () => {
+    if (!deleting) iina.postMessage("cancelSubtitleDeletion");
+  });
   trigger.addEventListener("click", () => iina.postMessage("requestSubtitleDeletion", document.querySelector("#subtitle-choice").value));
   cancel.addEventListener("click", () => iina.postMessage("cancelSubtitleDeletion"));
   confirm.addEventListener("click", () => iina.postMessage("confirmSubtitleDeletion", { requestId }));
-  dialog.addEventListener("cancel", event => { event.preventDefault(); if (!deleting) iina.postMessage("cancelSubtitleDeletion"); });
   iina.onMessage("deletion", payload => {
     if (["closed", "deleted"].includes(payload.status)) {
-      dialog.close();
-      const empty = document.querySelector("#existing-subtitles").hidden;
-      if (empty && document.querySelector("#generation-options")) document.querySelector("#generation-options").open = true;
-      const focusTarget = trigger.disabled || empty ? document.querySelector("#source-language") : document.querySelector("#subtitle-more > summary") || trigger;
-      focusTarget.focus();
+      motion.close().then(() => {
+        const empty = document.querySelector("#existing-subtitles").hidden;
+        const focusTarget = trigger.disabled || empty ? document.querySelector("#source-language-trigger") || document.querySelector("#source-language") : trigger;
+        focusTarget.focus();
+      });
       return;
     }
     requestId = payload.requestId;
@@ -27,6 +29,6 @@
     message.hidden = !payload.message;
     confirm.disabled = deleting; cancel.disabled = deleting;
     confirm.textContent = deleting ? "正在删除" : "删除";
-    if (!dialog.open) { dialog.showModal(); cancel.focus(); }
+    if (!dialog.open) { motion.open(); cancel.focus(); }
   });
 })();

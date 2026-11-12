@@ -4,28 +4,55 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-const sidebarSource = fs.readFileSync(
-  path.join(__dirname, "../sidebar.js"),
-  "utf8",
-);
+const sidebarSource = ["sidebar-progress.js", "sidebar.js"]
+  .map((file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8"))
+  .join("\n");
 const sidebarMarkup = fs.readFileSync(
   path.join(__dirname, "../sidebar.html"),
   "utf8",
 );
 const sidebarStyles = fs.readFileSync(
-  path.join(__dirname, "../sidebar.css"),
+  path.join(__dirname, "../sidebar-home.css"),
   "utf8",
 );
 
 function createSidebar() {
   const selectors = [
-    "#audio-track", "#auto-load", "#auto-load-help", "#cancel-button",
-    "#existing-subtitles", "#job-form", "#job-message", "#job-status", "#job-icon", "#job-detail-toggle", "#job-detail-message",
-    "#media-error", "#media-name", "#subtitle-choice", "#translation-progress", "#reveal-button", "#delete-button",
-    "#retry-button", "#source-language", "#source-language-error", "#start-button", "#target-language",
-    "#target-language-error", "#subtitle-loaded", "#display-mode", "#job-elapsed",
-    "#language-resource-status", "#language-resource-message", "#check-languages",
-    "#export-button", "#export-message", "#export-result", "#reveal-export-button",
+    "#audio-track",
+    "#auto-load",
+    "#auto-load-help",
+    "#cancel-button",
+    "#existing-subtitles",
+    "#job-form",
+    "#job-message",
+    "#job-announcement",
+    "#job-status",
+    "#job-icon",
+    "#job-progress",
+    "#job-detail-toggle",
+    "#job-detail-message",
+    "#media-error",
+    "#media-name",
+    "#subtitle-choice",
+    "#translation-progress",
+    "#reveal-button",
+    "#delete-button",
+    "#retry-button",
+    "#source-language",
+    "#source-language-error",
+    "#start-button",
+    "#target-language",
+    "#target-language-error",
+    "#subtitle-loaded",
+    "#display-mode",
+    "#job-elapsed",
+    "#language-resource-status",
+    "#language-resource-message",
+    "#check-languages",
+    "#export-button",
+    "#export-message",
+    "#export-result",
+    "#reveal-export-button",
     "#edit-subtitle-button",
   ];
   const elements = new Map(
@@ -64,7 +91,20 @@ function createSidebar() {
   );
   const handlers = new Map();
   const posts = [];
-  const exportModes = ["source", "translation", "bilingual"].map((value) => ({ value, checked: value === "bilingual", disabled: false }));
+  const exportModes = ["source", "translation", "bilingual"].map((value) => ({
+    value,
+    checked: value === "bilingual",
+    disabled: false,
+  }));
+  const displayModes = ["source", "translation", "bilingual"].map((value) => ({
+    value,
+    checked: value === "bilingual",
+    disabled: false,
+    listeners: new Map(),
+    addEventListener(name, callback) {
+      this.listeners.set(name, callback);
+    },
+  }));
   class Option {
     constructor(text, value) {
       this.text = text;
@@ -74,9 +114,17 @@ function createSidebar() {
   vm.runInNewContext(sidebarSource, {
     document: {
       querySelector: (selector) => elements.get(selector),
-      querySelectorAll: (selector) => selector === "input[name='export-mode']" ? exportModes : [],
+      querySelectorAll: (selector) =>
+        selector === "input[name='export-mode']"
+          ? exportModes
+          : selector === "input[name='display-mode']"
+            ? displayModes
+            : [],
     },
-    iina: { onMessage: (name, callback) => handlers.set(name, callback), postMessage: (name, payload) => posts.push({ name, payload }) },
+    iina: {
+      onMessage: (name, callback) => handlers.set(name, callback),
+      postMessage: (name, payload) => posts.push({ name, payload }),
+    },
     Option,
     URL,
     window: {
@@ -84,7 +132,7 @@ function createSidebar() {
       setInterval() {},
     },
   });
-  return { elements, exportModes, handlers, posts };
+  return { elements, exportModes, displayModes, handlers, posts };
 }
 
 function videoState(overrides = {}) {
@@ -101,24 +149,27 @@ function videoState(overrides = {}) {
   };
 }
 
-test("sidebar exposes the three display modes in an accessible compact select", () => {
-  assert.match(sidebarMarkup, /<label[\s\S]*?for="display-mode">显示<\/label>/);
-  assert.match(sidebarMarkup, /<select[\s\S]*?id="display-mode"/);
-  assert.match(sidebarMarkup, /<option[^>]*value="source">原文<\/option>/);
-  assert.match(sidebarMarkup, /<option[^>]*value="translation">译文<\/option>/);
+test("sidebar exposes three accessible display radio modes with a moving selection surface", () => {
   assert.match(
     sidebarMarkup,
-    /<option[^>]*value="bilingual"[^>]*>双语<\/option>/,
+    /<fieldset class="display-mode-row"[\s\S]*<legend class="visually-hidden">显示<\/legend>/,
   );
-  assert.doesNotMatch(sidebarMarkup, /display-mode-options/);
+  assert.match(sidebarMarkup, /id="display-mode" class="display-mode-options"/);
+  assert.match(sidebarMarkup, /name="display-mode" value="source"/);
+  assert.match(sidebarMarkup, /name="display-mode" value="translation"/);
+  assert.match(sidebarMarkup, /name="display-mode" value="bilingual"/);
   assert.match(sidebarStyles, /\.display-mode-row \{/);
-  assert.doesNotMatch(sidebarStyles, /\.display-mode-options/);
+  assert.match(sidebarStyles, /\.display-mode-options \{/);
+  assert.match(sidebarStyles, /label:has\(input:checked\)/);
 });
 
 test("sidebar defaults to bilingual and restores the current video's display mode", () => {
   const sidebar = createSidebar();
   sidebar.handlers.get("state")(videoState({ displayMode: undefined }));
-  assert.equal(sidebar.elements.get("#display-mode").value, "bilingual");
+  assert.equal(
+    sidebar.elements.get("#display-mode").getAttribute("data-selected"),
+    "bilingual",
+  );
 
   sidebar.handlers.get("state")(
     videoState({
@@ -126,14 +177,17 @@ test("sidebar defaults to bilingual and restores the current video's display mod
       displayMode: "source",
     }),
   );
-  assert.equal(sidebar.elements.get("#display-mode").value, "source");
+  assert.equal(
+    sidebar.elements.get("#display-mode").getAttribute("data-selected"),
+    "source",
+  );
 });
 
 test("sidebar sends only the selected display mode for a local video", () => {
   const sidebar = createSidebar();
   sidebar.handlers.get("state")(videoState());
-  const mode = sidebar.elements.get("#display-mode");
-  mode.value = "source";
+  const mode = sidebar.displayModes[0];
+  mode.checked = true;
   mode.listeners.get("change")();
   assert.deepEqual(sidebar.posts.at(-1), {
     name: "setDisplayMode",
@@ -148,14 +202,20 @@ test("sidebar sends only the selected display mode for a local video", () => {
 test("sidebar disables display modes without a video or while loading", () => {
   const sidebar = createSidebar();
   sidebar.handlers.get("state")(videoState({ media: null }));
-  const mode = sidebar.elements.get("#display-mode");
-  assert.equal(mode.disabled, true);
+  const mode = sidebar.displayModes;
+  assert.equal(
+    mode.every((radio) => radio.disabled),
+    true,
+  );
   const postsBefore = sidebar.posts.length;
-  mode.listeners.get("change")();
+  mode[0].listeners.get("change")();
   assert.equal(sidebar.posts.length, postsBefore);
 
   sidebar.handlers.get("state")(
     videoState({ job: { status: "loading", message: "正在加载字幕" } }),
   );
-  assert.equal(mode.disabled, true);
+  assert.equal(
+    mode.every((radio) => radio.disabled),
+    true,
+  );
 });

@@ -64,6 +64,11 @@
   color: var(--otoha-color-text);
   background: var(--otoha-color-surface-control);
 }
+.subtitle-actions #edit-subtitle-button {
+  color: var(--otoha-color-text);
+  border-color: var(--otoha-color-border-control);
+  background: var(--otoha-color-surface-control);
+}
 .file-details {
   color: var(--otoha-color-text-muted);
   font-size: var(--otoha-font-size-small);
