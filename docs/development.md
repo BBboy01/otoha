@@ -97,7 +97,7 @@ make clean-package package verify-package
 "$IINA_PLUGIN" link "$PACKAGE_DIR"
 ```
 
-重新链接后，在 IINA Plugins 设置中 reload Otoha。如果只改了 JavaScript，可以直接 reload，不必重新打包；修改 helper Swift 代码后需要重新打包并重新链接。Release 版本的更新步骤见 [README](../README.md#更新-release-版本)。
+重新链接后，在 IINA Plugins 设置中 reload Otoha。如果只改了 JavaScript，可以直接 reload，不必重新打包；修改 helper Swift 代码后需要重新打包并重新链接。Release 版本的更新步骤见 [README](../README.md#安装)。
 
 ## 长任务反馈（#25）
 

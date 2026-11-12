@@ -1,6 +1,6 @@
 # Otoha 产品与技术决策
 
-本文记录 Otoha 当前开发版本的产品目标、范围和已确认决策。真实 IINA 截图与操作视频见 [README 的界面预览](../README.md#界面预览)。组件实现见[架构说明](architecture.md)，插件与 helper 的字段契约见[运行时状态与 protocol v1](runtime-state-and-protocol-v1.md)。
+本文记录 Otoha 当前开发版本的产品目标、范围和已确认决策。真实 IINA 截图见 [README 的界面预览](../README.md#界面预览)。组件实现见[架构说明](architecture.md)，插件与 helper 的字段契约见[运行时状态与 protocol v1](runtime-state-and-protocol-v1.md)。
 
 ## 用户目标
 

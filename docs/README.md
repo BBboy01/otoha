@@ -2,7 +2,7 @@
 
 ## 安装与使用
 
-从[项目 README](../README.md)开始，了解运行要求、安装、字幕生成、逐句校对、版本管理和 SRT 导出。最新实机素材见[界面预览](../README.md#界面预览)与[实机视频](../README.md#实机视频)，均来自真实 IINA。遇到常见问题时查看[排障指南](troubleshooting.md)。
+从[项目 README](../README.md)开始，了解安装、基本使用和 Roadmap。真实 IINA 的首页与字幕校对截图见[界面预览](../README.md#界面预览)，遇到问题时查看[排障指南](troubleshooting.md)。
 
 ## 开发与维护
 
