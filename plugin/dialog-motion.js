@@ -10,9 +10,10 @@ window.createDialogMotion = (dialog, trigger, onDismiss) => {
       style.transform === "none" ? undefined : style.transform,
     );
     const anchor = trigger.getBoundingClientRect();
+    const width = bounds.width / matrix.m11;
+    const height = bounds.height / matrix.m22;
     return {
-      transform: `translate(${anchor.x + anchor.width / 2 - bounds.x + matrix.m41 - bounds.width / 2}px,${anchor.y + anchor.height / 2 - bounds.y + matrix.m42 - bounds.height / 2}px)`,
-      clipPath: `inset(${Math.max(0, (bounds.height - anchor.height) / 2)}px ${Math.max(0, (bounds.width - anchor.width) / 2)}px round ${style.borderRadius})`,
+      transform: `translate(${anchor.x + anchor.width / 2 - bounds.x + matrix.m41 - bounds.width / 2}px,${anchor.y + anchor.height / 2 - bounds.y + matrix.m42 - bounds.height / 2}px) scale(${anchor.width / width},${anchor.height / height})`,
       opacity: 0,
     };
   }
@@ -40,8 +41,7 @@ window.createDialogMotion = (dialog, trigger, onDismiss) => {
         [
           origin(style),
           {
-            transform: "translate(0,0)",
-            clipPath: `inset(0 round ${style.borderRadius})`,
+            transform: "translate(0,0) scale(1,1)",
             opacity: 1,
           },
         ],
@@ -58,7 +58,6 @@ window.createDialogMotion = (dialog, trigger, onDismiss) => {
         const style = window.getComputedStyle(dialog);
         const current = {
           transform: style.transform,
-          clipPath: style.clipPath,
           opacity: style.opacity,
         };
         const target = origin(style);

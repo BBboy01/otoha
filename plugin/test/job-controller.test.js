@@ -7,15 +7,30 @@ test("job timing survives phases, freezes on cancel and resets for a new job", (
   const controller = createJobController({ now: () => now });
   controller.begin({ id: "first" });
   now = 61000;
-  assert.equal(controller.withTiming({ jobId: "first", status: "running" }).startedAt, 1000);
-  const cancelled = controller.withTiming({ jobId: "first", status: "canceling" });
+  assert.equal(
+    controller.withTiming({ jobId: "first", status: "running" }).startedAt,
+    1000,
+  );
+  const cancelled = controller.withTiming({
+    jobId: "first",
+    status: "canceling",
+  });
   assert.equal(cancelled.finishedAt, 61000);
   now = 90000;
-  assert.equal(controller.withTiming({ jobId: "first", status: "cancelled" }).finishedAt, 61000);
-  assert.equal(controller.withTiming({ jobId: null, status: "idle" }).startedAt, undefined);
+  assert.equal(
+    controller.withTiming({ jobId: "first", status: "cancelled" }).finishedAt,
+    61000,
+  );
+  assert.equal(
+    controller.withTiming({ jobId: null, status: "idle" }).startedAt,
+    undefined,
+  );
   controller.reset();
   controller.begin({ id: "second" });
-  assert.equal(controller.withTiming({ jobId: "second", status: "running" }).startedAt, 90000);
+  assert.equal(
+    controller.withTiming({ jobId: "second", status: "running" }).startedAt,
+    90000,
+  );
 });
 
 test("job controller owns one active job and rejects stale identities", () => {
@@ -29,12 +44,66 @@ test("job controller owns one active job and rejects stale identities", () => {
 
   assert.equal(job.id, "job-1");
   assert.equal(controller.begin({ id: "job-2" }), null);
-  assert.equal(controller.matches({ id: "job-1", mediaPath: "/video.mkv", fileLoadedSequence: 3 }), true);
-  assert.equal(controller.matches({ id: "job-1", mediaPath: "/next.mkv", fileLoadedSequence: 3 }), false);
-  assert.equal(controller.matches({ id: "job-1", mediaPath: "/video.mkv", fileLoadedSequence: 4 }), false);
+  assert.equal(
+    controller.matches({
+      id: "job-1",
+      mediaPath: "/video.mkv",
+      fileLoadedSequence: 3,
+    }),
+    true,
+  );
+  assert.equal(
+    controller.matches({
+      id: "job-1",
+      mediaPath: "/next.mkv",
+      fileLoadedSequence: 3,
+    }),
+    false,
+  );
+  assert.equal(
+    controller.matches({
+      id: "job-1",
+      mediaPath: "/video.mkv",
+      fileLoadedSequence: 4,
+    }),
+    false,
+  );
 
   controller.markTerminal();
   assert.equal(controller.current().terminal, true);
   controller.reset();
   assert.equal(controller.current(), null);
+});
+
+test("a deferred job waits for its own presentation and ignores stale acknowledgements", async () => {
+  const controller = createJobController();
+  const job = controller.begin({ id: "current", deferStart: true });
+  assert.ok(job.presentation instanceof Promise);
+  assert.equal(controller.releaseStart("previous"), false);
+  assert.equal(controller.releaseStart("current"), true);
+  assert.equal(await job.presentation, true);
+  assert.equal(controller.releaseStart("current"), false);
+});
+
+test("cancelling or resetting a waiting job prevents its helper from starting", async () => {
+  for (const action of ["requestCancel", "reset"]) {
+    const controller = createJobController();
+    const job = controller.begin({ id: "waiting", deferStart: true });
+    controller[action]();
+    assert.equal(await job.presentation, false);
+    assert.equal(controller.releaseStart("waiting"), false);
+  }
+});
+
+test("a missing sidebar acknowledgement settles the wait without starting work", async () => {
+  let expire;
+  const controller = createJobController({
+    schedule: (callback) => {
+      expire = callback;
+    },
+  });
+  const job = controller.begin({ id: "waiting", deferStart: true });
+  assert.equal(typeof expire, "function");
+  expire();
+  assert.equal(await job.presentation, false);
 });

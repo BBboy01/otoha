@@ -230,9 +230,11 @@ test("generation reveals the attached drawer and retracts completed feedback", (
   ui.state({ jobId: "drawer", status: "completed", loaded: true });
   assert.equal(status.getAttribute("data-drawer"), "collapsed");
   assert.equal(status.hidden, false);
-  ui.advance(300);
-  assert.equal(status.hidden, false);
   ui.advance(420);
+  assert.equal(status.hidden, false);
+  ui.advance(839);
+  assert.equal(status.hidden, false);
+  ui.advance(840);
   assert.equal(status.hidden, true);
   ui.state({ jobId: "drawer", status: "completed", loaded: true });
   assert.equal(status.hidden, true);
@@ -248,7 +250,7 @@ test("completion remains available to screen readers after the visual drawer ret
   });
   ui.advance(180);
   ui.state({ jobId: "spoken", status: "completed", loaded: true });
-  ui.advance(420);
+  ui.advance(840);
   assert.equal(ui.elements.get("#job-status").hidden, true);
   assert.equal(
     ui.elements.get("#job-announcement")?.textContent,
@@ -370,7 +372,7 @@ test("all running phases have progress; translation percentages clear on phase c
   );
   ui.state({ status: "canceling", startedAt: 1000, finishedAt: 61000 });
   assert.equal(ui.elements.get("#translation-progress").hidden, false);
-  ui.advance(420);
+  ui.advance(840);
   ui.advance(180);
   ui.tick(200000);
   assert.equal(ui.elements.get("#translation-progress").hidden, true);

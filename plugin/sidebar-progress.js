@@ -1,4 +1,4 @@
-window.createProgressFeedback = (elements, mediaPath) => {
+window.createProgressFeedback = (elements, mediaPath, onExpanded) => {
   let job = null;
   let revealTimer = null;
   let hideTimer = null;
@@ -11,6 +11,7 @@ window.createProgressFeedback = (elements, mediaPath) => {
   let retracted = false;
   let feedbackMedia = "";
   let announcementKey = "";
+  let acknowledgedJob = null;
   const cancel = (timer) => {
     if (timer !== null && typeof window.clearTimeout === "function")
       window.clearTimeout(timer);
@@ -34,6 +35,31 @@ window.createProgressFeedback = (elements, mediaPath) => {
     );
     return Number.isFinite(value) ? value : fallback;
   };
+  function acknowledgeExpansion(key) {
+    if (!job.jobId || typeof onExpanded !== "function") return;
+    const ready = () => {
+      if (
+        activeJob !== key ||
+        !visible ||
+        job.status !== "running" ||
+        acknowledgedJob === key
+      )
+        return;
+      acknowledgedJob = key;
+      onExpanded(key);
+    };
+    if (duration("--otoha-motion-duration-progress-drawer", 720) === 0)
+      return ready();
+    const summary = elements.jobMessage.closest?.(".job-summary");
+    summary?.getBoundingClientRect();
+    const animations = summary?.getAnimations?.();
+    if (animations)
+      Promise.all(
+        animations.map((animation) => animation.finished.catch(() => {})),
+      ).then(ready);
+    else
+      schedule(ready, duration("--otoha-motion-duration-progress-drawer", 720));
+  }
   function elapsed() {
     const show = job && Number.isFinite(job.startedAt) && job.status !== "idle";
     elements.jobElapsed.hidden = !show;
@@ -51,6 +77,7 @@ window.createProgressFeedback = (elements, mediaPath) => {
       visible = false;
       retracted = false;
       feedbackMedia = mediaPath();
+      acknowledgedJob = null;
     }
     job = next;
     announce();
@@ -76,6 +103,7 @@ window.createProgressFeedback = (elements, mediaPath) => {
         if (reverse) {
           elements.progressDrawer.classList?.add("is-visible");
           elements.jobStatus.setAttribute("data-drawer", "expanded");
+          acknowledgeExpansion(key);
           return;
         }
         elements.progressDrawer.classList?.remove("is-visible");
@@ -95,6 +123,7 @@ window.createProgressFeedback = (elements, mediaPath) => {
             elements.progressDrawer.classList?.add("is-visible");
             elements.jobStatus.setAttribute("data-drawer", "expanded");
             visible = true;
+            acknowledgeExpansion(key);
           });
         },
         duration("--otoha-motion-duration-progress-delay", 180),
@@ -133,7 +162,7 @@ window.createProgressFeedback = (elements, mediaPath) => {
         exitMedia = "";
         hideTimer = null;
       },
-      duration("--otoha-motion-duration-progress-collapse", 420),
+      duration("--otoha-motion-duration-progress-collapse", 840),
     );
   }
   function announce() {
