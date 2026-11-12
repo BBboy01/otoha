@@ -133,7 +133,7 @@ window.createProgressFeedback = (elements, mediaPath) => {
         exitMedia = "";
         hideTimer = null;
       },
-      duration("--otoha-motion-duration-progress-collapse", 260),
+      duration("--otoha-motion-duration-progress-collapse", 420),
     );
   }
   function announce() {
@@ -176,7 +176,7 @@ window.createProgressFeedback = (elements, mediaPath) => {
           buttonPhase = "idle";
           elements.start.setAttribute("data-phase", buttonPhase);
         },
-        duration("--otoha-motion-duration-generation-complete", 1000),
+        duration("--otoha-motion-duration-generation-complete", 2000),
       );
     } else if (buttonJob !== key || job.status !== "completed") {
       cancel(completionTimer);

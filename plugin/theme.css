@@ -40,11 +40,12 @@
   );
   --otoha-motion-editor-offset: var(--otoha-space-0-5);
   --otoha-motion-duration-progress-delay: 180ms;
-  --otoha-motion-duration-progress-collapse: 260ms;
-  --otoha-motion-progress-open-overlap: 100ms;
+  --otoha-motion-duration-progress-drawer: 360ms;
+  --otoha-motion-duration-progress-collapse: 420ms;
+  --otoha-motion-progress-open-overlap: 180ms;
   --otoha-motion-progress-close-overlap: 60ms;
   --otoha-motion-duration-cue-retarget: 200ms;
-  --otoha-motion-duration-generation-complete: 1000ms;
+  --otoha-motion-duration-generation-complete: 2000ms;
   --otoha-motion-duration-loading-dots: 1000ms;
   --otoha-motion-press-distance: 1px;
   --otoha-motion-rebound-distance: 0.15px;
