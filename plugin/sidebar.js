@@ -69,7 +69,7 @@ let languageValidationRequested = false;
 let lastPreflightKey = "";
 let exporting = false;
 let lastExportedPath = "";
-const progressFeedback = window.createProgressFeedback(elements, () => currentMediaPath);
+const progressFeedback = window.createProgressFeedback(elements, () => currentMediaPath, (jobId) => post("progressReady", { jobId }));
 function post(name, payload) {
   iina.postMessage(name, payload);
 }
@@ -422,6 +422,7 @@ elements.jobForm.addEventListener("submit", (event) => {
   }
   if (elements.start.disabled) return;
   const payload = {
+    waitForProgress: true,
     trackId: selectedTrackId,
     sourceLanguage: selectedSourceLanguage,
     targetLanguage: selectedTargetLanguage,

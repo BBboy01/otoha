@@ -175,6 +175,7 @@ function loadSidebarPage(show = false) {
       sendState();
     });
     sidebar.onMessage("start", (payload) => startJob(payload));
+    sidebar.onMessage("progressReady", (payload) => jobController.releaseStart(payload?.jobId));
     sidebar.onMessage("checkLanguages", (payload) => !currentJob() && languagePreflightClient.check({ ...payload, mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url) }, true));
     subtitleDeletion.register(sidebar);
     subtitleEditor.register(sidebar);
@@ -322,10 +323,11 @@ async function startJob(payload = {}, mediaOverride = null) {
     jobId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const cancelPath = utils.resolvePath(`@tmp/otoha-${jobId}.cancel`);
     if (!cancelPath) throw new Error("无法创建字幕任务取消标记。");
-    const claimedJob = jobController.begin({ id: jobId, cancelPath, mediaPath: media.path, languages: { sourceLanguage, targetLanguage }, fileLoadedSequence: jobFileLoadedSequence, mediaOperation });
+    const claimedJob = jobController.begin({ id: jobId, cancelPath, mediaPath: media.path, languages: { sourceLanguage, targetLanguage }, fileLoadedSequence: jobFileLoadedSequence, mediaOperation, deferStart: payload.waitForProgress === true });
     if (!claimedJob) return;
     replaceJob({ jobId, status: "running", phase: "checkingEnvironment", message: "正在启动", progress: null, path: null, loaded: false, errorCode: null });
     sendState(mediaOverride ? media.path : undefined);
+    if (claimedJob.presentation && !(await claimedJob.presentation)) throw Object.assign(new Error("无法显示生成进度，请重新打开侧栏后重试。"), { code: "ui.progressUnavailable" });
     await languagePreflightClient.check({ sourceLanguage, targetLanguage, mediaPath: media.path });
     const check = languagePreflightClient.getState(); if (check.status !== "ready") throw Object.assign(new Error(check.message || "请重试语言检查。"), { code: check.errorCode });
     const ffmpegPath = await resolveFFmpegPath(preferences, (...args) => utils.exec(...args));
@@ -404,7 +406,6 @@ function handleHelperEvent(helperEvent) {
     send("job", jobState());
     return;
   }
-
   if (helperEvent.type === "completed" && typeof helperEvent.path === "string") {
     jobController.markTerminal();
     subtitleSettings.rememberGeneration(runningJob.mediaPath, runningJob.languages, helperEvent.path);
@@ -424,7 +425,6 @@ function handleHelperEvent(helperEvent) {
     jobController.setCompletion(loadSubtitle(helperEvent.path, runningJob.mediaPath));
     return;
   }
-
   if (helperEvent.type === "cancelled") {
     jobController.markTerminal();
     replaceJob({ jobId: runningJob.id, status: "cancelled", phase: "", message: "已取消", progress: null, path: null, loaded: false, errorCode: "job.cancelled" });
