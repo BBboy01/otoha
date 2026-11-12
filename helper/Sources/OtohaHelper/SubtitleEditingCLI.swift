@@ -36,6 +36,25 @@ enum SubtitleEditingCLI {
         let readIndex = arguments.firstIndex(of: "--read-subtitle-json")
         let saveIndex = arguments.firstIndex(of: "--save-subtitle-file")
         guard let index = readIndex ?? saveIndex else { return false }
+        let responseURL: URL?
+        do {
+            if let outputIndex = arguments.firstIndex(of: "--subtitle-response-file") {
+                guard arguments.indices.contains(outputIndex + 1) else { throw RequestError.invalidRequest }
+                let path = arguments[outputIndex + 1]
+                let url = URL(fileURLWithPath: path).standardizedFileURL
+                let temporaryRoot = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().path + "/"
+                guard path.hasPrefix("/"), url.lastPathComponent.hasPrefix("otoha-edit-response-"),
+                      url.pathExtension == "json", url.resolvingSymlinksInPath().path.hasPrefix(temporaryRoot) else {
+                    throw RequestError.invalidRequest
+                }
+                responseURL = url
+            } else {
+                responseURL = nil
+            }
+        } catch {
+            FileHandle.standardError.write(Data("字幕校对响应路径无效。\n".utf8))
+            exit(EXIT_FAILURE)
+        }
         var requestId = "unknown"
         let response: Response
         do {
@@ -74,9 +93,14 @@ enum SubtitleEditingCLI {
         do {
             var data = try JSONEncoder().encode(response)
             data.append(0x0A)
-            FileHandle.standardOutput.write(data)
+            if let responseURL {
+                try data.write(to: responseURL, options: .atomic)
+            } else {
+                FileHandle.standardOutput.write(data)
+            }
         } catch {
             FileHandle.standardError.write(Data("字幕校对响应失败：\(error.localizedDescription)\n".utf8))
+            exit(EXIT_FAILURE)
         }
         return true
     }

@@ -9,51 +9,73 @@
     <link rel="stylesheet" href="subtitle-export.css" />
     <link rel="stylesheet" href="sidebar-deletion.css" />
     <link rel="stylesheet" href="subtitle-editor.css" />
+    <link rel="stylesheet" href="subtitle-cues.css" />
+    <link rel="stylesheet" href="subtitle-preview.css" />
     <link rel="stylesheet" href="sidebar-workflow.css" />
+    <link rel="stylesheet" href="sidebar-home.css" />
+    <link rel="stylesheet" href="sidebar-generation.css" />
+    <link rel="stylesheet" href="button-motion.css" />
+    <link rel="stylesheet" href="sidebar-navigation.css" />
+    <link rel="stylesheet" href="sidebar-selects.css" />
+    <link rel="stylesheet" href="dialog-motion.css" />
+    <script defer src="dialog-motion.js"></script>
+    <script defer src="button-motion.js"></script>
     <script defer src="sidebar-workflow.js"></script>
+    <script defer src="sidebar-progress.js"></script>
+    <script defer src="subtitle-overflow.js"></script>
+    <script defer src="subtitle-preview.js"></script>
+    <script defer src="subtitle-cues.js"></script>
+    <script defer src="sidebar-navigation.js"></script>
     <script defer src="subtitle-editor.js"></script>
     <script defer src="sidebar.js"></script>
     <script defer src="sidebar-deletion.js"></script>
+    <script defer src="sidebar-selects.js"></script>
   </head>
   <body>
+    <div id="sidebar-screens">
     <main id="sidebar-home">
       <header class="header">
+        <span class="brand-mark" aria-hidden="true"></span>
         <h1>Otoha</h1>
-        <span class="backend">Apple 本机</span>
       </header>
 
-      <section class="media" aria-labelledby="media-heading">
+      <section class="media" aria-label="当前视频">
         <div class="media-row">
-          <h2 id="media-heading">当前视频</h2>
           <p id="media-name" class="media-name" title="未打开视频" aria-label="未打开视频">未打开视频</p>
         </div>
         <p id="media-error" class="inline-error" role="status"></p>
       </section>
 
-      <section id="existing-subtitles" aria-labelledby="subtitle-heading" hidden>
+      <section class="subtitle-workspace" aria-labelledby="subtitle-heading">
         <div class="section-heading">
-          <h2 id="subtitle-heading">当前字幕</h2>
+          <h2 id="subtitle-heading">字幕</h2>
+        <div class="subtitle-actions">
+          <button id="edit-subtitle-button" class="icon-button" type="button" title="校对字幕" aria-label="校对字幕"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg></button>
+          <button id="open-export" class="icon-button" type="button" title="导出字幕" aria-label="导出字幕"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <path d="m7 10 5 5 5-5" /></svg></button>
+          <button id="delete-button" class="icon-button delete-trigger" type="button" title="删除所选字幕" aria-label="删除所选字幕"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg></button>
         </div>
-        <div class="subtitle-row">
-          <div class="subtitle-selection">
-            <select id="subtitle-choice" aria-label="选择字幕"></select>
-            <div class="subtitle-meta" aria-label="字幕信息">
-              <span id="subtitle-version" class="subtitle-version">版本 1</span>
-              <span id="subtitle-loaded" class="subtitle-loaded" role="status" aria-label="字幕已加载" title="字幕已加载" hidden>✓</span>
+        </div>
+        <div class="subtitle-group">
+          <h3>语言与版本</h3>
+          <div class="language-grid">
+            <div>
+              <label for="source-language">源语言</label>
+              <select id="source-language" form="job-form" aria-describedby="source-language-error" aria-invalid="false" required></select>
+              <p id="source-language-error" class="field-error" role="alert" hidden></p>
+            </div>
+            <div>
+              <label for="target-language">目标语言</label>
+              <select id="target-language" form="job-form" aria-describedby="target-language-error" aria-invalid="false" required></select>
+              <p id="target-language-error" class="field-error" role="alert" hidden></p>
             </div>
           </div>
-        </div>
-        <details class="file-details"><summary>文件详情</summary><p id="subtitle-filename"></p></details>
-        <div class="subtitle-actions">
-          <button id="edit-subtitle-button" class="secondary" type="button" title="校对所选字幕" aria-label="校对所选字幕"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg>校对字幕</button>
-          <button id="open-export" class="icon-button" type="button" title="导出字幕" aria-label="导出字幕"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <path d="m7 10 5 5 5-5" /></svg></button>
-          <details id="subtitle-more" class="more-menu">
-            <summary title="更多字幕操作" aria-label="更多字幕操作"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1" /> <circle cx="19" cy="12" r="1" /> <circle cx="5" cy="12" r="1" /></svg></summary>
-            <div class="more-options">
-              <button id="reveal-button" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></svg>在 Finder 中显示</button>
-              <button id="delete-button" class="delete-trigger" type="button" title="删除所选字幕" aria-label="删除所选字幕"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>删除字幕</button>
+          <div id="existing-subtitles" class="subtitle-row" hidden>
+            <div class="subtitle-selection">
+              <div class="subtitle-meta"><label for="subtitle-choice">字幕版本</label><span id="subtitle-loaded" class="subtitle-loaded visually-hidden" role="status" aria-label="字幕已加载" title="字幕已加载" hidden>✓</span></div>
+              <select id="subtitle-choice" aria-label="选择字幕版本"></select>
+              <span id="subtitle-version" class="visually-hidden">版本 1</span>
             </div>
-          </details>
+          </div>
         </div>
         <dialog id="export-dialog" aria-labelledby="export-heading">
           <div class="section-heading"><h2 id="export-heading">导出 SRT</h2><button id="close-export" class="icon-button" type="button" title="关闭导出" aria-label="关闭导出"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /> <path d="m6 6 12 12" /></svg></button></div>
@@ -66,6 +88,7 @@
           </div>
         </fieldset>
         <button id="export-button" class="secondary export-button" type="button">导出为 SRT</button>
+        <details class="file-details"><summary>文件详情</summary><p id="subtitle-filename"></p><button id="reveal-button" class="status-action" type="button">在 Finder 中显示原文件</button></details>
         <div id="export-result" class="export-result" role="status" aria-live="polite" aria-atomic="true" hidden>
           <p id="export-message"></p>
           <button id="reveal-export-button" class="status-action" type="button" hidden>在 Finder 中显示</button>
@@ -73,74 +96,62 @@
         </dialog>
       </section>
 
-      <details id="generation-options" open>
-        <summary id="generation-heading">生成字幕</summary>
+      <fieldset class="display-mode-row" aria-label="字幕显示方式">
+        <legend class="visually-hidden">显示</legend>
+        <h3 aria-hidden="true">显示</h3>
+        <div id="display-mode" class="display-mode-options" data-selected="bilingual">
+          <label><input type="radio" name="display-mode" value="source" />原文</label>
+          <label><input type="radio" name="display-mode" value="translation" />译文</label>
+          <label><input type="radio" name="display-mode" value="bilingual" checked />双语</label>
+        </div>
+      </fieldset>
+
+      <section id="generation-options" aria-labelledby="generation-heading">
+        <h3 id="generation-heading">生成</h3>
         <form id="job-form" aria-labelledby="generation-heading">
         <div class="track-row">
           <label for="audio-track">音轨</label>
           <select id="audio-track" name="trackId" required></select>
         </div>
 
-        <div class="language-grid">
-          <div>
-            <label for="source-language">源语言</label>
-            <select id="source-language" aria-describedby="source-language-error" aria-invalid="false" required></select>
-            <p id="source-language-error" class="field-error" role="alert" hidden></p>
-          </div>
-          <div>
-            <label for="target-language">目标语言</label>
-            <select id="target-language" aria-describedby="target-language-error" aria-invalid="false" required></select>
-            <p id="target-language-error" class="field-error" role="alert" hidden></p>
+        <div class="generation-meta">
+        <div class="automation-row">
+          <label class="toggle-row" for="auto-load"><input id="auto-load" type="checkbox" /><span id="automation-heading">自动加载</span></label>
+          <div class="help-popover">
+            <button id="auto-load-help" class="help-trigger" type="button" aria-label="自动加载说明" aria-describedby="auto-load-description" aria-controls="auto-load-description" aria-expanded="false"><span class="help-icon" aria-hidden="true">?</span></button>
+            <p id="auto-load-description" class="help-tooltip" role="tooltip">打开视频时加载已有字幕；没有字幕时手动生成。</p>
           </div>
         </div>
-
         <div id="language-resource-status" class="job-status" hidden>
           <p id="language-resource-message" role="status" aria-live="polite"></p>
           <p id="resource-breakdown"></p>
           <details id="resource-help" hidden><summary>下载翻译资源</summary><p>系统设置 → 通用 → 语言与地区 → 翻译语言。下载所选的源语言和目标语言，完成后重新检查。</p></details>
           <button id="check-languages" class="icon-button" type="button" title="重新检查语言资源" aria-label="重新检查语言资源" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /> <path d="M21 3v5h-5" /> <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /> <path d="M8 16H3v5" /></svg></button>
         </div>
+        </div>
         <button id="start-button" class="primary" type="submit">生成</button>
         </form>
-      </details>
         <section id="job-status" class="job-status" hidden>
+          <div class="job-summary-drawer"><div class="job-summary-clip">
           <div class="job-summary">
             <span id="job-icon" class="job-icon" aria-hidden="true" hidden>!</span>
-            <p id="job-message" role="status" aria-live="polite" aria-atomic="true"></p>
+            <p id="job-message"></p>
+            <p id="job-elapsed" hidden></p>
             <div class="job-actions" aria-label="字幕任务操作">
               <button id="job-detail-toggle" class="status-action" type="button" aria-expanded="false" aria-controls="job-detail-message" hidden>详情</button>
               <button id="retry-button" class="status-action" type="button" hidden>重试</button>
               <button id="cancel-button" class="status-action cancel-action" type="button" title="停止生成" aria-label="停止生成" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" /></svg></button>
             </div>
           </div>
-          <p id="job-elapsed" hidden></p>
-          <progress id="translation-progress" max="1" aria-label="翻译进度" aria-valuemin="0" aria-valuemax="1" hidden></progress>
+          </div></div>
+          <div id="job-progress" class="job-progress" hidden>
+            <div class="job-progress-clip">
+            <progress id="translation-progress" max="1" aria-label="翻译进度" aria-valuemin="0" aria-valuemax="1" hidden></progress>
+            </div>
+          </div>
           <p id="job-detail-message" class="job-detail" role="alert" hidden></p>
           <button id="job-edit" class="status-action" type="button" hidden>校对字幕</button>
         </section>
-
-      <section class="playback-options" aria-label="播放选项">
-        <div class="automation-row">
-          <label class="toggle-row" for="auto-load">
-            <input id="auto-load" type="checkbox" />
-            <span id="automation-heading">自动加载</span>
-          </label>
-          <div class="help-popover">
-            <button id="auto-load-help" class="help-trigger" type="button" aria-label="自动加载说明" aria-describedby="auto-load-description" aria-controls="auto-load-description" aria-expanded="false">
-              <span class="help-icon" aria-hidden="true">?</span>
-            </button>
-            <p id="auto-load-description" class="help-tooltip" role="tooltip">打开视频时加载已有字幕；没有字幕时手动生成。</p>
-          </div>
-        </div>
-
-        <div class="display-mode-row">
-          <label for="display-mode">显示</label>
-          <select id="display-mode" aria-label="字幕显示方式">
-            <option value="source">原文</option>
-            <option value="translation">译文</option>
-            <option value="bilingual" selected>双语</option>
-          </select>
-        </div>
       </section>
 
       <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-description">
@@ -153,26 +164,31 @@
         </div>
       </dialog>
     </main>
+      <p id="job-announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
       <dialog id="regenerate-dialog" aria-labelledby="regenerate-heading" aria-describedby="regenerate-description">
         <h2 id="regenerate-heading">生成新版本？</h2><p id="regenerate-description"></p>
         <div class="editor-confirm-actions"><button id="regenerate-cancel" type="button" autofocus>取消</button><button id="regenerate-confirm" type="button">生成新版本</button></div>
       </dialog>
       <section id="subtitle-editor" aria-labelledby="editor-heading" hidden>
         <div class="editor-heading">
-          <h2 id="editor-heading">校对字幕</h2>
           <button id="editor-close" class="icon-button" type="button" title="返回字幕" aria-label="返回字幕"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /> <path d="M19 12H5" /></svg></button>
+          <h2 id="editor-heading">校对字幕</h2>
+          <span id="editor-dirty" class="unsaved-dot" title="有未保存修改" aria-label="有未保存修改" hidden></span>
         </div>
         <p id="editor-file" class="editor-file"></p>
-        <p id="editor-status" role="status" aria-live="polite"></p>
+        <p id="editor-status" class="visually-hidden" role="status" aria-live="polite"></p>
         <p id="editor-error" class="inline-error" role="alert" hidden></p>
         <div id="editor-fields" hidden>
-          <div class="section-heading"><label for="editor-cue">字幕片段</label><output id="editor-count" aria-live="polite"></output></div>
-          <select id="editor-cue" size="6" aria-label="字幕片段"></select>
+          <div class="editor-cue-heading">
+            <h3 id="editor-cue-heading">字幕片段</h3>
+            <output id="editor-count" aria-live="polite" aria-atomic="true"></output>
+            <label id="editor-follow-label" class="video-follow"><span>联动</span><input id="editor-follow" type="checkbox" role="switch" checked aria-label="联动视频位置" aria-describedby="editor-follow-tip" /><span id="editor-follow-tip" class="video-follow-tip" role="tooltip" hidden>开启后选择字幕会定位视频；关闭后单击选中，双击定位视频。</span></label>
+          </div>
+          <div id="editor-cue" class="cues" role="listbox" aria-labelledby="editor-cue-heading"><span id="editor-video-marker" class="cue-video-position" aria-hidden="true" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="5" width="13" height="14" rx="2"/></svg></span></div>
           <div class="editor-navigation">
             <button id="editor-previous" class="icon-button" type="button" title="上一句" aria-label="上一句"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 7-7 7 7" /> <path d="M12 19V5" /></svg></button>
             <button id="editor-next" class="icon-button" type="button" title="下一句" aria-label="下一句"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14" /> <path d="m19 12-7 7-7-7" /></svg></button>
             <output id="editor-time" aria-label="片段时间范围"></output>
-            <button id="editor-seek" class="icon-button" type="button" title="跳到片段开始" aria-label="跳到片段开始"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></button>
           </div>
           <div class="editor-field editor-field-source">
             <label for="editor-source">原文</label>
@@ -183,8 +199,9 @@
             <textarea id="editor-translation" rows="4" spellcheck="true"></textarea>
           </div>
         </div>
-        <div id="editor-save-area" class="editor-save-area" hidden><button id="editor-save" type="button">保存</button><button id="editor-save-next" class="primary" type="button">保存并下一句</button></div>
+      <div id="editor-save-area" class="editor-save-area" hidden><button id="editor-save" type="button">保存全部</button><button id="editor-save-next" class="primary" type="button">保存并下一句</button></div>
       </section>
+    </div>
       <dialog id="editor-discard-dialog" role="alertdialog" aria-labelledby="editor-discard-heading" aria-describedby="editor-discard-message">
         <h2 id="editor-discard-heading">放弃修改？</h2>
         <p id="editor-discard-message">尚未保存的字幕修改将丢失。</p>

@@ -21,6 +21,7 @@ const elements = {
   autoLoadHelp: document.querySelector("#auto-load-help"),
   cancel: document.querySelector("#cancel-button"),
   displayMode: document.querySelector("#display-mode"),
+  displayModes: document.querySelectorAll("input[name='display-mode']"),
   exportButton: document.querySelector("#export-button"),
   exportMessage: document.querySelector("#export-message"),
   exportResult: document.querySelector("#export-result"),
@@ -29,11 +30,13 @@ const elements = {
   editSubtitle: document.querySelector("#edit-subtitle-button"),
   jobForm: document.querySelector("#job-form"),
   jobMessage: document.querySelector("#job-message"),
+  jobAnnouncement: document.querySelector("#job-announcement"),
   jobElapsed: document.querySelector("#job-elapsed"),
   jobStatus: document.querySelector("#job-status"),
   jobIcon: document.querySelector("#job-icon"),
   jobDetailToggle: document.querySelector("#job-detail-toggle"),
   jobDetailMessage: document.querySelector("#job-detail-message"),
+  progressDrawer: document.querySelector("#job-progress"),
   languageResourceStatus: document.querySelector("#language-resource-status"),
   languageResourceMessage: document.querySelector("#language-resource-message"),
   checkLanguages: document.querySelector("#check-languages"),
@@ -63,10 +66,10 @@ let lastResolvedLanguages = "";
 let lastResolvedSubtitlePath;
 let lastFeedbackKey = "";
 let languageValidationRequested = false;
-let feedbackJob = null;
 let lastPreflightKey = "";
 let exporting = false;
 let lastExportedPath = "";
+const progressFeedback = window.createProgressFeedback(elements, () => currentMediaPath);
 function post(name, payload) {
   iina.postMessage(name, payload);
 }
@@ -194,10 +197,15 @@ function renderState(nextState) {
   )
     ? state.displayMode
     : "bilingual";
-  elements.displayMode.value = displayMode;
-  elements.displayMode.disabled = !state.media || busy;
+  for (const radio of elements.displayModes) {
+    radio.checked = radio.value === displayMode;
+    radio.disabled = !state.media || busy;
+  }
+  elements.displayMode?.setAttribute?.("data-selected", displayMode);
   const subtitles = Array.isArray(state.availableSubtitles)
-    ? state.availableSubtitles
+    ? state.availableSubtitles.filter(subtitle =>
+      !subtitle.sourceLanguage || !subtitle.targetLanguage ||
+      subtitle.sourceLanguage === selectedSourceLanguage && subtitle.targetLanguage === selectedTargetLanguage)
     : [];
   elements.existingSubtitles.hidden = subtitles.length === 0;
   elements.reveal.hidden = subtitles.length === 0;
@@ -248,6 +256,7 @@ function renderState(nextState) {
       : state.job);
   restoreJobFocus(focused);
   window.sidebarWorkflow?.onState(state);
+  window.sidebarSelects?.refresh();
 }
 function restoreJobFocus(focused) {
   if (![elements.cancel, elements.jobMessage].includes(focused)) return;
@@ -275,6 +284,7 @@ function updateGeneration() {
       subtitle.sourceLanguage === selectedSourceLanguage &&
       subtitle.targetLanguage === selectedTargetLanguage);
   elements.start.textContent = matchingSubtitle ? "重新生成" : "生成";
+  elements.start.setAttribute("aria-label", busy ? "正在生成" : elements.start.textContent);
   renderLanguagePreflight(busy);
 }
 function renderLanguagePreflight(busy) {
@@ -299,8 +309,7 @@ function renderLanguagePreflight(busy) {
 }
 function renderJob(job) {
   const current = job || { status: "idle", message: "" };
-  feedbackJob = current;
-  renderElapsed();
+  progressFeedback.render(current);
   const message = current.message || "";
   const failed = ["error", "load-error"].includes(current.status);
   const noSpeech = current.errorCode === "speech.noSpeech";
@@ -323,7 +332,7 @@ function renderJob(job) {
   else if (libraryWarning) summary = "字幕库读取失败";
   else if (failed) summary = "字幕生成失败";
   elements.jobMessage.textContent = summary;
-  elements.jobStatus.hidden = current.status === "idle" || (current.status === "available" && !libraryWarning) || (current.status === "completed" && current.loaded && !current.jobId);
+  elements.jobStatus.hidden = progressFeedback.retracted || current.status === "idle" || (current.status === "available" && !libraryWarning) || (current.status === "completed" && current.loaded && !current.jobId);
   if (current.status === "completed" && current.loaded) elements.jobMessage.textContent = current.jobId ? "字幕已生成并加载" : "字幕已加载";
   window.sidebarWorkflow?.onJob(current);
   elements.jobStatus.dataset.kind =
@@ -342,9 +351,9 @@ function renderJob(job) {
   elements.cancel.hidden = !["running", "canceling"].includes(current.status);
   elements.cancel.disabled = current.status === "canceling";
   elements.retry.hidden = current.status !== "load-error";
-  elements.progress.hidden = !["running", "loading"].includes(current.status);
+  elements.progress.hidden = elements.progressDrawer.hidden;
   elements.progress.setAttribute("aria-label", current.phase === "translating" ? "翻译进度" : "字幕生成进度");
-  if (!elements.progress.hidden && Number.isFinite(current.progress)) {
+  if (Number.isFinite(current.progress)) {
     const progress = Math.min(Math.max(current.progress, 0), 1);
     const percentage = Math.round(progress * 100);
     elements.progress.value = progress;
@@ -357,15 +366,6 @@ function renderJob(job) {
       elements.progress.removeAttribute("aria-valuetext");
     }
   }
-}
-function renderElapsed() {
-  const job = feedbackJob;
-  const visible = job && Number.isFinite(job.startedAt) && job.status !== "idle";
-  elements.jobElapsed.hidden = !visible;
-  if (!visible) return;
-  const end = Number.isFinite(job.finishedAt) ? job.finishedAt : Date.now();
-  const seconds = Math.max(0, Math.floor((end - job.startedAt) / 1000));
-  elements.jobElapsed.textContent = `已耗时 ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 elements.jobDetailToggle.addEventListener("click", () => {
   elements.jobDetailMessage.hidden = !elements.jobDetailMessage.hidden;
@@ -380,13 +380,11 @@ elements.audioTrack.addEventListener("change", () => {
 });
 elements.sourceLanguage.addEventListener("change", () => {
   selectedSourceLanguage = elements.sourceLanguage.value;
-  updateLanguageErrors();
-  updateGeneration();
+  if (state) renderState(state);
 });
 elements.targetLanguage.addEventListener("change", () => {
   selectedTargetLanguage = elements.targetLanguage.value;
-  updateLanguageErrors();
-  updateGeneration();
+  if (state) renderState(state);
 });
 elements.autoLoad.addEventListener("change", () => {
   post("setSetting", { key: "auto_load", value: elements.autoLoad.checked });
@@ -403,9 +401,9 @@ function setDisplayMode(mode) {
   post("setDisplayMode", mode);
 }
 
-elements.displayMode.addEventListener("change", () =>
-  setDisplayMode(elements.displayMode.value),
-);
+for (const radio of elements.displayModes) {
+  radio.addEventListener("change", () => setDisplayMode(radio.value));
+}
 
 elements.jobForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -495,6 +493,4 @@ iina.postMessage("ready", {
 });
 iina.postMessage("refresh");
 window.setInterval(() => post("refresh"), 2500);
-window.setInterval(() => {
-  if (feedbackJob && ["running", "loading"].includes(feedbackJob.status)) renderElapsed();
-}, 1000);
+window.setInterval(() => progressFeedback.tick(), 1000);

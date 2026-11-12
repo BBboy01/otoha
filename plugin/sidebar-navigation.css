@@ -1,0 +1,25 @@
+#sidebar-screens {
+  position: relative;
+  height: calc(
+    100dvh - var(--otoha-sidebar-padding-top) -
+      var(--otoha-sidebar-padding-bottom)
+  );
+  min-width: 0;
+  overflow: hidden;
+}
+#sidebar-home,
+#subtitle-editor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+#sidebar-home {
+  overflow-y: auto;
+  align-content: start;
+  scrollbar-width: thin;
+}
+#subtitle-editor {
+  overflow: hidden;
+  background: var(--otoha-color-surface);
+}

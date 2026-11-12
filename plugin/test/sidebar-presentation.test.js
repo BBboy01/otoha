@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const sidebarMarkup = fs.readFileSync(path.join(__dirname, "../sidebar.html"), "utf8");
 const sidebarStyles = fs.readFileSync(path.join(__dirname, "../sidebar.css"), "utf8");
+const homeStyles = fs.readFileSync(path.join(__dirname, "../sidebar-home.css"), "utf8");
 const editorStyles = fs.readFileSync(path.join(__dirname, "../subtitle-editor.css"), "utf8");
 
 test("sidebar uses resolved language preferences instead of audio metadata", () => {
@@ -16,7 +17,8 @@ test("sidebar uses resolved language preferences instead of audio metadata", () 
 
 test("sidebar keeps the current video summary compact and preserves its full name", () => {
   const sidebar = createSidebar();
-  assert.match(sidebarMarkup, /<div class="media-row">[\s\S]*<h2 id="media-heading">当前视频<\/h2>[\s\S]*<p\s+id="media-name"/);
+  assert.match(sidebarMarkup, /<section class="media" aria-label="当前视频">/);
+  assert.doesNotMatch(sidebarMarkup, /<h2 id="media-heading">/);
   assert.match(sidebarStyles, /\.media-name \{[\s\S]*-webkit-line-clamp: 2;[\s\S]*text-overflow: ellipsis;/);
   sidebar.handlers.get("state")(
     videoState({
@@ -90,12 +92,13 @@ test("sidebar leaves global path settings to plugin preferences", () => {
   assert.doesNotMatch(sidebarMarkup, /id="output-directory"/);
 });
 
-test("sidebar groups generation in a collapsible task section", () => {
-  assert.match(sidebarMarkup, /<summary id="generation-heading">生成字幕<\/summary>/);
+test("sidebar groups generation below shared language and display controls", () => {
+  assert.match(sidebarMarkup, /<h3 id="generation-heading">生成<\/h3>/);
   assert.match(sidebarMarkup, /<div class="track-row">[\s\S]*<label for="audio-track">音轨<\/label>[\s\S]*<select id="audio-track"/);
   assert.match(sidebarMarkup, /<label for="source-language">源语言<\/label>/);
   assert.match(sidebarMarkup, /<label for="target-language">目标语言<\/label>/);
-  assert.match(sidebarMarkup, /<section class="playback-options" aria-label="播放选项">/);
+  assert.doesNotMatch(sidebarMarkup, /class="playback-options"/);
+  assert.match(sidebarMarkup, /id="source-language" form="job-form"/);
   assert.match(sidebarStyles, /h2 \{[\s\S]*font-size: var\(--otoha-font-size-body\);[\s\S]*font-weight: var\(--otoha-font-weight-heading\);/);
   assert.match(sidebarStyles, /label \{[\s\S]*font-size: var\(--otoha-font-size-small\);[\s\S]*font-weight: var\(--otoha-font-weight-medium\);/);
   assert.match(sidebarStyles, /form \{[\s\S]*padding-top: var\(--otoha-space-section-inset\);[\s\S]*border-top: var\(--otoha-border-width\) solid var\(--otoha-color-border-subtle\);/);
@@ -104,28 +107,27 @@ test("sidebar groups generation in a collapsible task section", () => {
   assert.match(sidebarStyles, /@media \(max-width: 280px\)[\s\S]*\.language-grid,[\s\S]*\.subtitle-row/);
 });
 
-test("sidebar exposes the brand line hierarchy through theme tokens", () => {
-  assert.match(sidebarStyles, /\.header h1::after \{[\s\S]*background: var\(--otoha-color-accent\)/);
-  assert.match(sidebarStyles, /\.section-heading h2::before \{[\s\S]*background: var\(--otoha-color-accent\)/);
+test("sidebar exposes the approved two-line brand mark through theme tokens", () => {
+  assert.match(homeStyles, /\.brand-mark::after \{[\s\S]*background: var\(--otoha-color-accent\)/);
   assert.match(sidebarStyles, /\.job-status\[data-kind="success"\][\s\S]*var\(--otoha-color-success\)/);
 });
 
 test("editor keeps source and translation fields as a paired workspace", () => {
   assert.match(sidebarMarkup, /<div class="editor-field editor-field-source">[\s\S]*id="editor-source"/);
   assert.match(sidebarMarkup, /<div class="editor-field editor-field-translation">[\s\S]*id="editor-translation"/);
-  assert.match(editorStyles, /\.editor-field-source::before[\s\S]*var\(--otoha-color-border-strong\)/);
-  assert.match(editorStyles, /\.editor-field-translation::before[\s\S]*var\(--otoha-color-accent\)/);
+  assert.match(editorStyles, /\.editor-field label::before[\s\S]*var\(--otoha-color-text-secondary\)/);
+  assert.match(editorStyles, /\.editor-field-translation label::before[\s\S]*var\(--otoha-color-accent\)/);
 });
 
 test("sidebar keeps subtitle management beside the selected version", () => {
-  assert.match(sidebarMarkup, /<div class="subtitle-row">[\s\S]*<select id="subtitle-choice"[\s\S]*<button\s+id="reveal-button"/);
-  assert.match(sidebarMarkup, /<h2 id="subtitle-heading">当前字幕<\/h2>/);
+  assert.match(sidebarMarkup, /<select id="subtitle-choice"[\s\S]*<button\s+id="reveal-button"/);
+  assert.match(sidebarMarkup, /<h2 id="subtitle-heading">字幕<\/h2>/);
   assert.match(sidebarMarkup, /id="subtitle-loaded"[^>]*aria-label="字幕已加载"[^>]*title="字幕已加载"[^>]*>✓<\/span>/);
   assert.doesNotMatch(sidebarMarkup, /<span id="subtitle-loaded"[^>]*>已加载<\/span>/);
   assert.doesNotMatch(sidebarMarkup, /<div class="job-actions">[\s\S]*id="reveal-button"/);
   assert.match(sidebarStyles, /\.subtitle-row \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto;/);
   assert.match(sidebarMarkup, /id="subtitle-version"[^>]*>版本 1<\/span>/);
-  assert.match(sidebarMarkup, /id="edit-subtitle-button" class="secondary"/);
+  assert.match(sidebarMarkup, /id="edit-subtitle-button" class="icon-button"/);
   assert.doesNotMatch(sidebarMarkup, /<option[^>]*>[^<]*版本/);
 
   const sidebar = createSidebar();

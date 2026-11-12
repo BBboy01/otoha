@@ -1,0 +1,27 @@
+button {
+  scale: 1;
+  transform-origin: center;
+  transition:
+    scale var(--otoha-motion-press-duration) var(--otoha-motion-press-ease),
+    background-color var(--otoha-motion-press-duration)
+      var(--otoha-motion-press-ease);
+}
+button:active:not(:disabled):not([aria-disabled="true"]):not(
+    [role="radio"]
+  ):not([role="combobox"]):not([role="option"]) {
+  scale: var(--otoha-motion-press-scale);
+  filter: brightness(var(--otoha-motion-press-brightness));
+}
+button:active:not(:disabled):not(.primary):not(.danger) {
+  background-color: var(--otoha-color-control-active);
+}
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+  button:active:not(:disabled):not([aria-disabled="true"]):not(
+      [role="radio"]
+    ):not([role="combobox"]):not([role="option"]) {
+    scale: 1;
+  }
+}

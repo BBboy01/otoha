@@ -1,0 +1,98 @@
+.job-summary-drawer {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+.job-summary-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+.job-progress-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+#job-status .job-summary {
+  min-height: var(--otoha-control-size-small);
+}
+#job-status[data-drawer="collapsed"]:is(
+    [data-phase="running"],
+    [data-phase="loading"],
+    [data-phase="completed"],
+    [data-phase="idle"]
+  )
+  .job-summary-drawer {
+  grid-template-rows: 0fr;
+}
+#job-status[data-drawer] .job-summary-drawer {
+  transition: grid-template-rows var(--otoha-motion-duration-progress-drawer)
+    var(--otoha-motion-ease-standard) var(--otoha-motion-progress-close-overlap);
+}
+#job-status[data-drawer] .job-summary {
+  transition: transform var(--otoha-motion-duration-progress-drawer)
+    var(--otoha-motion-ease-standard) var(--otoha-motion-progress-close-overlap);
+}
+#job-status[data-drawer="collapsed"]:is(
+    [data-phase="running"],
+    [data-phase="loading"],
+    [data-phase="completed"],
+    [data-phase="idle"]
+  )
+  .job-summary {
+  transform: translateY(-100%);
+}
+#job-status[data-drawer="expanded"] .job-summary-drawer,
+#job-status[data-drawer="expanded"] .job-summary {
+  transition-delay: 0s;
+}
+#job-status[data-drawer] .job-progress {
+  opacity: 1;
+  transform: none;
+  transition-duration: var(--otoha-motion-duration-progress-drawer);
+  transition-delay: 0s;
+}
+#job-status[data-drawer="expanded"] .job-progress {
+  transition-delay: var(--otoha-motion-progress-open-overlap);
+}
+#job-status[data-phase="completed"] > #job-edit {
+  display: none;
+}
+#start-button[data-phase="complete"] {
+  color: transparent;
+  animation: none;
+}
+#start-button[data-phase="complete"]::before {
+  content: attr(aria-label);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--otoha-color-on-accent);
+  animation: generation-complete-label
+    var(--otoha-motion-duration-generation-complete)
+    var(--otoha-motion-ease-standard) both;
+}
+@keyframes generation-complete-label {
+  0%,
+  45% {
+    clip-path: inset(0 50%);
+    transform: translateX(calc(-1 * var(--otoha-space-4)));
+  }
+  85%,
+  100% {
+    clip-path: inset(0);
+    transform: translateX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #job-status[data-drawer] .job-summary-drawer,
+  #job-status[data-drawer] .job-summary,
+  #job-status[data-drawer] .job-progress {
+    transition: none;
+  }
+  #start-button[data-phase="complete"] {
+    color: var(--otoha-color-on-accent);
+  }
+  #start-button[data-phase="complete"]::before {
+    content: none;
+    animation: none;
+  }
+}

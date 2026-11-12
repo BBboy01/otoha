@@ -133,6 +133,23 @@ test("sidebar keeps one saved subtitle visible and changes generation label", ()
   assert.equal(sidebar.elements.get("#start-button").textContent, "重新生成");
 });
 
+test("language selection filters saved versions without loading an unrelated subtitle", () => {
+  const sidebar = createSidebar();
+  const availableSubtitles = [
+    { path: "/library/en-ja.ass", sourceLanguage: "en", targetLanguage: "ja" },
+    { path: "/library/en-ko.ass", sourceLanguage: "en", targetLanguage: "ko" },
+    { path: "/library/legacy.ass" },
+  ];
+  sidebar.handlers.get("state")(videoState({ sourceLanguage: "en", targetLanguage: "ja", availableSubtitles }));
+  assert.deepEqual(sidebar.elements.get("#subtitle-choice").children.map(option => option.value), ["/library/en-ja.ass", "/library/legacy.ass"]);
+  change(sidebar, "#target-language", "ko");
+  assert.deepEqual(sidebar.elements.get("#subtitle-choice").children.map(option => option.value), ["/library/en-ko.ass", "/library/legacy.ass"]);
+  assert.equal(sidebar.elements.get("#subtitle-choice").value, "/library/en-ko.ass");
+  assert.equal(sidebar.posts.some(post => post.name === "loadExisting"), false);
+  change(sidebar, "#subtitle-choice", "/library/en-ko.ass");
+  assert.deepEqual(sidebar.posts.at(-1), { name: "loadExisting", payload: "/library/en-ko.ass" });
+});
+
 test("sidebar merges confirmed loading into the selected saved subtitle", () => {
   const sidebar = createSidebar();
   sidebar.handlers.get("state")(

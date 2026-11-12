@@ -21,6 +21,72 @@
   --otoha-space-section-inset: var(--otoha-space-3);
   --otoha-sidebar-padding-top: var(--otoha-space-4);
   --otoha-space-section-gap: var(--otoha-space-4);
+  --otoha-motion-duration-expand: 200ms;
+  --otoha-motion-duration-dialog: 280ms;
+  --otoha-motion-ease-standard: cubic-bezier(0.2, 0.7, 0.25, 1);
+  --otoha-motion-ease-editor: linear(
+    0,
+    0.8 66.667%,
+    0.838 70%,
+    0.872 73.333%,
+    0.902 76.667%,
+    0.928 80%,
+    0.95 83.333%,
+    0.968 86.667%,
+    0.982 90%,
+    0.992 93.333%,
+    0.998 96.667%,
+    1
+  );
+  --otoha-motion-editor-offset: var(--otoha-space-0-5);
+  --otoha-motion-duration-progress-delay: 180ms;
+  --otoha-motion-duration-progress-drawer: 360ms;
+  --otoha-motion-duration-progress-collapse: 420ms;
+  --otoha-motion-progress-open-overlap: 180ms;
+  --otoha-motion-progress-close-overlap: 60ms;
+  --otoha-motion-duration-cue-retarget: 200ms;
+  --otoha-motion-duration-generation-complete: 2000ms;
+  --otoha-motion-duration-loading-dots: 1000ms;
+  --otoha-motion-press-distance: 1px;
+  --otoha-motion-rebound-distance: 0.15px;
+  --otoha-motion-press-scale: 1;
+  --otoha-motion-rebound-scale: 1;
+  --otoha-motion-press-duration: 80ms;
+  --otoha-motion-rebound-duration: 220ms;
+  --otoha-motion-press-ease: cubic-bezier(0.2, 0, 0, 1);
+  --otoha-motion-press-brightness: 0.94;
+  --otoha-motion-cue-duration: 440ms;
+  --otoha-motion-cue-text-duration: 240ms;
+  --otoha-motion-cue-index-duration: 260ms;
+  --otoha-motion-cue-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --otoha-cue-height: max(
+    80px,
+    calc(var(--otoha-font-size-label) * 5 + var(--otoha-space-4))
+  );
+  --otoha-cue-viewport-max-height: 40dvh;
+  --otoha-cue-index-height: calc(
+    var(--otoha-line-height-body) * var(--otoha-font-size-small)
+  );
+  --otoha-preview-line-height: calc(
+    var(--otoha-line-height-body) * var(--otoha-font-size-label)
+  );
+  --otoha-motion-preview-batch: 400ms;
+  --otoha-motion-preview-strike: 140ms;
+  --otoha-motion-preview-insert-lead: 40ms;
+  --otoha-motion-preview-space: 220ms;
+  --otoha-motion-preview-lift: 100%;
+  --otoha-preview-ellipsis-width: 0px;
+  --otoha-overflow-gap: var(--otoha-space-6);
+  --otoha-motion-overflow-speed: 36;
+  --otoha-motion-overflow-delay: 500ms;
+  --otoha-cue-opacity: 0.65;
+  --otoha-switch-width: 28px;
+  --otoha-switch-height: 16px;
+  --otoha-switch-inset: 2px;
+  --otoha-select-menu-height: 240px;
+  --otoha-motion-select-scale: 0.99;
+  --otoha-color-cue-edge: #20262818;
+  --otoha-segment-step: calc(100% + var(--otoha-space-1));
   --otoha-sidebar-padding-inline: var(--otoha-space-4);
   --otoha-sidebar-padding-bottom: var(--otoha-space-4);
   --otoha-dialog-padding: var(--otoha-space-4);
@@ -46,7 +112,7 @@
   --otoha-line-height-body: 1.45;
   --otoha-line-height-relaxed: 1.5;
 
-  --otoha-color-text: CanvasText;
+  --otoha-color-text: #202628;
   --otoha-color-text-muted: color-mix(
     in srgb,
     var(--otoha-color-text) 62%,
@@ -57,8 +123,8 @@
     var(--otoha-color-text) 70%,
     transparent
   );
-  --otoha-color-surface: Canvas;
-  --otoha-color-field: Field;
+  --otoha-color-surface: #f7f8f8;
+  --otoha-color-field: #fff;
   --otoha-color-surface-inset: color-mix(
     in srgb,
     var(--otoha-color-text) 4%,
@@ -72,6 +138,11 @@
   --otoha-color-surface-hover: color-mix(
     in srgb,
     var(--otoha-color-text) 14%,
+    var(--otoha-color-surface)
+  );
+  --otoha-color-control-active: color-mix(
+    in srgb,
+    var(--otoha-color-text) 18%,
     var(--otoha-color-surface)
   );
   --otoha-color-accent: #0f766e;
@@ -137,7 +208,10 @@
   --otoha-control-size-small: 24px;
   --otoha-control-size-compact: 28px;
   --otoha-control-size: 32px;
+  --otoha-control-size-home: 20px;
+  --otoha-visually-hidden-size: 1px;
   --otoha-icon-size: 16px;
+  --otoha-icon-size-compact: 12px;
   --otoha-icon-size-status: 14px;
   --otoha-icon-size-help: 15px;
   --otoha-badge-size: 16px;
@@ -170,6 +244,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    --otoha-color-text: #eef1f1;
+    --otoha-color-surface: #202223;
+    --otoha-color-field: #292c2d;
     --otoha-color-accent: #5ed6c3;
     --otoha-color-accent-hover: #83e5d5;
     --otoha-color-accent-border: #5ed6c3;
@@ -177,5 +254,19 @@
     --otoha-color-on-accent: #102b27;
     --otoha-color-error: #ff9b93;
     --otoha-color-warning: #e5b958;
+    --otoha-motion-press-brightness: 1.08;
+    --otoha-color-cue-edge: #0005;
+  }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --otoha-color-text: CanvasText;
+    --otoha-color-surface: Canvas;
+    --otoha-color-field: Field;
+    --otoha-color-accent: Highlight;
+    --otoha-color-on-accent: HighlightText;
+    --otoha-color-accent-subtle: Canvas;
+    --otoha-color-accent-border: Highlight;
   }
 }

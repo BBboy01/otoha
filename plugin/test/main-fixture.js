@@ -236,15 +236,14 @@ function createPlugin({
                 })),
               };
             }
-            return {
-              status: 0,
-              stdout: JSON.stringify({
+            const response = JSON.stringify({
                 protocolVersion: 1,
                 requestId: request.requestId,
                 snapshot: subtitleEditSnapshot,
-              }),
-              stderr: "",
-            };
+              });
+            const destination = args.indexOf("--subtitle-response-file");
+            if (destination >= 0) subtitleContents[args[destination + 1]] = response;
+            return { status: 0, stdout: response, stderr: "" };
           }
           if (args[0] === "--list-subtitles-json") {
             const request = JSON.parse(args[1]);

@@ -1,0 +1,72 @@
+.cue p {
+  position: relative;
+}
+.overflow-text {
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+}
+.is-scrolling-text {
+  text-overflow: clip;
+}
+.is-scrolling-text .overflow-text {
+  max-width: none;
+  overflow: visible;
+}
+.overflow-repeat {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: max-content;
+  padding-left: var(--otoha-overflow-gap);
+  white-space: nowrap;
+}
+.preview-change {
+  position: relative;
+  display: inline-block;
+  vertical-align: top;
+  height: var(--otoha-preview-line-height);
+  overflow: hidden;
+}
+.preview-change-text {
+  position: relative;
+  display: inline-block;
+  white-space: pre;
+}
+.preview-change-text.is-measuring {
+  position: absolute;
+  visibility: hidden;
+}
+.preview-change-text.is-inserted {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.preview-strike {
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  height: var(--otoha-border-width);
+  background: currentColor;
+  transform-origin: left;
+}
+.preview-measure {
+  position: absolute;
+  visibility: hidden;
+  width: max-content;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.has-preview-overflow .overflow-text {
+  width: calc(100% - var(--otoha-preview-ellipsis-width));
+  text-overflow: clip;
+}
+.has-preview-overflow::after {
+  content: "...";
+  position: absolute;
+  right: 0;
+  top: 0;
+}

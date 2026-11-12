@@ -6,7 +6,7 @@ const path = require("node:path");
 
 function createSidebar() {
   const elements = new Map(), handlers = new Map(), posts = [];
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../sidebar.js"), "utf8"), {
+  vm.runInNewContext(["sidebar-progress.js", "sidebar.js"].map(file => fs.readFileSync(path.join(__dirname, "..", file), "utf8")).join("\n"), {
     document: { querySelectorAll() { return []; }, querySelector(selector) {
       const node = { dataset: {}, hidden: false, listeners: new Map(), attributes: new Map(), value: "",
         replaceChildren() {}, add() {}, focus() {},
