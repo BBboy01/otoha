@@ -1,7 +1,7 @@
 {
   "name": "Otoha",
   "identifier": "io.otoha.iina",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Apple 本机双语字幕转录",
   "author": {
     "name": "Otoha"
