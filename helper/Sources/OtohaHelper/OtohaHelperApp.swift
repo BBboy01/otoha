@@ -58,6 +58,10 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
             NSApp.terminate(nil)
             return
         }
+        if SubtitleStyleCLI.run(arguments: CommandLine.arguments) {
+            NSApp.terminate(nil)
+            return
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--list-subtitles-json"),
            CommandLine.arguments.indices.contains(index + 1) {
             Self.listSubtitles(json: CommandLine.arguments[index + 1])

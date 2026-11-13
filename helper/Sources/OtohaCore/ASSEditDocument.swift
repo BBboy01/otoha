@@ -80,7 +80,7 @@ public struct ASSEditDocument {
         cues = paired.map { ASSEditCue(start: $0.source.start, end: $0.source.end, source: $0.source.text, translation: $0.translation.text) }
     }
 
-    public func replacingTexts(_ texts: [ASSEditText]) throws -> String {
+    public func replacingTexts(_ texts: [ASSEditText], forceRewrap: Bool = false) throws -> String {
         guard texts.count == pairs.count else { throw ASSEditError.invalidEdits }
         var result = lines
         var layout = layout
@@ -88,7 +88,7 @@ public struct ASSEditDocument {
             for (event, value) in [(pair.source, text.source), (pair.translation, text.translation)] {
                 guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                       !value.unicodeScalars.contains(where: { $0.value == 0 }) else { throw ASSEditError.invalidEdits }
-                if value == event.text { continue }
+                if value == event.text && !forceRewrap { continue }
                 var fields = event.fields
                 fields[event.textIndex] = Self.encodeText(layout.wrapped(value, style: event.style, left: event.left, right: event.right))
                 result[event.line] = event.prefix + fields.joined(separator: ",")

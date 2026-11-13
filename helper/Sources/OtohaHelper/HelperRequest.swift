@@ -12,6 +12,8 @@ struct HelperRequest: Decodable {
         case sourceLanguage
         case targetLanguage
         case subtitleScale
+        case subtitleFont
+        case subtitleStyle
         case videoWidth
         case videoHeight
         case outputDirectoryPath
@@ -27,6 +29,8 @@ struct HelperRequest: Decodable {
     let sourceLanguage: String
     let targetLanguage: String
     let subtitleScale: Double?
+    let subtitleFont: String?
+    let subtitleStyle: SubtitleStyle?
     let videoWidth: Int?
     let videoHeight: Int?
     let outputDirectoryPath: String?
@@ -72,6 +76,8 @@ struct HelperRequest: Decodable {
         sourceLanguage = try values.decode(String.self, forKey: .sourceLanguage)
         targetLanguage = try values.decode(String.self, forKey: .targetLanguage)
         subtitleScale = try values.decodeIfPresent(Double.self, forKey: .subtitleScale)
+        subtitleFont = try values.decodeIfPresent(String.self, forKey: .subtitleFont)
+        subtitleStyle = try values.decodeIfPresent(SubtitleStyle.self, forKey: .subtitleStyle)
         videoWidth = try values.decodeIfPresent(Int.self, forKey: .videoWidth)
         videoHeight = try values.decodeIfPresent(Int.self, forKey: .videoHeight)
         self.outputDirectoryPath = outputDirectoryPath
@@ -93,6 +99,8 @@ struct HelperRequest: Decodable {
             sourceLanguage: sourceLanguage,
             targetLanguage: targetLanguage,
             subtitleScale: subtitleScale ?? 1.0,
+            subtitleFont: subtitleFont ?? "Arial",
+            subtitleStyle: subtitleStyle,
             videoWidth: videoWidth,
             videoHeight: videoHeight,
             outputDirectory: SubtitleLibrary.mediaDirectory(for: mediaURL, rootDirectory: rootDirectory)

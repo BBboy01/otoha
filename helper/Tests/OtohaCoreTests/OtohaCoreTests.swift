@@ -258,7 +258,7 @@ final class OtohaCoreTests: XCTestCase {
         XCTAssertThrowsError(try ASSWriter.serialize([
             SubtitleCue(start: 0, end: 1, source: "", translation: ""),
         ]))
-        XCTAssertThrowsError(try ASSWriter.serialize([], scale: 1.5))
+        XCTAssertThrowsError(try ASSWriter.serialize([], scale: 3.1))
     }
 
     func testSubtitleJobPipelineUsesInjectedProvidersAndPublishesTimedBilingualASS() async throws {
@@ -269,7 +269,7 @@ final class OtohaCoreTests: XCTestCase {
         try Data("old subtitle".utf8).write(to: existingURL)
 
         let outputURL = try await SubtitleJobPipeline.run(
-            configuration: fixture.configuration(),
+            configuration: fixture.configuration(subtitleFont: "PingFang SC", subtitleStyle: SubtitleStyle(font: "PingFang SC", color: "#FFE066", background: true)),
             cancellationFileURL: cancellationURL,
             prepareTranslation: {},
             transcribe: { TranscriptionOutput(cues: cues, sourceTimeOffset: 2) },
@@ -280,6 +280,9 @@ final class OtohaCoreTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: existingURL, encoding: .utf8), "old subtitle")
         XCTAssertTrue(SubtitleFilename.isSubtitle(outputURL, for: fixture.mediaURL))
         let content = try String(contentsOf: outputURL, encoding: .utf8)
+        XCTAssertTrue(content.contains("Style: OtohaSource,PingFang SC,38,&H5066E0FF,"))
+        XCTAssertTrue(content.contains("Style: OtohaTranslation,PingFang SC,34,&H0066E0FF,"))
+        XCTAssertTrue(content.contains(",3,3.5,0,2,"))
         XCTAssertTrue(content.contains("Dialogue: 0,0:00:02.50,0:00:03.25,OtohaSource,,0,0,0,,こんにちは"))
         XCTAssertTrue(content.contains("Dialogue: 0,0:00:02.50,0:00:03.25,OtohaTranslation,,0,0,0,,你好"))
     }
@@ -434,6 +437,8 @@ struct Fixture {
     func configuration(
         audioStreamIndex: Int = 0,
         sourceLanguage: String = "ja-JP",
+        subtitleFont: String = "Arial",
+        subtitleStyle: SubtitleStyle? = nil,
         outputDirectory: URL? = nil
     ) -> JobConfiguration {
         JobConfiguration(
@@ -442,6 +447,8 @@ struct Fixture {
             audioStreamIndex: audioStreamIndex,
             sourceLanguage: sourceLanguage,
             targetLanguage: "en-US",
+            subtitleFont: subtitleFont,
+            subtitleStyle: subtitleStyle,
             outputDirectory: outputDirectory ?? directory
         )
     }

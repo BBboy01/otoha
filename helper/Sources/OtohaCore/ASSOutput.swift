@@ -20,6 +20,8 @@ public enum ASSOutput {
         directory: URL,
         overwriteExisting: Bool = false,
         subtitleScale: Double = 1.0,
+        subtitleFont: String = "Arial",
+        subtitleStyle: SubtitleStyle? = nil,
         videoWidth: Int? = nil,
         videoHeight: Int? = nil,
         cancellationFileURL: URL? = nil
@@ -30,6 +32,8 @@ public enum ASSOutput {
             directory: directory,
             overwriteExisting: overwriteExisting,
             subtitleScale: subtitleScale,
+            subtitleFont: subtitleFont,
+            subtitleStyle: subtitleStyle,
             videoWidth: videoWidth,
             videoHeight: videoHeight
         ) {
@@ -43,19 +47,21 @@ public enum ASSOutput {
         directory: URL,
         overwriteExisting: Bool = false,
         subtitleScale: Double = 1.0,
+        subtitleFont: String = "Arial",
+        subtitleStyle: SubtitleStyle? = nil,
         videoWidth: Int? = nil,
         videoHeight: Int? = nil,
         isCancelled: () -> Bool
     ) throws -> URL {
         try checkCancellation(isCancelled)
-        let content = Data(
-            try ASSWriter.serialize(
-                cues,
-                scale: subtitleScale,
-                videoWidth: videoWidth,
-                videoHeight: videoHeight
-            ).utf8
+        let serialized = try ASSWriter.serialize(
+            cues,
+            scale: subtitleScale,
+            fontName: subtitleFont,
+            videoWidth: videoWidth,
+            videoHeight: videoHeight
         )
+        let content = Data(try (subtitleStyle?.applying(to: serialized) ?? serialized).utf8)
         let safeBaseName = SubtitleFilename.sanitizedBaseName(baseName)
         let temporaryURL = directory.appendingPathComponent(".otoha-\(UUID().uuidString).tmp")
         try writeExclusive(content, to: temporaryURL)

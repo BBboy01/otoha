@@ -21,10 +21,12 @@ public enum ASSWriter {
     public static func serialize(
         _ cues: [SubtitleCue],
         scale: Double = 1.0,
+        fontName: String = "Arial",
         videoWidth: Int? = nil,
         videoHeight: Int? = nil
     ) throws -> String {
-        guard scale.isFinite, (0.8...1.4).contains(scale) else { throw ASSError.invalidScale }
+        guard scale.isFinite, (0.5...3).contains(scale) else { throw ASSError.invalidScale }
+        try validateFontName(fontName)
         let sorted = cues.sorted { $0.start < $1.start }
         guard !sorted.isEmpty else { throw ASSError.noCues }
         let width = canvasWidth(videoWidth, videoHeight)
@@ -32,8 +34,8 @@ public enum ASSWriter {
         let availableWidth = Double(width - 2 * margin) - 10
         let sourceSize = fontSize(sourceFontSize, scale)
         let translationSize = fontSize(translationFontSize, scale)
-        var sourceLineBreaker = SubtitleLineBreaker(fontSize: sourceSize, width: availableWidth)
-        var translationLineBreaker = SubtitleLineBreaker(fontSize: translationSize, width: availableWidth)
+        var sourceLineBreaker = SubtitleLineBreaker(fontSize: sourceSize, width: availableWidth, fontName: fontName)
+        var translationLineBreaker = SubtitleLineBreaker(fontSize: translationSize, width: availableWidth, fontName: fontName)
 
         var lines = [
             "[Script Info]",
@@ -47,8 +49,8 @@ public enum ASSWriter {
             "",
             "[V4+ Styles]",
             "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-            "Style: OtohaSource,Arial,\(sourceSize),&H50FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3.5,1.5,2,\(margin),\(margin),74,1",
-            "Style: OtohaTranslation,Arial,\(translationSize),&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3.5,1.5,2,\(margin),\(margin),20,1",
+            "Style: OtohaSource,\(fontName),\(sourceSize),&H50FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3.5,1.5,2,\(margin),\(margin),74,1",
+            "Style: OtohaTranslation,\(fontName),\(translationSize),&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3.5,1.5,2,\(margin),\(margin),20,1",
             "",
             "[Events]",
             "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -71,6 +73,15 @@ public enum ASSWriter {
         }
 
         return lines.joined(separator: "\n") + "\n"
+    }
+
+    static func validateFontName(_ name: String) throws {
+        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              name.unicodeScalars.count <= 128,
+              !name.contains(","),
+              name.rangeOfCharacter(from: .controlCharacters.union(.newlines)) == nil else {
+            throw ASSError.invalidFontName
+        }
     }
 
     private static func fontSize(_ base: Double, _ scale: Double) -> Int {
@@ -126,6 +137,8 @@ public enum ASSError: Error, Equatable, LocalizedError {
     case invalidTimeRange
     case emptyText
     case invalidScale
+    case invalidFontName
+    case invalidColor
 
     public var errorDescription: String? {
         switch self {
@@ -133,6 +146,8 @@ public enum ASSError: Error, Equatable, LocalizedError {
         case .invalidTimeRange: "字幕片段的时间范围无效。"
         case .emptyText: "字幕片段缺少原文或译文。"
         case .invalidScale: "字幕字号比例无效。"
+        case .invalidFontName: "字幕字体名称无效。"
+        case .invalidColor: "字幕文字颜色无效。"
         }
     }
 }
