@@ -30,3 +30,4 @@ fi
 
 printf 'Packaged helper CLI smoke tests passed.\n'
 node "$(dirname "$0")/test-subtitle-editing.cjs" "$HELPER_BIN"
+node "$(dirname "$0")/test-subtitle-style.cjs" "$HELPER_BIN"

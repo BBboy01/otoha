@@ -12,6 +12,8 @@ public struct JobConfiguration: Codable, Sendable {
     public let sourceLanguage: String
     public let targetLanguage: String
     public let subtitleScale: Double
+    public let subtitleFont: String
+    public let subtitleStyle: SubtitleStyle?
     public let videoWidth: Int?
     public let videoHeight: Int?
     public let outputDirectory: URL
@@ -24,6 +26,8 @@ public struct JobConfiguration: Codable, Sendable {
         sourceLanguage: String,
         targetLanguage: String,
         subtitleScale: Double = 1.0,
+        subtitleFont: String = "Arial",
+        subtitleStyle: SubtitleStyle? = nil,
         videoWidth: Int? = nil,
         videoHeight: Int? = nil,
         outputDirectory: URL
@@ -35,6 +39,8 @@ public struct JobConfiguration: Codable, Sendable {
         self.sourceLanguage = sourceLanguage
         self.targetLanguage = targetLanguage
         self.subtitleScale = subtitleScale
+        self.subtitleFont = subtitleFont.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.subtitleStyle = subtitleStyle
         self.videoWidth = videoWidth
         self.videoHeight = videoHeight
         self.outputDirectory = outputDirectory
@@ -51,7 +57,9 @@ public struct JobConfiguration: Codable, Sendable {
             throw JobConfigurationError.invalidAudioStream
         }
         try Self.validateLanguages(source: sourceLanguage, target: targetLanguage)
-        guard subtitleScale.isFinite, (0.8...1.4).contains(subtitleScale) else {
+        try ASSWriter.validateFontName(subtitleFont)
+        try subtitleStyle?.validate()
+        guard subtitleScale.isFinite, (0.5...3).contains(subtitleScale) else {
             throw JobConfigurationError.invalidSubtitleScale
         }
         guard outputDirectory.isFileURL,

@@ -81,7 +81,9 @@
 | `ffmpegPath` | string | 可执行 FFmpeg 的绝对路径或 PATH 解析结果 |
 | `audioStreamIndex` | integer | FFmpeg 全局音频 stream index |
 | `sourceLanguage` / `targetLanguage` | string | 不同的 BCP-47 风格语言标识 |
-| `subtitleScale` | number | 0.8 到 1.4 |
+| `subtitleScale` | number | 0.5 到 3.0 |
+| `subtitleFont` | string | 可选，默认 Arial；1 到 128 个字符，不含逗号或控制字符，应用于 ASS 样式与换行测量 |
+| `subtitleStyle` | object | 可选，`font`、`scale`、`color`（#RRGGBB）、`background`、`dimSource`；优先用于最终 ASS 样式 |
 | `videoWidth` / `videoHeight` | integer? | IINA 当前视频尺寸，用宽高比计算 ASS 逻辑画布与可用文字宽度；缺失或无效时使用 1920×1080 基准，同一比例不因像素分辨率改变排版 |
 | `outputDirectoryPath` | string? | 空值表示 `~/Library/Application Support/Otoha/Subtitles` |
 | `cancellationFilePath` | string | 当前任务的取消标记文件 |

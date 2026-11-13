@@ -3,6 +3,24 @@ import XCTest
 @testable import OtohaCore
 
 final class ASSWriterTests: XCTestCase {
+    func testUsesSelectedFontForBothLanguages() throws {
+        let ass = try ASSWriter.serialize(
+            [SubtitleCue(start: 0, end: 1, source: "Hello", translation: "你好")],
+            fontName: "PingFang SC"
+        )
+        XCTAssertTrue(ass.contains("Style: OtohaSource,PingFang SC,38,"))
+        XCTAssertTrue(ass.contains("Style: OtohaTranslation,PingFang SC,34,"))
+    }
+
+    func testRejectsFontNamesThatCouldCorruptASS() {
+        for name in ["", "  ", "Arial,42", "Arial\nStyle: injected", "Arial\0", String(repeating: "x", count: 129)] {
+            XCTAssertThrowsError(try ASSWriter.serialize(
+                [SubtitleCue(start: 0, end: 1, source: "Hello", translation: "你好")],
+                fontName: name
+            ))
+        }
+    }
+
     func testSortsCuesAndKeepsSourceAboveTranslation() throws {
         let ass = try ASSWriter.serialize([
             SubtitleCue(start: 1.2345, end: 2, source: "Hello", translation: "你好"),
