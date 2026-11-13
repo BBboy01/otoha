@@ -1,0 +1,18 @@
+{
+  "capturedAt": "2026-11-13T06:16:15.362Z",
+  "renderer": "Installed Chrome via Playwright; packaged plugin HTML/CSS/JS with simulated IINA preference and sidebar bridges",
+  "media": "Synthetic sample.mp4 metadata; no personal media",
+  "preferencesViewport": {
+    "width": 640,
+    "height": 1000,
+    "deviceScaleFactor": 2
+  },
+  "sidebarViewports": [
+    320,
+    210
+  ],
+  "beforeCommit": "b6d894e0cb5a741a41f2c73b9636b0efb6270ec4",
+  "settingsCommit": "551a38d9b04bf25e24848b32288d8f924e3e5179",
+  "sidebarCommit": "b14f811d0344143decbacb90f56867fe6ce858c5",
+  "nativeIINAPlayback": "Not exercised by these screenshots"
+}
