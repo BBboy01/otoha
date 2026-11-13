@@ -36,3 +36,18 @@ test("unload removes only the exact cached display track", () => {
   manager.rememberLoaded("/resolved/cache.ass"); manager.unload();
   assert.deepEqual(commands, [["sub-remove", ["21"]]]);
 });
+
+test("styles bilingual playback through a cache and projects modes after restyling", async () => {
+  const writes = [];
+  const manager = createSubtitleTrackManager({
+    mpv: {}, file: {read: () => "original", write: (path, content) => writes.push({path, content})},
+    resolvePath: path => `/cache/${path.slice(6)}`, mediaPathForURL: path => path,
+    getStyle: () => ({font: "Menlo"}), renderStyle: async content => `${content}:styled`,
+    renderSubtitleMode: (content, mode) => `${content}:${mode}`,
+  });
+  assert.match(await manager.prepare("/library/sub.ass", "/video.mkv", "bilingual"), /cache/);
+  assert.equal(writes[0].content, "original:styled:bilingual");
+  assert.notEqual(writes[0].path, "/library/sub.ass");
+  await manager.prepare("/library/sub.ass", "/video.mkv", "source");
+  assert.equal(writes[1].content, "original:styled:source");
+});

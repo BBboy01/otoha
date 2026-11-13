@@ -3,6 +3,7 @@ const SETTING_SCHEMA = Object.freeze({
   output_directory: { defaultValue: "", normalize: normalizeString },
   auto_load: { defaultValue: false, normalize: normalizeBoolean },
   subtitle_scale: { defaultValue: 100, normalize: normalizeScale },
+  subtitle_font: { defaultValue: "Arial", normalize: normalizeFont },
   default_source_language: { defaultValue: "en", normalize: normalizeString },
   default_target_language: { defaultValue: "", normalize: normalizeString },
 });
@@ -15,10 +16,15 @@ function normalizeBoolean(value) {
   return [true, 1, "true"].includes(value);
 }
 
+function normalizeFont(value) {
+  const name = normalizeString(value);
+  return name && [...name].length <= 128 && !/[,\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(name) ? name : "Arial";
+}
+
 function normalizeScale(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return 100;
-  return Math.min(140, Math.max(80, numeric));
+  return Math.min(300, Math.max(50, numeric));
 }
 
 function definitionFor(key) {
