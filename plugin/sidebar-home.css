@@ -175,29 +175,6 @@ h3 {
   grid-template-columns: minmax(0, 1fr);
   gap: var(--otoha-space-label-gap);
 }
-.generation-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--otoha-space-1) var(--otoha-space-2);
-}
-.generation-meta .toggle-row {
-  font-size: var(--otoha-font-size-body);
-  font-weight: normal;
-}
-.generation-meta .toggle-row input {
-  width: var(--otoha-space-4);
-  height: var(--otoha-space-4);
-}
-.generation-meta .automation-row {
-  min-height: 0;
-}
-.generation-meta .help-trigger {
-  width: var(--otoha-space-4);
-  height: var(--otoha-space-4);
-  min-height: var(--otoha-space-4);
-}
 #language-resource-status {
   position: relative;
   border: 0;

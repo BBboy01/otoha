@@ -41,7 +41,7 @@ brew install ffmpeg
 2. 选择音轨、源语言和目标语言，点击“生成”，完成后字幕自动加载。
 3. 在“字幕”区域切换版本和显示方式，使用右侧图标进入校对或导出 SRT。
 
-开启“自动加载”后，再次打开视频会加载已有字幕。字幕默认保存在 `~/Library/Application Support/Otoha/Subtitles/`，SRT 导出到字幕库的 `Exports` 子目录。字幕库位置和字号可在 Otoha Preferences 中调整。
+在 Otoha 全局设置的“播放”中开启“自动加载”后，再次打开视频会加载已有字幕；侧栏不再提供重复开关。字幕默认保存在 `~/Library/Application Support/Otoha/Subtitles/`，SRT 导出到字幕库的 `Exports` 子目录。字幕库位置和字号可在 Otoha Preferences 中调整。
 
 在 Otoha Preferences 的“字幕样式”中可设置字体、字号、文字颜色、半透明黑底和原文弱化，并查看固定双语示例的实时预览。修改后返回播放窗口应用到当前已加载字幕，无需重新转录；校对或生成期间可在操作结束后返回播放窗口应用。已有 ASS 文件保持不变，新生成的 ASS 使用所选样式。默认 Arial，字体不可用时由播放器回退；SRT 不携带字体样式。
 

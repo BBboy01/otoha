@@ -82,101 +82,6 @@ h2 {
   gap: var(--otoha-space-2);
 }
 
-.toggle-row {
-  display: flex;
-  align-items: center;
-  gap: var(--otoha-space-row-gap);
-  margin: 0;
-  color: var(--otoha-color-text);
-  font-size: var(--otoha-font-size-label);
-  font-weight: var(--otoha-font-weight-medium);
-}
-
-.toggle-row input {
-  width: auto;
-  min-height: auto;
-  margin: 0;
-}
-
-.automation-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: var(--otoha-space-1);
-  min-height: var(--otoha-control-size-small);
-}
-
-.help-trigger {
-  display: grid;
-  place-items: center;
-  width: var(--otoha-control-size-small);
-  height: var(--otoha-control-size-small);
-  min-height: var(--otoha-control-size-small);
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: var(--otoha-radius-circle);
-  background: transparent;
-  cursor: pointer;
-}
-
-.help-icon {
-  display: grid;
-  place-items: center;
-  width: var(--otoha-icon-size-help);
-  height: var(--otoha-icon-size-help);
-  border: var(--otoha-border-width) solid var(--otoha-color-border-help);
-  border-radius: var(--otoha-radius-circle);
-  color: var(--otoha-color-text-secondary);
-  font-size: var(--otoha-font-size-micro);
-  line-height: var(--otoha-line-height-solid);
-}
-
-.help-tooltip {
-  display: none;
-  position: absolute;
-  top: calc(100% + var(--otoha-space-label-gap));
-  left: 0;
-  z-index: var(--otoha-layer-tooltip);
-  width: min(var(--otoha-tooltip-max-width), 100%);
-  padding: var(--otoha-space-2) var(--otoha-space-2-5);
-  border: var(--otoha-border-width) solid var(--otoha-color-border-strong);
-  border-radius: var(--otoha-radius-control);
-  background: var(--otoha-color-surface);
-  box-shadow: var(--otoha-shadow-tooltip);
-  color: var(--otoha-color-text);
-  font-size: var(--otoha-font-size-small);
-  line-height: var(--otoha-line-height-compact);
-}
-
-@media (hover: hover) {
-  .help-popover > .help-trigger:hover {
-    background: transparent;
-  }
-
-  .help-trigger:hover .help-icon {
-    background: var(--otoha-color-surface-control);
-  }
-
-  .help-popover:hover > .help-tooltip {
-    display: block;
-  }
-}
-
-.help-popover:focus-within > .help-tooltip {
-  display: block;
-}
-
-.help-popover:has(.help-trigger[aria-expanded="false"]):focus-within
-  > .help-tooltip {
-  display: none;
-}
-
-.help-popover:has(.help-trigger[aria-expanded="true"]) > .help-tooltip {
-  display: block;
-}
-
 #existing-subtitles h2,
 #generation-heading {
   margin-bottom: 0;
@@ -464,10 +369,6 @@ progress {
   .job-actions {
     align-self: flex-start;
   }
-}
-
-.help-trigger:focus .help-icon {
-  background: var(--otoha-color-surface-control);
 }
 
 @media (prefers-color-scheme: dark) {

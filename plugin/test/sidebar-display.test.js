@@ -19,8 +19,6 @@ const sidebarStyles = fs.readFileSync(
 function createSidebar() {
   const selectors = [
     "#audio-track",
-    "#auto-load",
-    "#auto-load-help",
     "#cancel-button",
     "#existing-subtitles",
     "#job-form",

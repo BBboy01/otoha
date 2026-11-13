@@ -9,8 +9,6 @@ function createSidebar() {
   const selectors = [
     "#edit-subtitle-button",
     "#audio-track",
-    "#auto-load",
-    "#auto-load-help",
     "#cancel-button",
     "#existing-subtitles",
     "#job-form",
