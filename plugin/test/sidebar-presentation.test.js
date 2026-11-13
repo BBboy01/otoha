@@ -30,31 +30,10 @@ test("sidebar keeps the current video summary compact and preserves its full nam
   assert.equal(sidebar.elements.get("#media-name").getAttribute("aria-label"), "A very long video title that should stay available to inspect");
 });
 
-test("sidebar uses a compact hover and click explanation for automatic loading", () => {
-  assert.match(sidebarMarkup, /<div class="help-popover">/);
-  assert.match(sidebarMarkup, /aria-label="自动加载说明"/);
-  assert.match(sidebarMarkup, /role="tooltip"/);
-  assert.match(sidebarMarkup, /<span id="automation-heading">自动加载<\/span>[\s\S]*<div class="help-popover">[\s\S]*<span class="help-icon" aria-hidden="true">\?<\/span>/);
-  assert.match(sidebarStyles, /\.automation-row \{[\s\S]*justify-content: flex-start;/);
-  assert.match(sidebarStyles, /\.help-icon \{[\s\S]*width: var\(--otoha-icon-size-help\);[\s\S]*height: var\(--otoha-icon-size-help\);/);
-  assert.match(sidebarStyles, /@media \(hover: hover\) \{[\s\S]*\.help-popover:hover > \.help-tooltip/);
-  assert.match(sidebarStyles, /\.help-popover:focus-within > \.help-tooltip/);
-  const sidebar = createSidebar();
-  const help = sidebar.elements.get("#auto-load-help");
-  help.listeners.get("click")();
-  assert.equal(help.focused, true);
-});
-
-test("sidebar exposes an explicit help state and closes it with Escape", () => {
-  assert.match(sidebarMarkup, /id="auto-load-help"[^>]*aria-expanded="false"/);
-  const sidebar = createSidebar();
-  const help = sidebar.elements.get("#auto-load-help");
-  assert.equal(help.getAttribute("aria-expanded"), "false");
-  help.listeners.get("click")({});
-  assert.equal(help.getAttribute("aria-expanded"), "true");
-  help.listeners.get("keydown")({ key: "Escape", preventDefault() {} });
-  assert.equal(help.getAttribute("aria-expanded"), "false");
-  assert.equal(help.focused, true);
+test("automatic loading is configured only in global preferences", () => {
+  const preferencesMarkup = fs.readFileSync(path.join(__dirname, "../preferences.html"), "utf8");
+  assert.doesNotMatch(sidebarMarkup, /自动加载|auto-load/);
+  assert.match(preferencesMarkup, /type="checkbox"[^>]*data-pref-key="auto_load"/);
 });
 
 test("sidebar exposes progress text and field-level language errors", () => {

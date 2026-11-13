@@ -403,11 +403,11 @@ test("cancelled and failed jobs restore keyboard focus without stealing it at st
     cancel.focus();
     update({ status: "error", message: "可重试" });
     assert.equal(ui.document.activeElement, start, delivery);
-    ui.elements.get("#auto-load-help").focus();
+    message.focus();
     update({ status: "running", phase: "transcribing" });
     assert.equal(
       ui.document.activeElement,
-      ui.elements.get("#auto-load-help"),
+      message,
       delivery,
     );
   }

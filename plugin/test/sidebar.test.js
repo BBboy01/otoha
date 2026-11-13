@@ -44,17 +44,6 @@ test("sidebar hides idle feedback instead of reserving space for instructions", 
   assert.equal(sidebar.elements.get("#subtitle-loaded").hidden, true);
 });
 
-test("sidebar reflects the automatic loading preference", () => {
-  const sidebar = createSidebar();
-  sidebar.handlers.get("state")({
-    ...videoState(),
-    autoLoad: true,
-  });
-
-  assert.equal(sidebar.elements.get("#auto-load").checked, true);
-  assert.equal(sidebar.elements.get("#auto-load").disabled, false);
-});
-
 test("sidebar shows multiple saved versions to load and keeps regeneration available", () => {
   const sidebar = createSidebar();
   sidebar.handlers.get("state")({

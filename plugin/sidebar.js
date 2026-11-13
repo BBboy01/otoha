@@ -17,8 +17,6 @@ const LANGUAGES = [
 ];
 const elements = {
   audioTrack: document.querySelector("#audio-track"),
-  autoLoad: document.querySelector("#auto-load"),
-  autoLoadHelp: document.querySelector("#auto-load-help"),
   cancel: document.querySelector("#cancel-button"),
   displayMode: document.querySelector("#display-mode"),
   displayModes: document.querySelectorAll("input[name='display-mode']"),
@@ -73,22 +71,6 @@ const progressFeedback = window.createProgressFeedback(elements, () => currentMe
 function post(name, payload) {
   iina.postMessage(name, payload);
 }
-function setHelpExpanded(expanded) {
-  elements.autoLoadHelp.setAttribute("aria-expanded", String(expanded));
-}
-setHelpExpanded(false);
-elements.autoLoadHelp.addEventListener("click", () => {
-  const expanded =
-    elements.autoLoadHelp.getAttribute("aria-expanded") === "true";
-  setHelpExpanded(!expanded);
-  elements.autoLoadHelp.focus();
-});
-elements.autoLoadHelp.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape") return;
-  event.preventDefault();
-  setHelpExpanded(false);
-  elements.autoLoadHelp.focus();
-});
 function fillLanguages(select, selected) {
   select.replaceChildren(new Option("选择语言", ""));
   for (const [identifier, label] of LANGUAGES) {
@@ -190,8 +172,6 @@ function renderState(nextState) {
     !state.media || audioTracks.length === 0 || busy;
   elements.sourceLanguage.disabled = busy;
   elements.targetLanguage.disabled = busy;
-  elements.autoLoad.checked = Boolean(state.autoLoad);
-  elements.autoLoad.disabled = busy;
   const displayMode = ["source", "translation", "bilingual"].includes(
     state.displayMode,
   )
@@ -385,9 +365,6 @@ elements.sourceLanguage.addEventListener("change", () => {
 elements.targetLanguage.addEventListener("change", () => {
   selectedTargetLanguage = elements.targetLanguage.value;
   if (state) renderState(state);
-});
-elements.autoLoad.addEventListener("change", () => {
-  post("setSetting", { key: "auto_load", value: elements.autoLoad.checked });
 });
 function setDisplayMode(mode) {
   const busy = state && (state.jobActive || state.job && ["running", "canceling", "loading"].includes(state.job.status));
