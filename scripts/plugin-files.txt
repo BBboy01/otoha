@@ -5,6 +5,9 @@ controller.js
 protocol.js
 subtitle-settings.js
 subtitle-display.js
+subtitle-style.js
+subtitle-style-runtime.js
+preferences-style.js
 iina-adapter.js
 job-controller.js
 language-preflight-client.js

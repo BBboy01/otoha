@@ -7,8 +7,13 @@ function stableHash(value) {
   return (hash >>> 0).toString(16);
 }
 
-function createSubtitleTrackManager({ mpv, file, resolvePath, mediaPathForURL, renderSubtitleMode }) {
+function createSubtitleTrackManager({ mpv, file, resolvePath, mediaPathForURL, renderSubtitleMode, getStyle = () => null, renderStyle }) {
   let activeDisplayTrackPath = null;
+  const styledCaches = new Set();
+  function deleteStyledCache(path) {
+    if (!styledCaches.delete(path)) return;
+    try { file.delete(path); } catch {}
+  }
 
   function find(filePath) {
     return (mpv.getNative("track-list") || []).find((track) => {
@@ -24,14 +29,20 @@ function createSubtitleTrackManager({ mpv, file, resolvePath, mediaPathForURL, r
   }
 
   function prepare(filePath, mediaPath, mode) {
-    if (mode === "bilingual") return filePath;
+    const style = getStyle();
+    if (mode === "bilingual" && !style) return filePath;
     const content = file.read(filePath);
-    const rendered = renderSubtitleMode(content, mode);
-    const pseudoPath = `@data/otoha-display-${stableHash(mediaPath)}-${mode}.ass`;
-    file.write(pseudoPath, rendered);
-    const resolvedPath = resolvePath(pseudoPath);
-    if (!resolvedPath) throw new Error("无法定位字幕显示缓存。");
-    return resolvedPath;
+    const cache = (value) => {
+      const rendered = renderSubtitleMode(value, mode);
+      const suffix = style ? `-${stableHash(content + JSON.stringify(style))}` : "";
+      const pseudoPath = `@data/otoha-display-${stableHash(mediaPath)}-${mode}${suffix}.ass`;
+      file.write(pseudoPath, rendered);
+      const resolvedPath = resolvePath(pseudoPath);
+      if (!resolvedPath) throw new Error("无法定位字幕显示缓存。");
+      if (style) styledCaches.add(resolvedPath);
+      return resolvedPath;
+    };
+    return style ? renderStyle(content, style).then(cache) : cache(content);
   }
 
   function rememberLoaded(filePath) {
@@ -44,10 +55,12 @@ function createSubtitleTrackManager({ mpv, file, resolvePath, mediaPathForURL, r
     if (!previousPath || previousPath === keepPath) return;
     const previousTrack = find(previousPath);
     if (previousTrack) mpv.command("sub-remove", [String(previousTrack.id)]);
+    deleteStyledCache(previousPath);
   }
 
   function reset() {
     activeDisplayTrackPath = null;
+    for (const path of styledCaches) deleteStyledCache(path);
   }
 
   function unload() {

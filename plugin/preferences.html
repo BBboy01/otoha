@@ -68,28 +68,44 @@
     </section>
     <section>
       <h2>字幕样式</h2>
+      <label for="subtitle-font">字体</label>
+      <input id="subtitle-font" type="text" list="subtitle-fonts" value="Arial" maxlength="128" autocomplete="off" spellcheck="false" disabled />
+      <datalist id="subtitle-fonts">
+        <option value="Arial"></option>
+        <option value="Helvetica"></option>
+        <option value="PingFang SC"></option>
+        <option value="PingFang TC"></option>
+        <option value="Hiragino Sans"></option>
+        <option value="Songti SC"></option>
+        <option value="Menlo"></option>
+      </datalist>
       <label for="subtitle-scale">字号</label>
       <div class="range-row">
-        <input id="subtitle-scale" type="range" min="80" max="140" step="10" value="100" data-type="int" data-pref-key="subtitle_scale" />
-        <output id="subtitle-scale-value" for="subtitle-scale">100%</output>
+        <input id="subtitle-scale" type="range" min="50" max="300" step="1" value="100" disabled />
+        <div class="scale-value">
+          <input id="subtitle-scale-value" type="number" min="50" max="300" step="1" value="100" aria-label="字号百分比" required disabled />
+          <span aria-hidden="true">%</span>
+        </div>
       </div>
-      <p>以 1920×1080 ASS 脚本坐标调整源文和译文大小，源文保持淡化显示；修改后需要重新生成字幕。</p>
+      <label for="subtitle-color">文字颜色</label>
+      <input id="subtitle-color" type="color" value="#ffffff" list="subtitle-colors" disabled />
+      <datalist id="subtitle-colors">
+        <option value="#ffffff"></option>
+        <option value="#ffe066"></option>
+        <option value="#a8e6cf"></option>
+        <option value="#a8d8ff"></option>
+      </datalist>
+      <label class="check-row"><input id="subtitle-background" type="checkbox" disabled /> 半透明黑底</label>
+      <label class="check-row"><input id="subtitle-dim-source" type="checkbox" checked disabled /> 弱化原文</label>
+      <div class="style-preview" role="img" aria-label="字幕样式预览：The world is full of small wonders. 世界充满了微小的美好。">
+        <div class="style-preview-source"><span>The world is full of small wonders.</span></div>
+        <div class="style-preview-translation"><span>世界充满了微小的美好。</span></div>
+      </div>
+      <p>固定示例预览，实际排版以播放器为准。设置保存后返回播放窗口应用，无需重新生成；原字幕文件不变。字体不可用时由播放器回退。</p>
+      <button id="subtitle-style-reset" type="button" disabled>恢复默认样式</button>
+      <p id="subtitle-style-status" role="status"></p>
     </section>
-    <script>
-      const scale = document.querySelector("#subtitle-scale");
-      const value = document.querySelector("#subtitle-scale-value");
-      const update = () => { value.value = `${scale.value}%`; value.textContent = value.value; };
-      scale.addEventListener("input", update);
-      scale.addEventListener("change", () => {
-        window.iina.preferences.set("subtitle_scale", Number(scale.value));
-        window.iina.preferences.sync();
-      });
-      update();
-      window.iina.preferences.get("subtitle_scale", (stored) => {
-        const numeric = Number(stored);
-        if (Number.isFinite(numeric)) scale.value = Math.min(140, Math.max(80, numeric));
-        update();
-      });
-    </script>
+    <script src="subtitle-style.js"></script>
+    <script src="preferences-style.js"></script>
   </body>
 </html>

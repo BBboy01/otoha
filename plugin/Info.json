@@ -20,6 +20,8 @@
     "default_source_language": "en",
     "default_target_language": "",
     "video_settings": "{}",
-    "subtitle_scale": 100
+    "subtitle_scale": 100,
+    "subtitle_font": "Arial",
+    "subtitle_style": ""
   }
 }

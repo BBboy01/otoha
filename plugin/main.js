@@ -7,7 +7,6 @@ const { createRuntimeStore } = require("./runtime-store.js");
 const { createSidebarLifecycle } = require("./sidebar-lifecycle.js");
 const { createSettingsController } = require("./settings-controller.js");
 const { readSetting } = require("./settings-schema.js");
-const { createSubtitleTrackManager } = require("./subtitle-track-manager.js");
 const { createSubtitleSettings, subtitleLanguages } = require("./subtitle-settings.js");
 const { createSubtitleExportRuntime } = require("./subtitle-export-controller.js");
 const { normalizeDisplayMode, renderSubtitleMode } = require("./subtitle-display.js");
@@ -39,7 +38,7 @@ const subtitleEditor = createSubtitleEditorController({
   },
   seek: (time) => mpv.command("seek", [String(time), "absolute"]),
 });
-const subtitleTrackManager = createSubtitleTrackManager({ mpv, file, resolvePath: (path) => utils.resolvePath(path), mediaPathForURL, renderSubtitleMode });
+const subtitleTrackManager = require("./subtitle-style-runtime.js").createStyledSubtitleTrackManager({ mpv, preferences, file, utils, event, mediaPathForURL, renderSubtitleMode, getContext: () => ({ helperPath, path: lastOutputPath, loaded: jobState().loaded, busy: Boolean(currentJob()) || subtitleEditor.isOpen() || subtitleDeletion.isOpen() }), reload: (path) => loadSubtitle(path, null, false, true) });
 let uiLoaded = false;
 let pendingFileLoadedURL = null;
 let latestFileLoadedURL = null;
@@ -343,7 +342,7 @@ async function startJob(payload = {}, mediaOverride = null) {
       audioStreamIndex: streamIndex,
       sourceLanguage,
       targetLanguage,
-      subtitleScale: readSetting(preferences, "subtitle_scale") / 100,
+      ...subtitleTrackManager.generationSettings(),
       ...iinaAdapter.videoDimensions(),
       outputDirectoryPath: readSetting(preferences, "output_directory"),
       cancellationFilePath: cancelPath,
@@ -468,7 +467,8 @@ async function loadSubtitle(filePath, mediaURLOverride = null, rememberSelection
   replaceJob({ ...jobState(), jobId: runningJob ? runningJob.id : null, status: "loading", phase: "loading", message: "正在加载字幕", path: filePath, loaded: false, errorCode: null });
   send("job", jobState());
   try {
-    loadedPath = subtitleTrackManager.prepare(filePath, mediaPath, displayMode);
+    loadedPath = await subtitleTrackManager.prepare(filePath, mediaPath, displayMode);
+    if (!isCurrentMedia()) return;
     const existing = subtitleTrackManager.find(loadedPath);
     if (forceReload && existing) mpv.command("sub-reload", [String(existing.id)]);
     else await core.subtitle.loadTrack(loadedPath);

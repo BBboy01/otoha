@@ -339,6 +339,7 @@ function createPlugin({
       if (id === "./subtitle-editor-controller.js") return require("../subtitle-editor-controller.js");
       if (id === "./runtime-store.js") return require("../runtime-store.js");
       if (id === "./subtitle-track-manager.js") return require("../subtitle-track-manager.js");
+      if (id === "./subtitle-style-runtime.js") return require("../subtitle-style-runtime.js");
       if (id === "./sidebar-lifecycle.js") return require("../sidebar-lifecycle.js");
       if (id === "./settings-controller.js") return require("../settings-controller.js");
       if (id === "./settings-schema.js") return require("../settings-schema.js");

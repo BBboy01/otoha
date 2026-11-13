@@ -1,5 +1,14 @@
 :root {
   color-scheme: light dark;
+  --otoha-subtitle-preview-scale: 1;
+  --otoha-preferences-scale-width: 100px;
+  --otoha-subtitle-preview-color: #ffffff;
+  --otoha-subtitle-preview-surface: #44494d;
+  --otoha-subtitle-preview-background: rgba(0, 0, 0, 0.5);
+  --otoha-subtitle-preview-source-opacity: 0.6863;
+  --otoha-subtitle-preview-source-size: 19px;
+  --otoha-subtitle-preview-translation-size: 17px;
+  --otoha-subtitle-preview-shadow: 0 1px 2px #000000;
 
   --otoha-space-unit: 4px;
   --otoha-space-0-5: calc(var(--otoha-space-unit) / 2);
