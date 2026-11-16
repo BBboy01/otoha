@@ -87,6 +87,9 @@ h3 {
   border-color: var(--otoha-color-accent);
   font-weight: var(--otoha-font-weight-medium);
 }
+.subtitle-row :is(select, .select-trigger):focus-visible {
+  outline-offset: calc(-1 * var(--otoha-focus-width));
+}
 .language-grid {
   margin-top: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
