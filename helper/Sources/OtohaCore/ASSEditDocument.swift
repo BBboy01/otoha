@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 public struct ASSEditText: Codable, Sendable {
     public let source: String
@@ -7,10 +8,26 @@ public struct ASSEditText: Codable, Sendable {
 }
 
 public struct ASSEditCue: Codable, Sendable {
-    public let start: Double
-    public let end: Double
-    public let source: String
-    public let translation: String
+    public var id: String
+    public var origins: [String]
+    public var start: Double
+    public var end: Double
+    public var source: String
+    public var translation: String
+    public init(id: String = "", origins: [String] = [], start: Double, end: Double, source: String, translation: String = "") {
+        self.id = id; self.origins = origins; self.start = start; self.end = end
+        self.source = source; self.translation = translation
+    }
+    private enum CodingKeys: String, CodingKey { case id, origins, start, end, source, translation }
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        origins = try values.decode([String].self, forKey: .origins)
+        start = try values.decode(Double.self, forKey: .start)
+        end = try values.decode(Double.self, forKey: .end)
+        source = try values.decode(String.self, forKey: .source)
+        translation = try values.decodeIfPresent(String.self, forKey: .translation) ?? ""
+    }
 }
 
 public struct ASSEditDocument {
@@ -19,6 +36,8 @@ public struct ASSEditDocument {
         let prefix: String
         let fields: [String]
         let textIndex: Int
+        let startIndex: Int
+        let endIndex: Int
         let text: String
         let start: Double
         let end: Double
@@ -29,9 +48,10 @@ public struct ASSEditDocument {
     }
     private let lines: [String]
     private let newline: String
-    private let pairs: [(source: Event, translation: Event)]
+    private let pairs: [(source: Event, translation: Event?)]
     private let layout: ASSEditLayout
     public let cues: [ASSEditCue]
+    public let mode: String
 
     public init(_ content: String) throws {
         newline = content.contains("\r\n") ? "\r\n" : "\n"
@@ -61,7 +81,7 @@ public struct ASSEditDocument {
             let start = try Self.time(fields[startIndex]), end = try Self.time(fields[endIndex])
             guard end > start else { throw ASSEditError.invalidDocument }
             events.append(Event(line: index, prefix: String(line[...colon]), fields: fields,
-                textIndex: format.count - 1, text: try Self.decodeText(fields[format.count - 1]),
+                textIndex: format.count - 1, startIndex: startIndex, endIndex: endIndex, text: try Self.decodeText(fields[format.count - 1]),
                 start: start, end: end, style: style,
                 left: format.firstIndex(of: "marginl").flatMap { Double(fields[$0]) },
                 right: format.firstIndex(of: "marginr").flatMap { Double(fields[$0]) }))
@@ -69,15 +89,24 @@ public struct ASSEditDocument {
         var translations: [String: [Event]] = [:]
         for event in events where event.style == "OtohaTranslation" { translations[event.key, default: []].append(event) }
         var consumed: [String: Int] = [:]
-        var paired: [(source: Event, translation: Event)] = []
+        var paired: [(source: Event, translation: Event?)] = []
+        let sourceOnly = translations.isEmpty
         for source in events where source.style == "OtohaSource" {
             let offset = consumed[source.key, default: 0]
-            guard let matches = translations[source.key], offset < matches.count else { throw ASSEditError.invalidDocument }
-            paired.append((source, matches[offset])); consumed[source.key] = offset + 1
+            if sourceOnly { paired.append((source, nil)) }
+            else {
+                guard let matches = translations[source.key], offset < matches.count else { throw ASSEditError.invalidDocument }
+                paired.append((source, matches[offset])); consumed[source.key] = offset + 1
+            }
         }
-        guard !paired.isEmpty, paired.count * 2 == events.count else { throw ASSEditError.invalidDocument }
+        guard !paired.isEmpty, paired.count * (sourceOnly ? 1 : 2) == events.count else { throw ASSEditError.invalidDocument }
         pairs = paired
-        cues = paired.map { ASSEditCue(start: $0.source.start, end: $0.source.end, source: $0.source.text, translation: $0.translation.text) }
+        mode = sourceOnly ? "source" : "bilingual"
+        let revision = SHA256.hash(data: Data(content.utf8)).map { String(format: "%02x", $0) }.joined()
+        cues = paired.enumerated().map { index, pair in
+            let id = "\(revision):\(index)"
+            return ASSEditCue(id: id, origins: [id], start: pair.source.start, end: pair.source.end, source: pair.source.text, translation: pair.translation?.text ?? "")
+        }
     }
 
     public func replacingTexts(_ texts: [ASSEditText], forceRewrap: Bool = false) throws -> String {
@@ -85,7 +114,8 @@ public struct ASSEditDocument {
         var result = lines
         var layout = layout
         for (pair, text) in zip(pairs, texts) {
-            for (event, value) in [(pair.source, text.source), (pair.translation, text.translation)] {
+            let values: [(Event, String)] = [(pair.source, text.source)] + (pair.translation.map { [($0, text.translation)] } ?? [])
+            for (event, value) in values {
                 guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                       !value.unicodeScalars.contains(where: { $0.value == 0 }) else { throw ASSEditError.invalidEdits }
                 if value == event.text && !forceRewrap { continue }
@@ -95,6 +125,63 @@ public struct ASSEditDocument {
             }
         }
         return result.joined(separator: newline)
+    }
+
+    public func replacingCues(_ edits: [ASSEditCue]) throws -> String {
+        guard !edits.isEmpty, edits.count <= 100_000, Set(edits.map(\.id)).count == edits.count else { throw ASSEditError.invalidEdits }
+        let known = Dictionary(uniqueKeysWithValues: cues.enumerated().map { ($0.element.id, $0.offset) })
+        var originUses: [String: Int] = [:]
+        for cue in edits {
+            for origin in cue.origins { originUses[origin, default: 0] += 1 }
+        }
+        var covered = Set<String>()
+        var insertions: [Int: [String]] = [:]
+        var removed = Set<Int>()
+        var layout = layout
+        for cue in edits {
+            guard !cue.id.isEmpty, cue.start.isFinite, cue.end.isFinite, cue.start >= 0,
+                  cue.end > cue.start, cue.end < 100_000_000,
+                  !cue.origins.isEmpty, Set(cue.origins).count == cue.origins.count,
+                  cue.origins.allSatisfy({ known[$0] != nil }),
+                  !cue.source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  mode == "source" || !cue.translation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !cue.source.contains("\0"), !cue.translation.contains("\0") else { throw ASSEditError.invalidEdits }
+            let indices = cue.origins.compactMap { known[$0] }.sorted()
+            guard let first = indices.first, let last = indices.last,
+                  indices == Array(first...last) else { throw ASSEditError.invalidEdits }
+            covered.formUnion(cue.origins)
+            let pair = pairs[first]
+            let anchor = min(pair.source.line, pair.translation?.line ?? pair.source.line)
+            let original = cues[first]
+            let unchanged = cue.origins.count == 1 && cue.start == original.start && cue.end == original.end && cue.source == original.source && cue.translation == original.translation && originUses[original.id] == 1
+            if unchanged { continue }
+            for index in indices {
+                removed.insert(pairs[index].source.line)
+                if let translation = pairs[index].translation { removed.insert(translation.line) }
+            }
+            let startTicks = Int64((cue.start * 100).rounded())
+            let endTicks = Int64((cue.end * 100).rounded())
+            guard endTicks > startTicks else { throw ASSEditError.invalidEdits }
+            let values = (pair.translation.map { [($0, cue.translation)] } ?? []) + [(pair.source, cue.source)]
+            for (event, text) in values {
+                var fields = event.fields
+                fields[event.startIndex] = Self.timestamp(startTicks)
+                fields[event.endIndex] = Self.timestamp(endTicks)
+                if text != event.text { fields[event.textIndex] = Self.encodeText(layout.wrapped(text, style: event.style, left: event.left, right: event.right)) }
+                insertions[anchor, default: []].append(event.prefix + fields.joined(separator: ","))
+            }
+        }
+        guard covered == Set(cues.map(\.id)) else { throw ASSEditError.invalidEdits }
+        var result: [String] = []
+        for index in lines.indices {
+            result.append(contentsOf: insertions[index] ?? [])
+            if !removed.contains(index) { result.append(lines[index]) }
+        }
+        return result.joined(separator: newline)
+    }
+
+    private static func timestamp(_ ticks: Int64) -> String {
+        String(format: "%lld:%02lld:%02lld.%02lld", ticks / 360_000, ticks / 6_000 % 60, ticks / 100 % 60, ticks % 100)
     }
 
     private static func time(_ text: String) throws -> Double {
@@ -147,8 +234,8 @@ public enum ASSEditError: Error, LocalizedError {
     }
     public var errorDescription: String? {
         switch self {
-        case .invalidDocument: "这份字幕不是可校对的 Otoha 双语 ASS，或包含不支持的格式。原文件未修改。"
-        case .invalidEdits: "每句字幕都需要原文和译文，且不能增删时间片段。"
+        case .invalidDocument: "这份字幕不是可校对的 Otoha ASS，或包含不支持的格式。原文件未修改。"
+        case .invalidEdits: "字幕片段的文本、时间或来源无效。"
         case .outsideLibrary: "只能校对当前视频字幕库中的 ASS 文件。"
         case .conflict: "字幕文件已在外部修改。请保留草稿，重新打开最新字幕后再保存。"
         case .tooLarge: "字幕文件或编辑内容过大，无法在侧栏中校对。"

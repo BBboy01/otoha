@@ -9,14 +9,14 @@ function createLanguagePreflightClient({ exec, helperPath, onUpdated }) {
   function reset() { sequence += 1; replace({ status: "idle" }); }
 
   async function check(input = {}, force = false) {
-    const { sourceLanguage, targetLanguage, mediaPath = "" } = input;
-    if (!sourceLanguage || !targetLanguage || sourceLanguage === targetLanguage) { reset(); return; }
-    const same = state.sourceLanguage === sourceLanguage && state.targetLanguage === targetLanguage && state.mediaPath === mediaPath;
+    const { sourceLanguage, targetLanguage = "", mediaPath = "", generationMode = "bilingual" } = input;
+    if (!sourceLanguage || generationMode !== "source" && (!targetLanguage || sourceLanguage === targetLanguage)) { reset(); return; }
+    const same = state.sourceLanguage === sourceLanguage && state.targetLanguage === targetLanguage && state.mediaPath === mediaPath && state.generationMode === generationMode;
     if (!force && same && state.status === "ready") return;
     if (!force && same && state.status === "checking") return pending;
     const operation = ++sequence;
-    const request = { protocolVersion: PROTOCOL_VERSION, requestId: `language-${operation}`, sourceLanguage, targetLanguage };
-    replace({ sourceLanguage, targetLanguage, mediaPath, status: "checking", message: "正在检查语言资源" });
+    const request = { protocolVersion: PROTOCOL_VERSION, requestId: `language-${operation}`, sourceLanguage, targetLanguage, generationMode };
+    replace({ ...request, mediaPath, status: "checking", message: "正在检查语言资源" });
     pending = (async () => {
       try {
         const path = helperPath();
@@ -30,9 +30,9 @@ function createLanguagePreflightClient({ exec, helperPath, onUpdated }) {
           || !RESOURCE_STATES.includes(value.speech) || !RESOURCE_STATES.includes(value.translation)) {
           throw new Error("语言检查返回无效结果，请重试。");
         }
-        const errorCode = value.speech === "unsupported" ? "speech.unsupportedLanguage"
-          : value.translation === "unsupported" ? "translation.unsupportedLanguage"
-          : value.translation !== "installed" ? "translation.resourcesMissing" : null;
+        const errorCode = generationMode !== "translate" && value.speech === "unsupported" ? "speech.unsupportedLanguage"
+          : generationMode !== "source" && value.translation === "unsupported" ? "translation.unsupportedLanguage"
+          : generationMode !== "source" && value.translation !== "installed" ? "translation.resourcesMissing" : null;
         const messages = {
           "speech.unsupportedLanguage": "所选源语言不支持转录，请选择其他语言。",
           "translation.unsupportedLanguage": "所选翻译语言对不可用，请选择其他语言。",

@@ -162,7 +162,15 @@ node --test plugin/test/subtitle-editor-controller.test.js plugin/test/subtitle-
 
 实际 IINA 验收使用合成视频及自编的 canonical ASS：逐句修改中日文/长文本/显式换行，切换片段，取消并核对文件未改，保存并分别检查原文/译文/双语轨道只刷新一次，再模拟目录无写权限与外部编辑冲突。用键盘与 VoiceOver 检查对话框焦点、时间范围、片段定位和未保存确认。浏览器页面验证可覆盖布局和交互，但不代表 IINA WebKit、mpv 字幕渲染或 VoiceOver 已通过。
 
-侧栏未保存草稿不持久化，IINA 强制退出或插件 reload 可能丢失草稿；页面 `beforeunload` 只是补充保护，可靠的确认发生在侧栏内的关闭操作。保存中的退出被禁止，保存错误不清空输入。不要将 IINA 单语言显示缓存当作 canonical ASS 编辑。
+侧栏输入停止约一秒后持久化草稿，保存编辑位置；强制退出可能丢失尚未落盘的最后一次输入。重开时明确恢复或丢弃，revision 冲突保留旧草稿并禁止覆盖。每次正式保存/恢复前保留备份，每字幕最多 20 个；删除字幕同时清理对应状态。页面 `beforeunload` 只是补充保护，可靠的确认发生在侧栏内的关闭操作。保存中的退出被禁止，保存错误不清空输入。不要将 IINA 单语言显示缓存当作 canonical ASS 编辑。
+
+### 字幕增强（#43–#49）
+
+生成支持双语、仅原文以及导入 SRT/所选 ASS 重翻译；仅原文不检查 Translation，字幕翻译不检查 Speech 或提取音轨。已完成转录按媒体摘要、音轨和源语言复用，可勾选重新识别。重翻译另存编号版本。单语 ASS 可校对并导出原文 SRT。
+
+校对工具提供普通文本搜索、当前/全部替换、撤销、当前句循环、时间调整、相邻合并和分别指定文字位置的拆分。字幕关联从当前库中选择旧视频字幕并复制，保留原件。低频全局路径仍在 Preferences。
+
+`make smoke-package-helper` 包含 `scripts/test-subtitle-workflows.cjs`，对打包后的真实 helper 验证单语读写、草稿跨进程读取、拆分保存、备份恢复、关联独立复制、导出和删除清理。`bash scripts/test-subtitle-import-picker.sh` 编译验证文件选择合同。真实文件选择取消、Speech/Translation、IINA 加载、循环播放和 WebKit 交互仍须独立记录；浏览器 bridge stub 只证明页面渲染和消息，不证明播放器执行。
 
 CI 和单元测试验证插件状态与协议、Swift 字幕流水线、包资源完整性和发布归档。它们不能代替以下需要 macOS 与 IINA 的人工检查：
 

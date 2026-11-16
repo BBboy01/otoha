@@ -12,6 +12,18 @@ test("numbered generated subtitles retain their language pair", () => {
   });
 });
 
+test("source-only subtitles retain their language and selection across restart", () => {
+  const path = "/library/episode [ja] (2).ass";
+  assert.deepEqual(subtitleLanguages(path), { sourceLanguage: "ja", targetLanguage: "", mode: "source" });
+  const preferences = createPreferences();
+  const settings = createSubtitleSettings(preferences);
+  settings.rememberGeneration(mediaPath, { sourceLanguage: "ja", targetLanguage: "" }, path);
+  const restarted = createSubtitleSettings(preferences);
+  const files = [englishSubtitle, { path }];
+  assert.equal(restarted.selectedSubtitle(mediaPath, files).path, path);
+  assert.deepEqual(restarted.languages(mediaPath, ["en-US"]), { sourceLanguage: "ja", targetLanguage: "" });
+});
+
 function createPreferences(values = {}) {
   return {
     values,

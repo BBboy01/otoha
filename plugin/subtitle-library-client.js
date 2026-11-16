@@ -85,7 +85,7 @@ function createSubtitleLibraryClient({
         const files = Array.isArray(listing.files)
           ? listing.files
             .filter((item) => item && typeof item.path === "string" && item.path.startsWith("/") && item.path.toLowerCase().endsWith(".ass"))
-            .map((item) => ({ ...item, ...subtitleLanguages(item.path) }))
+            .map((item) => ({ ...subtitleLanguages(item.path), ...item }))
           : [];
         const currentMediaPath = mediaPathForURL(mediaURLOverride);
         if (currentMediaPath && currentMediaPath !== media.path) return;

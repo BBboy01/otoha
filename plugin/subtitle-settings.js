@@ -4,6 +4,7 @@ function languagePair(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const sourceLanguage = typeof value.sourceLanguage === "string" ? defaultLanguage(value.sourceLanguage) : "";
   const targetLanguage = typeof value.targetLanguage === "string" ? defaultLanguage(value.targetLanguage) : "";
+  if (sourceLanguage && value.targetLanguage === "") return { sourceLanguage, targetLanguage: "" };
   return sourceLanguage && targetLanguage && sourceLanguage !== targetLanguage
     ? { sourceLanguage, targetLanguage }
     : {};
@@ -12,7 +13,10 @@ function languagePair(value) {
 function subtitleLanguages(filePath) {
   if (typeof filePath !== "string") return {};
   const match = filePath.split("/").pop().match(/ \[([^[\]]+) to ([^[\]]+)\](?: \((?:[2-9]\d*|1\d+)\))?\.ass$/i);
-  return match ? languagePair({ sourceLanguage: match[1], targetLanguage: match[2] }) : {};
+  if (match) return languagePair({ sourceLanguage: match[1], targetLanguage: match[2] });
+  const single = filePath.split("/").pop().match(/ \[([a-z]+(?:-[a-z0-9]+)*)\](?: \((?:[2-9]\d*|1\d+)\))?\.ass$/i);
+  const sourceLanguage = single && defaultLanguage(single[1]);
+  return sourceLanguage ? { sourceLanguage, targetLanguage: "", mode: "source" } : {};
 }
 
 function absolutePath(value) {
@@ -53,7 +57,7 @@ function createSubtitleSettings(preferences) {
       if (saved.sourceLanguage) return saved;
       for (const file of Array.isArray(files) ? files : []) {
         const restored = subtitleLanguages(file && file.path);
-        if (restored.sourceLanguage) return restored;
+        if (restored.sourceLanguage) return languagePair(restored);
       }
       return {
         sourceLanguage: defaultLanguage(preferences.get("default_source_language")) || "en",

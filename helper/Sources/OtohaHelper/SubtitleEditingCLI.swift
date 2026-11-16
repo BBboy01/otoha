@@ -14,6 +14,10 @@ enum SubtitleEditingCLI {
         let outputDirectoryPath: String?
         let revision: String?
         let texts: [ASSEditText]?
+        let cues: [ASSEditCue]?
+        let action: String?
+        let draft: SubtitleDraft?
+        let backupID: String?
 
         func validate() throws {
             guard protocolVersion == HelperProtocol.version, !requestId.isEmpty,
@@ -78,9 +82,20 @@ enum SubtitleEditingCLI {
             let root = SubtitleLibrary.rootDirectory(configuredPath: request.outputDirectoryPath)
             let snapshot: ASSEditSnapshot
             if saveIndex != nil {
-                guard let revision = request.revision, let texts = request.texts else { throw ASSEditError.invalidEdits }
-                snapshot = try ASSEditStore.save(mediaURL: media, rootDirectory: root, subtitleURL: subtitle,
-                                                 revision: revision, texts: texts)
+                if request.action == "draft" || request.action == "discardDraft" {
+                    try ASSEditStore.persistDraft(mediaURL: media, rootDirectory: root, subtitleURL: subtitle, draft: request.action == "discardDraft" ? nil : request.draft)
+                    snapshot = try ASSEditStore.read(mediaURL: media, rootDirectory: root, subtitleURL: subtitle)
+                } else if request.action == "restore" {
+                    guard let revision = request.revision, let backupID = request.backupID else { throw ASSEditError.invalidEdits }
+                    snapshot = try ASSEditStore.restore(mediaURL: media, rootDirectory: root, subtitleURL: subtitle, revision: revision, backupID: backupID)
+                } else {
+                    guard let revision = request.revision else { throw ASSEditError.invalidEdits }
+                    if let cues = request.cues {
+                        snapshot = try ASSEditStore.save(mediaURL: media, rootDirectory: root, subtitleURL: subtitle, revision: revision, cues: cues)
+                    } else if let texts = request.texts {
+                        snapshot = try ASSEditStore.save(mediaURL: media, rootDirectory: root, subtitleURL: subtitle, revision: revision, texts: texts)
+                    } else { throw ASSEditError.invalidEdits }
+                }
             } else {
                 snapshot = try ASSEditStore.read(mediaURL: media, rootDirectory: root, subtitleURL: subtitle)
             }

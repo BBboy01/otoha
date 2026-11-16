@@ -26,6 +26,10 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
         }
         let launchMode = HelperLaunchMode(arguments: CommandLine.arguments)
         NSApp.setActivationPolicy(launchMode == .debugUI ? .accessory : .prohibited)
+        if SubtitleImportPickerCLI.run(arguments: CommandLine.arguments) {
+            NSApp.terminate(nil)
+            return
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--check-languages-json"),
            CommandLine.arguments.indices.contains(index + 1) {
             let json = CommandLine.arguments[index + 1]
@@ -62,6 +66,10 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
             NSApp.terminate(nil)
             return
         }
+        if SubtitleAssociationCLI.run(arguments: CommandLine.arguments) {
+            NSApp.terminate(nil)
+            return
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--list-subtitles-json"),
            CommandLine.arguments.indices.contains(index + 1) {
             Self.listSubtitles(json: CommandLine.arguments[index + 1])
@@ -93,6 +101,10 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
             }
             guard #available(macOS 26.4, *) else {
                 model.reportUnsupportedSystemVersion()
+                return
+            }
+            if model.request?.generationMode == .source {
+                await model.run(using: nil)
                 return
             }
             guard let source = model.sourceLanguage, let target = model.targetLanguage else {
@@ -131,7 +143,7 @@ private final class HelperAppDelegate: NSObject, NSApplicationDelegate {
                 for: request.mediaURL,
                 rootDirectory: request.rootDirectory
             )
-                .map { SubtitleListingResponse.Entry(path: $0.path) }
+                .map { SubtitleListingResponse.Entry(path: $0.path, mode: SubtitleLibrary.mode(of: $0)) }
             let response = SubtitleListingResponse(rootDirectoryPath: request.rootDirectory.path, files: files)
             var data = try JSONEncoder().encode(response)
             data.append(0x0A)
@@ -218,12 +230,16 @@ private struct OtohaHelperView: View {
             if model.request == nil {
                 content
             } else if #available(macOS 26.4, *) {
-                content.translationTask(
-                    source: model.sourceLanguage,
-                    target: model.targetLanguage,
-                    preferredStrategy: .highFidelity
-                ) { session in
-                    await model.run(using: session)
+                if model.request?.generationMode == .source {
+                    content.task { await model.run(using: nil) }
+                } else {
+                    content.translationTask(
+                        source: model.sourceLanguage,
+                        target: model.targetLanguage,
+                        preferredStrategy: .highFidelity
+                    ) { session in
+                        await model.run(using: session)
+                    }
                 }
             } else {
                 content.task { model.reportUnsupportedSystemVersion() }

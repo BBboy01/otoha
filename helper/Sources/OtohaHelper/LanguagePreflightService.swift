@@ -8,18 +8,23 @@ enum LanguagePreflightService {
     static func check(_ request: LanguagePreflightRequest) async throws -> LanguagePreflightResult {
         try request.validate()
         try Task.checkCancellation()
-        let speech = await SpeechTranscriptionService.languageAvailability(sourceLanguage: request.sourceLanguage)
+        let speech = request.generationMode.requiresSpeech
+            ? await SpeechTranscriptionService.languageAvailability(sourceLanguage: request.sourceLanguage) : .installed
         try Task.checkCancellation()
         let availability = LanguageAvailability(preferredStrategy: .highFidelity)
         let translation: LanguageResourceStatus
-        switch await availability.status(
-            from: Locale.Language(identifier: request.sourceLanguage),
-            to: Locale.Language(identifier: request.targetLanguage)
-        ) {
-        case .installed: translation = .installed
-        case .supported: translation = .supported
-        case .unsupported: translation = .unsupported
-        @unknown default: translation = .unsupported
+        if !request.generationMode.requiresTranslation {
+            translation = .installed
+        } else {
+            switch await availability.status(
+                from: Locale.Language(identifier: request.sourceLanguage),
+                to: Locale.Language(identifier: request.targetLanguage)
+            ) {
+            case .installed: translation = .installed
+            case .supported: translation = .supported
+            case .unsupported: translation = .unsupported
+            @unknown default: translation = .unsupported
+            }
         }
         try Task.checkCancellation()
         return LanguagePreflightResult(requestId: request.requestId,

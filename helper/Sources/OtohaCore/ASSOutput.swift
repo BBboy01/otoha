@@ -24,7 +24,8 @@ public enum ASSOutput {
         subtitleStyle: SubtitleStyle? = nil,
         videoWidth: Int? = nil,
         videoHeight: Int? = nil,
-        cancellationFileURL: URL? = nil
+        cancellationFileURL: URL? = nil,
+        sourceOnly: Bool = false
     ) throws -> URL {
         try publish(
             cues,
@@ -35,7 +36,8 @@ public enum ASSOutput {
             subtitleFont: subtitleFont,
             subtitleStyle: subtitleStyle,
             videoWidth: videoWidth,
-            videoHeight: videoHeight
+            videoHeight: videoHeight,
+            sourceOnly: sourceOnly
         ) {
             cancellationFileURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
         }
@@ -51,6 +53,7 @@ public enum ASSOutput {
         subtitleStyle: SubtitleStyle? = nil,
         videoWidth: Int? = nil,
         videoHeight: Int? = nil,
+        sourceOnly: Bool = false,
         isCancelled: () -> Bool
     ) throws -> URL {
         try checkCancellation(isCancelled)
@@ -59,7 +62,8 @@ public enum ASSOutput {
             scale: subtitleScale,
             fontName: subtitleFont,
             videoWidth: videoWidth,
-            videoHeight: videoHeight
+            videoHeight: videoHeight,
+            sourceOnly: sourceOnly
         )
         let content = Data(try (subtitleStyle?.applying(to: serialized) ?? serialized).utf8)
         let safeBaseName = SubtitleFilename.sanitizedBaseName(baseName)

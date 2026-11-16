@@ -21,6 +21,31 @@ final class ASSWriterTests: XCTestCase {
         }
     }
 
+    func testRejectsTimestampsOutsideRepresentableTickRange() {
+        let boundary = Double(Int64.max) / 100
+        for (start, end) in [(0, boundary), (0, Double.greatestFiniteMagnitude), (boundary, boundary + 32)] {
+            XCTAssertThrowsError(try ASSWriter.serialize([
+                SubtitleCue(start: start, end: end, source: "Hello", translation: "你好"),
+            ])) { error in
+                XCTAssertEqual(error as? ASSError, .invalidTimeRange)
+            }
+        }
+    }
+
+    func testRejectsOverflowingTimestampsFromParsedASS() throws {
+        let original = try serialize(source: "Hello", translation: "你好")
+        let imported = original
+            .replacingOccurrences(of: "0:00:00.00", with: "99999999999999:00:00.00")
+            .replacingOccurrences(of: "0:00:01.00", with: "100000000000000:00:00.00")
+        let cues = try ASSEditDocument(imported).cues.map {
+            SubtitleCue(start: $0.start, end: $0.end, source: $0.source, translation: $0.translation)
+        }
+
+        XCTAssertThrowsError(try ASSWriter.serialize(cues)) { error in
+            XCTAssertEqual(error as? ASSError, .invalidTimeRange)
+        }
+    }
+
     func testSortsCuesAndKeepsSourceAboveTranslation() throws {
         let ass = try ASSWriter.serialize([
             SubtitleCue(start: 1.2345, end: 2, source: "Hello", translation: "你好"),

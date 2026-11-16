@@ -29,6 +29,9 @@ public enum SRTExporter {
 
     public static func export(_ ass: String, mode: SRTExportMode) throws -> String {
         let dialogues = try parseDialogues(ass)
+        let sourceOnly = dialogues.contains { $0.style.caseInsensitiveCompare("OtohaSource") == .orderedSame }
+            && !dialogues.contains { $0.style.caseInsensitiveCompare("OtohaTranslation") == .orderedSame }
+        if sourceOnly, mode != .source { throw SRTExportError.noUsableCues }
         var grouped: [CueKey: (source: [Dialogue], translation: [Dialogue])] = [:]
 
         for dialogue in dialogues {
@@ -43,6 +46,13 @@ public enum SRTExporter {
         guard !grouped.isEmpty else { throw SRTExportError.noSupportedCues }
         var cues = [Cue]()
         for (key, pair) in grouped {
+            if sourceOnly {
+                guard pair.translation.isEmpty else { throw SRTExportError.unmatchedCue }
+                for source in pair.source {
+                    cues.append(Cue(start: key.start, end: key.end, source: source.text, translation: "", order: source.order))
+                }
+                continue
+            }
             guard pair.source.count == pair.translation.count else { throw SRTExportError.unmatchedCue }
             for (source, translation) in zip(pair.source, pair.translation) {
                 cues.append(Cue(
