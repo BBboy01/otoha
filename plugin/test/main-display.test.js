@@ -48,6 +48,20 @@ test("main projects the canonical ASS for a selected display mode and selects th
   assert.equal(plugin.preferenceValues.video_settings.includes('"displayMode":"source"'), true);
 });
 
+test("main keeps both languages when bilingual content has a source-only filename", async () => {
+  const subtitlePath = "/Users/test/Anime episode [en].ass";
+  const plugin = await openPlugin({
+    existingSubtitles: [subtitlePath],
+    subtitleContents: { [subtitlePath]: canonicalContent },
+  });
+
+  await plugin.sidebarHandlers.get("setDisplayMode")("bilingual");
+  await tick();
+
+  assert.equal(plugin.loadedTracks.at(-1), subtitlePath);
+  assert.equal(plugin.messages.findLast((message) => message.name === "job").payload.displayMode, "bilingual");
+});
+
 test("main ignores a display mode load that finishes after switching videos", async () => {
   const plugin = await openPlugin();
   const load = plugin.sidebarHandlers.get("setDisplayMode")("source");

@@ -4,6 +4,12 @@ public enum TranscriptionBackend: String, Codable, Sendable {
     case apple
 }
 
+public enum GenerationMode: String, Codable, Sendable {
+    case bilingual, source, translate
+    public var requiresSpeech: Bool { self != .translate }
+    public var requiresTranslation: Bool { self != .source }
+}
+
 public struct JobConfiguration: Codable, Sendable {
     public let backend: TranscriptionBackend
     public let mediaURL: URL
@@ -17,6 +23,9 @@ public struct JobConfiguration: Codable, Sendable {
     public let videoWidth: Int?
     public let videoHeight: Int?
     public let outputDirectory: URL
+    public let generationMode: GenerationMode
+    public let forceTranscription: Bool
+    public let inputSubtitleURL: URL?
 
     public init(
         backend: TranscriptionBackend = .apple,
@@ -30,7 +39,10 @@ public struct JobConfiguration: Codable, Sendable {
         subtitleStyle: SubtitleStyle? = nil,
         videoWidth: Int? = nil,
         videoHeight: Int? = nil,
-        outputDirectory: URL
+        outputDirectory: URL,
+        generationMode: GenerationMode = .bilingual,
+        forceTranscription: Bool = false,
+        inputSubtitleURL: URL? = nil
     ) {
         self.backend = backend
         self.mediaURL = mediaURL
@@ -44,19 +56,28 @@ public struct JobConfiguration: Codable, Sendable {
         self.videoWidth = videoWidth
         self.videoHeight = videoHeight
         self.outputDirectory = outputDirectory
+        self.generationMode = generationMode
+        self.forceTranscription = forceTranscription
+        self.inputSubtitleURL = inputSubtitleURL
     }
 
     public func validate(fileManager: FileManager = .default, environment: [String: String] = ProcessInfo.processInfo.environment) throws {
         guard mediaURL.isFileURL, fileManager.isReadableFile(atPath: mediaURL.path) else {
             throw JobConfigurationError.mediaNotReadable
         }
-        guard FFmpegLocator.resolve(configuredPath: ffmpegPath, environment: environment, fileManager: fileManager) != nil else {
-            throw JobConfigurationError.ffmpegNotExecutable
+        if generationMode.requiresSpeech {
+            guard FFmpegLocator.resolve(configuredPath: ffmpegPath, environment: environment, fileManager: fileManager) != nil else {
+                throw JobConfigurationError.ffmpegNotExecutable
+            }
+            guard audioStreamIndex >= 0 else {
+                throw JobConfigurationError.invalidAudioStream
+            }
         }
-        guard audioStreamIndex >= 0 else {
-            throw JobConfigurationError.invalidAudioStream
+        if generationMode == .translate {
+            guard let inputSubtitleURL, inputSubtitleURL.isFileURL,
+                  fileManager.isReadableFile(atPath: inputSubtitleURL.path) else { throw JobConfigurationError.mediaNotReadable }
         }
-        try Self.validateLanguages(source: sourceLanguage, target: targetLanguage)
+        try Self.validateLanguages(source: sourceLanguage, target: targetLanguage, mode: generationMode)
         try ASSWriter.validateFontName(subtitleFont)
         try subtitleStyle?.validate()
         guard subtitleScale.isFinite, (0.5...3).contains(subtitleScale) else {
@@ -85,7 +106,11 @@ public struct JobConfiguration: Codable, Sendable {
         }
     }
 
-    public static func validateLanguages(source: String, target: String) throws {
+    public static func validateLanguages(source: String, target: String, mode: GenerationMode = .bilingual) throws {
+        if mode == .source {
+            guard isLanguageIdentifier(source) else { throw JobConfigurationError.invalidLanguages }
+            return
+        }
         guard isLanguageIdentifier(source), isLanguageIdentifier(target),
               source.lowercased() != target.lowercased() else {
             throw JobConfigurationError.invalidLanguages

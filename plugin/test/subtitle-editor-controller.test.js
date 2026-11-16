@@ -30,7 +30,7 @@ function fixture() {
         writes.push({ path, content });
         temporaryFiles.set(path.replace("@tmp", "/tmp"), content);
       },
-      read: path => temporaryFiles.get(path.replace("@tmp", "/tmp")),
+      read: (path) => temporaryFiles.get(path.replace("@tmp", "/tmp")),
       delete(path) {
         deleted.push(path);
       },
@@ -40,35 +40,41 @@ function fixture() {
       async exec(file, args) {
         calls.push({ file, args });
         const request = JSON.parse(
-          args[0] === "--read-subtitle-json" ? args[1] : temporaryFiles.get(args[1]),
+          args[0] === "--read-subtitle-json"
+            ? args[1]
+            : temporaryFiles.get(args[1]),
         );
         if (delayed)
           await new Promise((resolve) => {
             release = resolve;
           });
         const response = JSON.stringify({
-            protocolVersion: 1,
-            requestId: request.requestId,
-            ...(failSave && args[0] === "--save-subtitle-file"
-              ? { code: "subtitle.editConflict", message: "changed externally" }
-              : {
-                  snapshot: {
-                    path: request.subtitlePath,
-                    revision: "a".repeat(64),
-                    cues: [
-                      {
-                        start: 1,
-                        end: 2,
-                        source: request.texts?.[0].source || "Source",
-                        translation: "译文",
-                      },
-                    ],
-                  },
-                }),
-          });
+          protocolVersion: 1,
+          requestId: request.requestId,
+          ...(failSave && args[0] === "--save-subtitle-file"
+            ? { code: "subtitle.editConflict", message: "changed externally" }
+            : {
+                snapshot: {
+                  path: request.subtitlePath,
+                  revision: "a".repeat(64),
+                  cues: [
+                    {
+                      start: 1,
+                      end: 2,
+                      source: request.texts?.[0].source || "Source",
+                      translation: "译文",
+                    },
+                  ],
+                },
+              }),
+        });
         const destination = args.indexOf("--subtitle-response-file");
-        if (destination >= 0) temporaryFiles.set(args[destination + 1], response);
-        return { status: 0, stdout: brokenStdout ? response.slice(0, 20) : response };
+        if (destination >= 0)
+          temporaryFiles.set(args[destination + 1], response);
+        return {
+          status: 0,
+          stdout: brokenStdout ? response.slice(0, 20) : response,
+        };
       },
     },
     send: (value) => messages.push(value),
@@ -83,7 +89,9 @@ function fixture() {
     writes,
     deleted,
     reloads,
-    truncateStdout() { brokenStdout = true; },
+    truncateStdout() {
+      brokenStdout = true;
+    },
     failSave() {
       failSave = true;
     },
@@ -104,7 +112,10 @@ test("editor saves canonical text through a temporary request file and reloads o
     sessionId,
     texts: [{ source: "Edited\nCJK 日本語", translation: "修正" }],
   });
-  assert.equal(f.writes.filter(item => !item.path.includes("response")).length, 1);
+  assert.equal(
+    f.writes.filter((item) => !item.path.includes("response")).length,
+    1,
+  );
   assert.equal(f.calls[1].args[0], "--save-subtitle-file");
   assert.equal(f.calls[1].args.length, 4);
   assert.equal(f.deleted.length, 3);
@@ -117,7 +128,10 @@ test("editor reads and saves a complete snapshot even if the host truncates stdo
   f.truncateStdout();
   await f.controller.open("/library/video.ass");
   assert.equal(f.messages.at(-1).status, "ready");
-  await f.controller.save({ sessionId: f.messages.at(-1).sessionId, texts: [{ source: "日本語", translation: "修正" }] });
+  await f.controller.save({
+    sessionId: f.messages.at(-1).sessionId,
+    texts: [{ source: "日本語", translation: "修正" }],
+  });
   assert.equal(f.messages.at(-1).status, "saved");
   assert.equal(f.messages.at(-1).snapshot.cues[0].source, "日本語");
   assert.equal(f.deleted.length, 3);
@@ -132,7 +146,10 @@ test("closing without saving never writes subtitles and stale read cannot reopen
   await opening;
   assert.equal(f.controller.isOpen(), false);
   assert.equal(f.messages.at(-1).status, "closed");
-  assert.equal(f.writes.filter(item => !item.path.includes("response")).length, 0);
+  assert.equal(
+    f.writes.filter((item) => !item.path.includes("response")).length,
+    0,
+  );
   assert.equal(f.reloads.length, 0);
 });
 
@@ -153,7 +170,10 @@ test("conflict preserves the editable snapshot and media switch prevents saving 
     sessionId,
     texts: [{ source: "Edited", translation: "修正" }],
   });
-  assert.equal(f.writes.filter(item => !item.path.includes("response")).length, 1);
+  assert.equal(
+    f.writes.filter((item) => !item.path.includes("response")).length,
+    1,
+  );
   assert.equal(f.messages.at(-1).errorCode, "subtitle.editOutsideLibrary");
 });
 

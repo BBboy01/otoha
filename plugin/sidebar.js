@@ -57,6 +57,7 @@ let state = null;
 let selectedTrackId = null;
 let selectedSourceLanguage = "";
 let selectedTargetLanguage = "";
+let generationMode = "bilingual";
 let selectedSubtitlePath = "";
 let currentMediaPath = "";
 let lastPlayerTrackId;
@@ -68,6 +69,10 @@ let lastPreflightKey = "";
 let exporting = false;
 let lastExportedPath = "";
 const progressFeedback = window.createProgressFeedback(elements, () => currentMediaPath, (jobId) => post("progressReady", { jobId }));
+const generationControls = window.createGenerationControls?.({
+  post, getSelection: () => ({ subtitlePath: selectedSubtitlePath, sourceLanguage: selectedSourceLanguage, targetLanguage: selectedTargetLanguage }),
+  onModeChanged: (mode) => { generationMode = mode; if (state) renderState(state); },
+});
 function post(name, payload) {
   iina.postMessage(name, payload);
 }
@@ -86,13 +91,13 @@ function trackLabel(track) {
 
 function updateLanguageErrors() {
   const sameLanguage =
-    selectedSourceLanguage && selectedSourceLanguage === selectedTargetLanguage;
+    generationMode !== "source" && selectedSourceLanguage && selectedSourceLanguage === selectedTargetLanguage;
   const sourceMessage = !selectedSourceLanguage
     ? "请选择源语言。"
     : sameLanguage
       ? "源语言和目标语言不能相同。"
       : "";
-  const targetMessage = !selectedTargetLanguage
+  const targetMessage = generationMode === "source" ? "" : !selectedTargetLanguage
     ? "请选择目标语言。"
     : sameLanguage
       ? "请选择不同的转录语言和翻译语言。"
@@ -113,6 +118,7 @@ function updateLanguageErrors() {
 function renderState(nextState) {
   const focused = document.activeElement;
   window.subtitleEditorUI?.onState(nextState);
+  window.subtitleAssociationUI?.onState(nextState);
   const previousMediaPath = currentMediaPath;
   state = nextState;
   currentMediaPath = state.media ? state.media.path : "";
@@ -164,24 +170,15 @@ function renderState(nextState) {
   fillLanguages(elements.sourceLanguage, selectedSourceLanguage);
   fillLanguages(elements.targetLanguage, selectedTargetLanguage);
 
-  const busy = state.jobActive || state.job && ["running", "canceling", "loading"].includes(state.job.status);
+  const busy = state.jobActive || state.editorOpen || state.associationOpen || state.importOpen || state.job && ["running", "canceling", "loading"].includes(state.job.status);
   const checkingSubtitles = Boolean(
     state.media && state.subtitleLibraryLoading,
   );
   elements.audioTrack.disabled =
     !state.media || audioTracks.length === 0 || busy;
   elements.sourceLanguage.disabled = busy;
-  elements.targetLanguage.disabled = busy;
-  const displayMode = ["source", "translation", "bilingual"].includes(
-    state.displayMode,
-  )
-    ? state.displayMode
-    : "bilingual";
-  for (const radio of elements.displayModes) {
-    radio.checked = radio.value === displayMode;
-    radio.disabled = !state.media || busy;
-  }
-  elements.displayMode?.setAttribute?.("data-selected", displayMode);
+  elements.targetLanguage.disabled = busy || generationMode === "source";
+  elements.targetLanguage.required = generationMode !== "source";
   const subtitles = Array.isArray(state.availableSubtitles)
     ? state.availableSubtitles.filter(subtitle =>
       !subtitle.sourceLanguage || !subtitle.targetLanguage ||
@@ -214,6 +211,13 @@ function renderState(nextState) {
     selectedSubtitlePath = subtitles.length ? subtitles[0].path : "";
   }
   elements.subtitleChoice.value = selectedSubtitlePath;
+  const sourceOnly = subtitles.find(subtitle => subtitle.path === selectedSubtitlePath)?.mode === "source";
+  const displayMode = sourceOnly ? "source" : state.displayMode || "bilingual";
+  for (const radio of elements.displayModes) {
+    radio.checked = radio.value === displayMode;
+    radio.disabled = !state.media || busy || sourceOnly && radio.value !== "source";
+  }
+  elements.displayMode?.setAttribute?.("data-selected", displayMode);
   if (elements.subtitleVersion) {
     const selectedSubtitle = subtitles.find((subtitle) => subtitle.path === selectedSubtitlePath);
     const subtitleVersion = window.sidebarWorkflow?.subtitleVersion(selectedSubtitle) || "";
@@ -221,7 +225,10 @@ function renderState(nextState) {
     elements.subtitleVersion.hidden = !subtitleVersion;
   }
   elements.subtitleChoice.disabled = subtitles.length === 0 || busy;
-  for (const radio of elements.exportModes) radio.disabled = subtitles.length === 0 || busy || exporting;
+  for (const radio of elements.exportModes) {
+    radio.disabled = subtitles.length === 0 || busy || exporting || sourceOnly && radio.value !== "source";
+    if (sourceOnly) radio.checked = radio.value === "source";
+  }
   elements.exportButton.disabled = !state.media || subtitles.length === 0 || busy || checkingSubtitles || exporting;
   elements.reveal.setAttribute(
     "aria-label",
@@ -249,17 +256,18 @@ function restoreJobFocus(focused) {
 }
 function updateGeneration() {
   if (!state) return;
-  const busy = state.jobActive || state.job && ["running", "canceling", "loading"].includes(state.job.status);
+  const busy = state.jobActive || state.editorOpen || state.associationOpen || state.importOpen || state.job && ["running", "canceling", "loading"].includes(state.job.status);
+  generationControls?.update({ busy, state, selectedSubtitlePath, sourceLanguage: selectedSourceLanguage, targetLanguage: selectedTargetLanguage });
   const availableTrack = (state.tracks || []).some((track) => track.available && String(track.id) === String(selectedTrackId));
   elements.start.disabled =
     !state.media ||
     !availableTrack ||
     busy ||
     state.editorOpen ||
+    state.associationOpen || state.importOpen ||
     state.subtitleLibraryLoading ||
     !selectedSourceLanguage ||
-    !selectedTargetLanguage ||
-    selectedSourceLanguage === selectedTargetLanguage;
+    generationMode !== "source" && (!selectedTargetLanguage || selectedSourceLanguage === selectedTargetLanguage);
   const matchingSubtitle = (state.availableSubtitles || []).some((subtitle) =>
       subtitle.sourceLanguage === selectedSourceLanguage &&
       subtitle.targetLanguage === selectedTargetLanguage);
@@ -268,14 +276,16 @@ function updateGeneration() {
   renderLanguagePreflight(busy);
 }
 function renderLanguagePreflight(busy) {
-  const valid = state.media && selectedSourceLanguage && selectedTargetLanguage && selectedSourceLanguage !== selectedTargetLanguage;
+  const targetLanguage = generationMode === "source" ? "" : selectedTargetLanguage;
+  const valid = state.media && selectedSourceLanguage && (generationMode === "source" || targetLanguage && selectedSourceLanguage !== targetLanguage);
   elements.languageResourceStatus.hidden = !valid || Boolean(busy);
   elements.checkLanguages.disabled = Boolean(busy);
   if (!valid) { lastPreflightKey = ""; return; }
-  const key = JSON.stringify([currentMediaPath, selectedSourceLanguage, selectedTargetLanguage]);
+  const key = JSON.stringify([currentMediaPath, selectedSourceLanguage, targetLanguage, generationMode]);
   const check = state.languagePreflight;
   const matches = check && check.mediaPath === currentMediaPath
-    && check.sourceLanguage === selectedSourceLanguage && check.targetLanguage === selectedTargetLanguage;
+    && check.sourceLanguage === selectedSourceLanguage && check.targetLanguage === targetLanguage
+    && (check.generationMode || "bilingual") === generationMode;
   const status = matches ? check.status : "checking";
   window.sidebarWorkflow?.onPreflight(matches ? check : null);
   elements.languageResourceMessage.textContent = matches ? check.message || "正在检查语言资源" : "正在检查语言资源";
@@ -284,7 +294,7 @@ function renderLanguagePreflight(busy) {
   elements.start.disabled = elements.start.disabled || !matches || status !== "ready";
   if (!busy && key !== lastPreflightKey) {
     lastPreflightKey = key;
-    post("checkLanguages", { sourceLanguage: selectedSourceLanguage, targetLanguage: selectedTargetLanguage });
+    post("checkLanguages", { sourceLanguage: selectedSourceLanguage, targetLanguage, generationMode });
   }
 }
 function renderJob(job) {
@@ -367,7 +377,7 @@ elements.targetLanguage.addEventListener("change", () => {
   if (state) renderState(state);
 });
 function setDisplayMode(mode) {
-  const busy = state && (state.jobActive || state.job && ["running", "canceling", "loading"].includes(state.job.status));
+  const busy = state && (state.jobActive || state.editorOpen || state.associationOpen || state.importOpen || state.job && ["running", "canceling", "loading"].includes(state.job.status));
   if (
     !state ||
     !state.media ||
@@ -386,11 +396,11 @@ elements.jobForm.addEventListener("submit", (event) => {
   event.preventDefault();
   languageValidationRequested = true;
   updateLanguageErrors();
-  if (!selectedSourceLanguage || !selectedTargetLanguage) {
+  if (!selectedSourceLanguage || generationMode !== "source" && !selectedTargetLanguage) {
     renderJob({ status: "validation", message: "请选择转录语言和翻译语言。" });
     return;
   }
-  if (selectedSourceLanguage === selectedTargetLanguage) {
+  if (generationMode !== "source" && selectedSourceLanguage === selectedTargetLanguage) {
     renderJob({
       status: "validation",
       message: "请选择不同的转录语言和翻译语言。",
@@ -402,7 +412,9 @@ elements.jobForm.addEventListener("submit", (event) => {
     waitForProgress: true,
     trackId: selectedTrackId,
     sourceLanguage: selectedSourceLanguage,
-    targetLanguage: selectedTargetLanguage,
+    targetLanguage: generationMode === "source" ? "" : selectedTargetLanguage,
+    generationMode,
+    forceTranscription: Boolean(document.querySelector("#force-transcription")?.checked),
   };
   const matching = (state.availableSubtitles || []).some((subtitle) => subtitle.sourceLanguage === selectedSourceLanguage && subtitle.targetLanguage === selectedTargetLanguage);
   const start = () => post("start", payload);
@@ -418,7 +430,7 @@ elements.checkLanguages.addEventListener("click", () => {
 });
 elements.subtitleChoice.addEventListener("change", () => {
   selectedSubtitlePath = elements.subtitleChoice.value;
-  renderJob(state && state.job);
+  if (state) renderState(state);
   post("loadExisting", selectedSubtitlePath);
 });
 elements.retry.addEventListener("click", () => post("retryLoad"));

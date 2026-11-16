@@ -44,6 +44,8 @@ function createPlugin({
   failedListingPath = "",
   subtitleEditSnapshot = null,
   editedSubtitleContent = "",
+  importSelection = null,
+  importGate = null,
 } = {}) {
   const sidebarHandlers = new Map();
   const eventHandlers = new Map();
@@ -218,6 +220,10 @@ function createPlugin({
           return { status: 0, stdout: "", stderr: "" };
         }
         if (file.endsWith("otoha-helper")) {
+          if (args[0] === "--choose-subtitle-json") {
+            if (importGate) await importGate;
+            return { status: 0, stdout: JSON.stringify({ path: importSelection }) };
+          }
           if (args[0] === "--check-languages-json") {
             const request = JSON.parse(args[1]);
             if (preflightGate) await preflightGate;
@@ -336,7 +342,9 @@ function createPlugin({
       if (id === "./iina-adapter.js") return require("../iina-adapter.js");
       if (id === "./job-controller.js") return require("../job-controller.js");
       if (id === "./language-preflight-client.js") return require("../language-preflight-client.js");
+      if (id === "./subtitle-generation.js") return require("../subtitle-generation.js");
       if (id === "./subtitle-editor-controller.js") return require("../subtitle-editor-controller.js");
+      if (id === "./subtitle-association-controller.js") return require("../subtitle-association-controller.js");
       if (id === "./runtime-store.js") return require("../runtime-store.js");
       if (id === "./subtitle-track-manager.js") return require("../subtitle-track-manager.js");
       if (id === "./subtitle-style-runtime.js") return require("../subtitle-style-runtime.js");

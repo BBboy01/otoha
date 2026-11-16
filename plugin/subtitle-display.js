@@ -8,9 +8,6 @@ function normalizeDisplayMode(value) {
 
 function renderSubtitleMode(content, mode) {
   if (typeof content !== "string") throw new SubtitleDisplayError("字幕内容无效。");
-  const normalizedMode = normalizeDisplayMode(mode);
-  if (normalizedMode === "bilingual") return content;
-
   const newline = content.includes("\r\n") ? "\r\n" : "\n";
   const lines = content.split(/\r?\n/);
   const styles = findSection(lines, ["v4+ styles", "v4 styles"]);
@@ -28,9 +25,19 @@ function renderSubtitleMode(content, mode) {
     throw new SubtitleDisplayError("字幕缺少 ASS 样式或文本字段。");
   }
 
+  const eventStyles = lines.slice(events.start, events.end).filter(line => /^\s*Dialogue\s*:/i.test(line)).map(line => {
+    const fields = splitFields(line.slice(line.indexOf(":") + 1), eventFormat.fields.length);
+    if (!fields) throw new SubtitleDisplayError("字幕事件字段无效。");
+    return fields[eventStyleIndex].trim();
+  });
+  const sourceOnly = eventStyles.includes("OtohaSource") && !eventStyles.includes("OtohaTranslation");
+  const normalizedMode = sourceOnly ? "source" : normalizeDisplayMode(mode);
+  if (normalizedMode === "bilingual") return content;
+
   const selectedStyle = normalizedMode === "source" ? "OtohaSource" : "OtohaTranslation";
-  const translationStyle = findStyle(lines, styles.start, styles.end, "OtohaTranslation", styleNameIndex);
-  if (normalizedMode === "source" && !findStyle(lines, styles.start, styles.end, "OtohaSource", styleNameIndex)) {
+  const sourceStyle = findStyle(lines, styles.start, styles.end, "OtohaSource", styleNameIndex);
+  const translationStyle = findStyle(lines, styles.start, styles.end, "OtohaTranslation", styleNameIndex) || (sourceOnly ? sourceStyle : null);
+  if (normalizedMode === "source" && !sourceStyle) {
     throw new SubtitleDisplayError("字幕缺少原文样式。");
   }
   if (!translationStyle) throw new SubtitleDisplayError("字幕缺少译文样式。");

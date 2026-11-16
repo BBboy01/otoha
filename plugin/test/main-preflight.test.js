@@ -2,6 +2,16 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { createPlugin, helperPath } = require("./main-fixture");
 
+test("source-only generation starts without a target language or Translation resources", async () => {
+  const plugin = createPlugin({ preflightTranslation: "unsupported" });
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  await plugin.sidebarHandlers.get("start")({ trackId: 7, sourceLanguage: "en", generationMode: "source" });
+  const call = plugin.execCalls.find(call => call.args[0] === "--request-json");
+  assert.ok(call);
+  assert.equal(JSON.parse(call.args[1]).generationMode, "source");
+});
+
 test("a failed preflight after media switch cannot overwrite current video feedback", async () => {
   let release;
   const preflightGate = new Promise((resolve) => { release = resolve; });

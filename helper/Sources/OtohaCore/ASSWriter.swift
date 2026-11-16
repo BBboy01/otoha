@@ -23,7 +23,8 @@ public enum ASSWriter {
         scale: Double = 1.0,
         fontName: String = "Arial",
         videoWidth: Int? = nil,
-        videoHeight: Int? = nil
+        videoHeight: Int? = nil,
+        sourceOnly: Bool = false
     ) throws -> String {
         guard scale.isFinite, (0.5...3).contains(scale) else { throw ASSError.invalidScale }
         try validateFontName(fontName)
@@ -56,19 +57,22 @@ public enum ASSWriter {
             "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
         ]
 
+        if sourceOnly { lines.insert("; OtohaMode: source", at: 1) }
         for cue in sorted {
             guard cue.start.isFinite, cue.end.isFinite, cue.start >= 0, cue.end > cue.start else {
                 throw ASSError.invalidTimeRange
             }
             let source = normalized(cue.source, lineBreaker: &sourceLineBreaker)
             let translation = normalized(cue.translation, lineBreaker: &translationLineBreaker)
-            guard !source.isEmpty, !translation.isEmpty else { throw ASSError.emptyText }
+            guard !source.isEmpty, sourceOnly || !translation.isEmpty else { throw ASSError.emptyText }
 
-            let startTicks = timestampTicks(cue.start)
-            let endTicks = max(startTicks + 1, timestampTicks(cue.end))
+            let startTicks = try timestampTicks(cue.start)
+            let endTicks = max(startTicks + 1, try timestampTicks(cue.end))
             let start = timestamp(startTicks)
             let end = timestamp(endTicks)
-            lines.append("Dialogue: 0,\(start),\(end),OtohaTranslation,,0,0,0,,\(translation)")
+            if !sourceOnly {
+                lines.append("Dialogue: 0,\(start),\(end),OtohaTranslation,,0,0,0,,\(translation)")
+            }
             lines.append("Dialogue: 0,\(start),\(end),OtohaSource,,0,0,0,,\(source)")
         }
 
@@ -119,8 +123,11 @@ public enum ASSWriter {
             .replacingOccurrences(of: "}", with: "\\}")
     }
 
-    private static func timestampTicks(_ seconds: Double) -> Int64 {
-        Int64((seconds * 100).rounded())
+    private static func timestampTicks(_ seconds: Double) throws -> Int64 {
+        guard let ticks = Int64(exactly: (seconds * 100).rounded()), ticks < Int64.max else {
+            throw ASSError.invalidTimeRange
+        }
+        return ticks
     }
 
     private static func timestamp(_ ticks: Int64) -> String {

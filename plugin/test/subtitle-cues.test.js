@@ -61,7 +61,7 @@ function fixture(reduced = false) {
   const window = {
     createSubtitlePreviewQueue: () => ({
       update: (element, value) => {
-        element.textContent = value;
+        element.textContent = value.replace(/\n/g, " ");
       },
       flush() {},
       clear() {},
@@ -162,4 +162,18 @@ test("changing dirty state preserves a cue's reserved marker and text is never p
   assert.equal(marker.hidden, true);
   f.list.select(1, true);
   assert.equal(f.track.animations.length, 0);
+});
+
+test("source-only cues omit translation without sending undefined into previews", () => {
+  const f = fixture();
+  const cues = [{ start: 0, end: 1, source: "原文" }];
+  assert.doesNotThrow(() => f.list.replace(cues, cues, cues));
+  assert.equal(f.track.children[0].children[2].hidden, true);
+});
+
+test("structural replacement refreshes the total even when the selected index is retained", () => {
+  const f = fixture();
+  f.list.replace(f.cues.slice(0, 1), f.cues.slice(0, 1), f.cues, true);
+  f.list.select(0);
+  assert.equal(f.count.children[1].textContent, " / 1");
 });

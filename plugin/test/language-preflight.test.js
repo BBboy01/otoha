@@ -6,6 +6,19 @@ function response(request, patch = {}) {
   return { status: 0, stdout: JSON.stringify({ ...request, speech: "installed", translation: "installed", ...patch }) };
 }
 
+test("source-only checks ignore translation resources and translation-only checks ignore Speech", async () => {
+  const client = createLanguagePreflightClient({ helperPath: () => "/helper", onUpdated() {},
+    exec: async (_, args) => {
+      const request = JSON.parse(args[1]);
+      return response(request, request.generationMode === "source" ? { translation: "unsupported" } : { speech: "unsupported" });
+    },
+  });
+  await client.check({ sourceLanguage: "en", targetLanguage: "", generationMode: "source" });
+  assert.equal(client.getState().status, "ready");
+  await client.check({ sourceLanguage: "en", targetLanguage: "ja", generationMode: "translate" });
+  assert.equal(client.getState().status, "ready");
+});
+
 test("preflight uses helper capability checks and caches only successful checks", async () => {
   const calls = [];
   const client = createLanguagePreflightClient({

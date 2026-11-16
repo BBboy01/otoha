@@ -16,6 +16,18 @@ test("bilingual projection returns the original ASS unchanged", () => {
   assert.equal(renderSubtitleMode(bilingual, "bilingual"), bilingual);
 });
 
+test("source-only subtitles remain visible even with a remembered translation display mode", () => {
+  const single = bilingual.replace("[Script Info]", "[Script Info]\n; OtohaMode: source")
+    .split("\n").filter(line => !line.startsWith("Dialogue:") || line.includes(",OtohaSource,")).join("\n");
+  assert.equal(renderSubtitleMode(single, "translation"), renderSubtitleMode(single, "source"));
+});
+
+test("source-only detection follows actual events without a comment or unused translation style", () => {
+  const single = bilingual.split("\n").filter(line => !line.includes("OtohaTranslation")).join("\n");
+  assert.match(renderSubtitleMode(single, "translation"), /OtohaSingle,,0,0,0,,原文/);
+  assert.match(renderSubtitleMode(single, "bilingual"), /OtohaSingle,,0,0,0,,原文/);
+});
+
 test("source projection keeps source events and uses the normal single-line style", () => {
   const output = renderSubtitleMode(bilingual, "source");
   assert.match(output, /Style: OtohaSingle,Arial,34,&H00FFFFFF/);
@@ -34,5 +46,5 @@ test("translation projection keeps translation events and retains commas and lin
 test("projection rejects an ASS file without the Otoha styles or selected events", () => {
   assert.throws(() => renderSubtitleMode("[Events]\nFormat: Layer, Start, End, Style, Name, Text\n", "source"), SubtitleDisplayError);
   assert.throws(() => renderSubtitleMode(bilingual.replace(/OtohaSource/g, "Other"), "source"), SubtitleDisplayError);
-  assert.throws(() => renderSubtitleMode(bilingual.replace(/OtohaTranslation/g, "Other"), "translation"), SubtitleDisplayError);
+  assert.throws(() => renderSubtitleMode(bilingual.replace(/OtohaSource|OtohaTranslation/g, "Other"), "translation"), SubtitleDisplayError);
 });

@@ -48,6 +48,12 @@ public enum SubtitleLibrary {
         }
     }
 
+    public static func mode(of subtitleURL: URL) -> String? {
+        guard let content = try? String(contentsOf: subtitleURL, encoding: .utf8),
+              let document = try? ASSEditDocument(content) else { return nil }
+        return document.mode
+    }
+
     private static func isSubtitle(_ url: URL, for mediaURL: URL) -> Bool {
         SubtitleFilename.isSubtitle(url, for: mediaURL)
             && (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true

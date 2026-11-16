@@ -158,7 +158,8 @@
       if (!row) return;
       if (!composing)
         for (const key of ["source", "translation"])
-          preview.update(row[key], text[key], immediate);
+          preview.update(row[key], text[key] || "", immediate);
+      row.translation.hidden = !text.translation;
       row.dirty.hidden = !modified;
     }
     function replace(cues, drafts, baseline, retainSelection = false) {
@@ -199,6 +200,7 @@
         ),
       );
       if (!retainSelection) index = -1;
+      else if (index >= 0) renderIndex(-1, false);
       if (videoIndex >= rows.length) videoIndex = -1;
       titles();
     }

@@ -9,12 +9,24 @@ public struct LanguagePreflightRequest: Codable, Sendable {
     public let requestId: String
     public let sourceLanguage: String
     public let targetLanguage: String
+    public let generationMode: GenerationMode
 
-    public init(requestId: String, sourceLanguage: String, targetLanguage: String) {
+    public init(requestId: String, sourceLanguage: String, targetLanguage: String, generationMode: GenerationMode = .bilingual) {
         protocolVersion = HelperProtocol.version
         self.requestId = requestId
         self.sourceLanguage = sourceLanguage
         self.targetLanguage = targetLanguage
+        self.generationMode = generationMode
+    }
+
+    private enum CodingKeys: String, CodingKey { case protocolVersion, requestId, sourceLanguage, targetLanguage, generationMode }
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        protocolVersion = try values.decode(Int.self, forKey: .protocolVersion)
+        requestId = try values.decode(String.self, forKey: .requestId)
+        sourceLanguage = try values.decode(String.self, forKey: .sourceLanguage)
+        targetLanguage = try values.decodeIfPresent(String.self, forKey: .targetLanguage) ?? ""
+        generationMode = try values.decodeIfPresent(GenerationMode.self, forKey: .generationMode) ?? .bilingual
     }
 
     public func validate() throws {
@@ -22,7 +34,7 @@ public struct LanguagePreflightRequest: Codable, Sendable {
               !requestId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw JobConfigurationError.invalidLanguages
         }
-        try JobConfiguration.validateLanguages(source: sourceLanguage, target: targetLanguage)
+        try JobConfiguration.validateLanguages(source: sourceLanguage, target: targetLanguage, mode: generationMode)
     }
 }
 

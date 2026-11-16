@@ -34,34 +34,61 @@ public struct SubtitleJobRunner: Sendable {
         emit(.phase(.checkingEnvironment, message: "正在检查环境"))
         try configuration.validate()
         try cancellation.check()
+        let imported = configuration.generationMode == .translate ? try TranslationInputStore.read(configuration: configuration) : nil
 
         emit(.phase(.checkingEnvironment, message: "正在检查语言支持与资源"))
         try await dependencies.preflight()
         try cancellation.check()
 
-        emit(.phase(.preparingLanguageResources, message: "正在准备翻译语言资源"))
-        try await dependencies.prepareTranslation()
+        if configuration.generationMode.requiresTranslation {
+            emit(.phase(.preparingLanguageResources, message: "正在准备翻译语言资源"))
+            try await dependencies.prepareTranslation()
+            try cancellation.check()
+        }
+
+        let transcription: TranscriptionOutput
+        if configuration.generationMode == .translate {
+            guard let imported else { throw ImportError.empty }
+            transcription = imported
+        } else {
+            let cache = TranscriptionCache(directory: configuration.outputDirectory.deletingLastPathComponent()
+                .appendingPathComponent(".TranscriptionCache", isDirectory: true))
+            let originalMedia = try configuration.mediaURL.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey, .fileResourceIdentifierKey])
+            let key = try cache.key(mediaURL: configuration.mediaURL, audioStreamIndex: configuration.audioStreamIndex,
+                                    sourceLanguage: configuration.sourceLanguage, checkCancellation: { try cancellation.check() })
+            if !configuration.forceTranscription, let cached = cache.load(key: key) {
+                emit(.phase(.transcribing, message: "正在复用已完成的转录"))
+                transcription = cached
+            } else {
+                transcription = try await dependencies.transcribe()
+                try cancellation.check()
+                let currentMedia = try configuration.mediaURL.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey, .fileResourceIdentifierKey])
+                guard currentMedia.fileSize == originalMedia.fileSize,
+                      currentMedia.contentModificationDate == originalMedia.contentModificationDate,
+                      String(describing: currentMedia.fileResourceIdentifier) == String(describing: originalMedia.fileResourceIdentifier) else {
+                    throw JobConfigurationError.mediaNotReadable
+                }
+                try cache.save(transcription, key: key)
+            }
+        }
         try cancellation.check()
 
-        let transcription = try await dependencies.transcribe()
+        let translations = configuration.generationMode == .source ? [] : try await dependencies.translate(transcription.cues)
         try cancellation.check()
-
-        let translations = try await dependencies.translate(transcription.cues)
-        try cancellation.check()
-        guard translations.count == transcription.cues.count else {
+        guard configuration.generationMode == .source || translations.count == transcription.cues.count else {
             throw SubtitleJobPipelineError.incompleteTranslation
         }
 
         let cues = transcription.cues.enumerated().map { index, cue in
             let start = max(0, cue.start + transcription.sourceTimeOffset)
-            let end = max(start + 0.05, cue.end + transcription.sourceTimeOffset)
-            return SubtitleCue(start: start, end: end, source: cue.source, translation: translations[index])
+            let end = configuration.generationMode == .translate ? cue.end : max(start + 0.05, cue.end + transcription.sourceTimeOffset)
+            return SubtitleCue(start: start, end: end, source: cue.source, translation: configuration.generationMode == .source ? "" : translations[index])
         }
-        emit(.phase(.saving, message: "正在保存双语 ASS 字幕"))
+        emit(.phase(.saving, message: "正在保存 ASS 字幕"))
         try FileManager.default.createDirectory(at: configuration.outputDirectory, withIntermediateDirectories: true)
         return try ASSOutput.publish(
             cues,
-            baseName: SubtitleFilename.generatedBaseName(
+            baseName: configuration.generationMode == .source ? "\(SubtitleFilename.mediaBaseName(for: configuration.mediaURL)) [\(configuration.sourceLanguage)]" : SubtitleFilename.generatedBaseName(
                 for: configuration.mediaURL,
                 sourceLanguage: configuration.sourceLanguage,
                 targetLanguage: configuration.targetLanguage
@@ -73,6 +100,7 @@ public struct SubtitleJobRunner: Sendable {
             subtitleStyle: configuration.subtitleStyle,
             videoWidth: configuration.videoWidth,
             videoHeight: configuration.videoHeight,
+            sourceOnly: configuration.generationMode == .source,
             isCancelled: { cancellation.isCancelled }
         )
     }

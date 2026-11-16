@@ -18,6 +18,7 @@ struct HelperRequest: Decodable {
         case videoHeight
         case outputDirectoryPath
         case cancellationFilePath
+        case generationMode, forceTranscription, inputSubtitlePath
     }
 
     let protocolVersion: Int
@@ -35,6 +36,9 @@ struct HelperRequest: Decodable {
     let videoHeight: Int?
     let outputDirectoryPath: String?
     let cancellationFilePath: String
+    let generationMode: GenerationMode
+    let forceTranscription: Bool
+    let inputSubtitlePath: String?
 
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -56,12 +60,16 @@ struct HelperRequest: Decodable {
         }
         self.protocolVersion = protocolVersion
         self.jobId = jobId
+        generationMode = try values.decodeIfPresent(GenerationMode.self, forKey: .generationMode) ?? .bilingual
+        forceTranscription = try values.decodeIfPresent(Bool.self, forKey: .forceTranscription) ?? false
+        inputSubtitlePath = try values.decodeIfPresent(String.self, forKey: .inputSubtitlePath)
         let mediaPath = try values.decode(String.self, forKey: .mediaPath)
-        let ffmpegPath = try values.decode(String.self, forKey: .ffmpegPath)
+        let ffmpegPath = try values.decodeIfPresent(String.self, forKey: .ffmpegPath) ?? ""
         let outputDirectoryPath = try values.decodeIfPresent(String.self, forKey: .outputDirectoryPath)
         let cancellationFilePath = try values.decode(String.self, forKey: .cancellationFilePath)
         let outputPathIsValid = outputDirectoryPath.map { $0.isEmpty || Self.isAbsolutePath($0) } ?? true
-        guard Self.isAbsolutePath(mediaPath), Self.isAbsolutePath(ffmpegPath), Self.isAbsolutePath(cancellationFilePath),
+        guard Self.isAbsolutePath(mediaPath), (!generationMode.requiresSpeech || Self.isAbsolutePath(ffmpegPath)), Self.isAbsolutePath(cancellationFilePath),
+              inputSubtitlePath.map(Self.isAbsolutePath) ?? true,
               outputPathIsValid else {
             throw DecodingError.dataCorruptedError(
                 forKey: .mediaPath,
@@ -72,9 +80,9 @@ struct HelperRequest: Decodable {
         backend = try values.decode(TranscriptionBackend.self, forKey: .backend)
         self.mediaPath = mediaPath
         self.ffmpegPath = ffmpegPath
-        audioStreamIndex = try values.decode(Int.self, forKey: .audioStreamIndex)
+        audioStreamIndex = try values.decodeIfPresent(Int.self, forKey: .audioStreamIndex) ?? -1
         sourceLanguage = try values.decode(String.self, forKey: .sourceLanguage)
-        targetLanguage = try values.decode(String.self, forKey: .targetLanguage)
+        targetLanguage = try values.decodeIfPresent(String.self, forKey: .targetLanguage) ?? ""
         subtitleScale = try values.decodeIfPresent(Double.self, forKey: .subtitleScale)
         subtitleFont = try values.decodeIfPresent(String.self, forKey: .subtitleFont)
         subtitleStyle = try values.decodeIfPresent(SubtitleStyle.self, forKey: .subtitleStyle)
@@ -103,7 +111,10 @@ struct HelperRequest: Decodable {
             subtitleStyle: subtitleStyle,
             videoWidth: videoWidth,
             videoHeight: videoHeight,
-            outputDirectory: SubtitleLibrary.mediaDirectory(for: mediaURL, rootDirectory: rootDirectory)
+            outputDirectory: SubtitleLibrary.mediaDirectory(for: mediaURL, rootDirectory: rootDirectory),
+            generationMode: generationMode,
+            forceTranscription: forceTranscription,
+            inputSubtitleURL: inputSubtitlePath.map { URL(fileURLWithPath: $0) }
         )
     }
 
@@ -124,6 +135,7 @@ struct SubtitleListingRequest: Decodable {
 struct SubtitleListingResponse: Encodable {
     struct Entry: Encodable {
         let path: String
+        let mode: String?
     }
 
     let rootDirectoryPath: String

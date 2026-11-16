@@ -10,7 +10,8 @@ public enum SubtitleFilename {
         sourceLanguage: String,
         targetLanguage: String
     ) -> String {
-        "\(mediaBaseName(for: mediaURL)) [\(sourceLanguage) to \(targetLanguage)]"
+        targetLanguage.isEmpty ? "\(mediaBaseName(for: mediaURL)) [\(sourceLanguage)]"
+            : "\(mediaBaseName(for: mediaURL)) [\(sourceLanguage) to \(targetLanguage)]"
     }
 
     public static func isSubtitle(_ url: URL, for mediaURL: URL) -> Bool {
@@ -29,6 +30,10 @@ public enum SubtitleFilename {
         if generatedStem.hasPrefix(generatedPrefix), generatedStem.hasSuffix("]") {
             let languagePair = generatedStem.dropFirst(generatedPrefix.count).dropLast()
             if languagePair.contains(" to ") { return true }
+            if !languagePair.isEmpty, languagePair.split(separator: "-", omittingEmptySubsequences: false)
+                .allSatisfy({ !$0.isEmpty && $0.count <= 8 && $0.allSatisfy({ $0.isASCII && $0.isLetter || $0.isASCII && $0.isNumber }) }) {
+                return true
+            }
         }
         let prefixes = ["\(baseName) (", "\(baseName).otoha ("]
         guard let prefix = prefixes.first(where: { stem.hasPrefix($0) }), stem.hasSuffix(")") else {

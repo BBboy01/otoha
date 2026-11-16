@@ -32,6 +32,24 @@ final class SubtitleCoreRegressionTests: XCTestCase {
         XCTAssertEqual(SubtitleFilename.mediaBaseName(for: mediaURL), "movie_part")
     }
 
+    func testSubtitleLibraryModeUsesASSEventsInsteadOfFilenameHints() throws {
+        let fixture = try Fixture()
+        let sourceOnly = try ASSWriter.serialize(
+            [SubtitleCue(start: 0, end: 1, source: "Hello", translation: "")],
+            sourceOnly: true
+        )
+        let bilingual = try ASSWriter.serialize([
+            SubtitleCue(start: 0, end: 1, source: "Hello", translation: "你好"),
+        ])
+        let misleadingSourceName = fixture.directory.appendingPathComponent("video [en to ja].ass")
+        let misleadingBilingualName = fixture.directory.appendingPathComponent("video [en].ass")
+        try sourceOnly.write(to: misleadingSourceName, atomically: true, encoding: .utf8)
+        try bilingual.write(to: misleadingBilingualName, atomically: true, encoding: .utf8)
+
+        XCTAssertEqual(SubtitleLibrary.mode(of: misleadingSourceName), "source")
+        XCTAssertEqual(SubtitleLibrary.mode(of: misleadingBilingualName), "bilingual")
+    }
+
     func testFFprobeUsesSelectedGlobalAudioIndexAndNormalizesStartTime() throws {
         let fixture = try Fixture()
         let ffmpeg = fixture.directory.appendingPathComponent("ffmpeg")

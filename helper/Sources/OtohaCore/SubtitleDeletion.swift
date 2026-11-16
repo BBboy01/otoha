@@ -19,6 +19,7 @@ public enum SubtitleDeletion {
         // unlinkat without AT_REMOVEDIR cannot recursively remove a swapped directory.
         guard unlinkat(descriptor, target.lastPathComponent, 0) == 0 else { throw SubtitleDeletionError.failed }
         _ = fsync(descriptor)
+        try? ASSEditStore.discardState(subtitleURL: target)
     }
 }
 

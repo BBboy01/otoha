@@ -78,9 +78,12 @@
 | `jobId` | string | 插件生成的非空任务 ID，事件原样回传 |
 | `backend` | string | 当前为 `apple` |
 | `mediaPath` | string | 本地绝对路径 |
-| `ffmpegPath` | string | 可执行 FFmpeg 的绝对路径或 PATH 解析结果 |
-| `audioStreamIndex` | integer | FFmpeg 全局音频 stream index |
-| `sourceLanguage` / `targetLanguage` | string | 不同的 BCP-47 风格语言标识 |
+| `generationMode` | string? | `bilingual`（默认）、`source`（仅转录）、`translate`（翻译字幕文本） |
+| `forceTranscription` | boolean? | 默认 false；为 true 时跳过已完成转录缓存，重新识别 |
+| `inputSubtitlePath` | string? | `translate` 必填，UTF-8 SRT 或当前视频字幕库内的 canonical ASS |
+| `ffmpegPath` | string | 需要转录时为可执行 FFmpeg 的绝对路径；`translate` 可为空 |
+| `audioStreamIndex` | integer | FFmpeg 全局音频 stream index；`translate` 不使用 |
+| `sourceLanguage` / `targetLanguage` | string | BCP-47 风格语言标识；`source` 不要求目标语言，其余模式必须不同 |
 | `subtitleScale` | number | 0.5 到 3.0 |
 | `subtitleFont` | string | 可选，默认 Arial；1 到 128 个字符，不含逗号或控制字符，应用于 ASS 样式与换行测量 |
 | `subtitleStyle` | object | 可选，`font`、`scale`、`color`（#RRGGBB）、`background`、`dimSource`；优先用于最终 ASS 样式 |
@@ -119,11 +122,11 @@ helper 只向 stdout 写 JSONL，每行一个对象；日志写 stderr。所有�
 
 ## 4. helper 启动与首次运行
 
-正常任务不创建或前置原生窗口。helper 以后台模式启动，所有进度、取消、完成和错误通过上述 JSONL 事件回到 IINA 侧栏。只有显式传入 `--ui` 的调试启动才创建 Otoha 原生窗口；该入口不属于插件正常任务协议。
+正常生成任务不创建或前置原生窗口。helper 以后台模式启动，所有进度、取消、完成和错误通过上述 JSONL 事件回到 IINA 侧栏。显式传入 `--ui` 的调试启动创建 Otoha 原生窗口；`--choose-subtitle-json` 是用户主动导入时单独打开的原生文件选择器，二者不属于普通生成任务。
 
 首次使用 Apple Speech 或 Translation 时，macOS 可能要求授予语音识别权限、下载语言模型或准备翻译资源。这些系统级提示由 macOS 管理，后台 helper 不能保证将它们静默化；出现提示时，用户应完成系统提示后等待当前任务继续。资源准备完成后，后续任务复用本机资源，不应重复打开 Otoha 窗口。
 
-字幕列表查询使用同一个 helper 的 `--list-subtitles-json` 参数，输入 `{ "mediaPath": "...", "outputDirectoryPath": "..." }`，输出 `{ "rootDirectoryPath": "...", "files": [{ "path": "..." }] }`。列表查询不会启动语音或翻译任务，也不会修改字幕文件。
+字幕列表查询使用同一个 helper 的 `--list-subtitles-json` 参数，输入 `{ "mediaPath": "...", "outputDirectoryPath": "..." }`，输出 `{ "rootDirectoryPath": "...", "files": [{ "path": "...", "mode": "source" }] }`。可选的 `mode` 按 ASS 实际事件识别为 `source` 或 `bilingual`，无法识别时省略；客户端保留 helper 返回的模式，不用文件名语言提示覆盖它。列表查询不会启动语音或翻译任务，也不会修改字幕文件。
 
 ## 5. 语言预检（#26）
 
@@ -134,6 +137,8 @@ helper 只向 stdout 写 JSONL，每行一个对象；日志写 stderr。所有�
 ```
 
 stdout 返回一行 JSON，包含相同的版本、requestId 和语言对，以及 `speech` / `translation` 状态（`installed`、`supported`、`downloading`、`unsupported`）、用户文案 `message`，不可用时包含 `errorCode`。非法请求或系统错误退出非零，原因写 stderr。能力查询最多等待 30 秒，超时可重试。
+
+预检接受可选 `generationMode`，默认 `bilingual`。`source` 只检查 Speech，`translate` 只检查 Translation；不需要的能力返回兼容占位状态，不表示实际查询或安装过该能力。插件预检缓存同时匹配媒体、语言和生成模式。
 
 侧栏状态通过 `languagePreflight` 投影，包含 `mediaPath`、语言对及 `idle/checking/ready/unavailable/error`。只有当前媒体和语言对匹配的 `ready` 可以生成；请求序号隔离迟到结果，切换语言或媒体后旧结果不能启用生成按钮。预检失败保留语言选择及重新检查操作，不影响已有字幕播放。生成入口仍重新执行 helper 能力检查，防止缓存过期或绕过 UI。
 
@@ -170,8 +175,9 @@ SRT 导出通过 `--export-srt-json` 调用 helper，输入协议版本、当前
 | `subtitle.publishFailed` | ASS 写入或替换失败 |
 | `subtitle.libraryFailed` | 字幕列表读取失败 |
 | `subtitle.loadFailed` | IINA 未确认外挂字幕轨道加载 |
-| `subtitle.editUnsupported` | 不是可校对的 Otoha 双语 ASS，包含内联样式或不支持的格式 |
-| `subtitle.editInvalidText` | 缺少原文/译文、片段数量不匹配或文本含 NUL |
+| `subtitle.editUnsupported` | 不是可校对的 Otoha ASS，包含内联样式或不支持的格式 |
+| `subtitle.editInvalidText` | 文本、时间、cue ID 或来源映射无效 |
+| `subtitle.associationFailed` | 字幕关联路径、格式或读取/写入权限无效（独立关联响应） |
 | `subtitle.editOutsideLibrary` | 目标不在当前视频字幕库、是符号链接，或编辑期间切换了视频/字幕库 |
 | `subtitle.editConflict` | 外部修改使文件 SHA-256 与读取版本不符 |
 | `subtitle.editTooLarge` | 原文件/保存结果超过 16 MiB，或请求超过 32 MiB |
@@ -185,12 +191,20 @@ v1 可增加可选字段、独立命令和 registry 条目。改变已有字段�
 
 校对是独立的后台命令，不启动 FFmpeg、Speech、Translation 或原生窗口。`--read-subtitle-json <JSON>` 读取当前视频字幕库中的 canonical ASS；`--save-subtitle-file <绝对路径>` 读取 `otoha-edit-*.json` 保存请求，避免长字幕超过进程参数上限或出现在 IINA 的参数日志中。插件在 `@tmp` 写请求，并在 helper 返回后删除；进程异常退出遗留的文件由 IINA 临时目录生命周期管理。
 
-两个命令的请求均含 `protocolVersion: 1`、非空 `requestId`、绝对路径 `mediaPath` / `subtitlePath` 和可选 `outputDirectoryPath`。保存还要求读取时的 `revision`（原文件 SHA-256）与按读取顺序排列的 `texts: [{source, translation}]`。请求不得增删 cue 或更改时间。读取限制 16 MiB，请求限制 32 MiB。
+两个命令的请求均含 `protocolVersion: 1`、非空 `requestId`、绝对路径 `mediaPath` / `subtitlePath` 和可选 `outputDirectoryPath`。正式保存要求读取时的 `revision`（原文件 SHA-256），支持 `cues: [{id, origins, start, end, source, translation}]`。`origins` 必须引用本 revision 的片段；合并只接受相邻来源，拆分保留同一来源。时间非负且结束晚于开始，保存为 ASS 的 0.01 秒精度。兼容旧 `texts: [{source, translation}]` 调用。读取限制 16 MiB，请求限制 32 MiB。
 
-每次输出一行 `{protocolVersion, requestId, snapshot}`，其中 `snapshot` 为 `{path, revision, cues: [{start, end, source, translation}]}`，时间单位为秒。失败输出 `{protocolVersion, requestId, code, message}`，使用上述 registry；业务错误不会作为成功快照提交。未知版本、错误码、请求 ID 或无效片段均拒绝。
+每次输出一行 `{protocolVersion, requestId, snapshot}`，其中 `snapshot` 为 `{path, revision, mode, cues, draft?, history}`，时间单位为秒。`mode` 为按真实事件判断的 `source` 或 `bilingual`；单语的 translation 为空且 UI 隐藏译文栏。失败输出 `{protocolVersion, requestId, code, message}`，使用上述 registry；业务错误不会作为成功快照提交。未知版本、错误码、请求 ID 或无效片段均拒绝。
 
 解析器保留头部、样式、事件顺序、时间、非文本字段和 LF/CRLF；相同时间的重复 cue 按出现顺序配对，只有 `OtohaSource` / `OtohaTranslation` 文本可修改。内联 ASS override 等无法安全还原的文本会拒绝编辑。修改的文本复用字体测量换行，遵循原画布、字体、水平缩放和边距；未修改文本逐字保留。
 
 保存会再次确认目标属于该视频字幕库且不经过符号链接，并在同目录创建独占临时文件、写入/fsync、再次检查版本后 rename 替换。保存失败清理临时文件，旧 ASS 保持完整。版本检查是乐观并发保护，不是跨进程文件锁。
 
-`editor` 消息按 `sessionId` 发送 `loading / ready / saving / saved / error / closed` 快照。未保存草稿仅在侧栏本地；关闭需要确认，保存中不允许退出。切换视频后保留草稿并禁用保存/定位，回到原视频后可继续；helper 结束时仍校验当前上下文。保存后刷新字幕列表，在原文/译文模式重建显示缓存，已存在轨道调用一次 `sub-reload`，否则加载一次；IINA 加载失败保留已保存 ASS 和重试入口。校对不修改每视频语言/显示方式记忆。
+`editor` 消息按 `sessionId` 发送 `loading / ready / saving / saved / error / closed` 快照。输入停止约一秒后，通过同一保存命令的 `action: "draft"` 原子写入 `{revision,cues,index,scrollTop}`，正式 ASS 不变。持久草稿必须明确恢复或丢弃后才能继续修改，revision 冲突时保留草稿、禁止恢复覆盖。`action: "discardDraft"` 清除草稿；`action: "restore"` 携 revision 和 backupID 恢复备份。每次正式保存和恢复先备份现有字节，保留最近 20 个保存前版本；成功才清理草稿，删除字幕时清理其草稿/历史。关闭需要确认，保存中不允许退出。切换视频后保留编辑并禁用保存/定位，回到原视频后可继续。保存后刷新字幕列表和显示缓存；已存在轨道调用一次 `sub-reload`，否则加载一次。校对不修改语言/显示方式记忆。
+
+## 10. 导入、缓存和字幕关联
+
+`--choose-subtitle-json` 打开单选 SRT 的 NSOpenPanel，成功输出 `{path}`，取消输出 `{path:null}`，失败输出 `{path:null,message}`。插件在面板返回后再次匹配媒体和输出目录，取消或过期结果不启动任务。SRT 限 16 MiB UTF-8，兼容 BOM、CRLF 和多行；完整校验后才翻译，原文件不变。已保存 ASS 重翻译使用当前原文与时间，生成编号新版本，保留人工译文。
+
+转录缓存位于字幕库根目录 `.TranscriptionCache`，匹配版本、媒体路径和内容 SHA-256、音轨及源语言，不包含目标语言。只缓存完成的转录，翻译失败后仍可复用；损坏回退识别，可显式强制重新识别。缓存最多保留 100 条、256 MiB，仅清理自有摘要 JSON；草稿不随缓存清理。单语命名 `[en].ass`，双语 `[en to ja].ass`，重复生成均编号，不覆盖。
+
+`--browse-subtitles-json` 和 `--associate-subtitle-json` 接受版本、requestId、outputDirectoryPath。浏览可传 directoryPath，按需列直属视频目录或该目录 ASS；复制传 subtitlePath 和当前 mediaPath。响应为 `{protocolVersion,requestId,entries}` 或 `{protocolVersion,requestId,path}`，失败含 code/message。复制验证库内普通 Otoha ASS，拒绝符号链接与库外路径；创建独立文件，保留原件，不迁移草稿/缓存，不覆盖已有目标。侧栏以 `associationOpen` / `importOpen` 和已有 editor/deletion/job 状态互斥。

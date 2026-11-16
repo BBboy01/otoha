@@ -88,6 +88,9 @@ dialog::backdrop {
   color: var(--otoha-color-text);
   background: var(--otoha-color-field);
 }
+#editor-fields textarea:focus-visible {
+  outline-offset: calc(-1 * var(--otoha-focus-width));
+}
 .editor-field {
   display: grid;
   gap: var(--otoha-space-1);
@@ -144,14 +147,18 @@ dialog::backdrop {
   background: var(--otoha-color-surface);
 }
 .editor-heading h2 {
+  min-width: 0;
   font-size: var(--otoha-font-size-heading);
 }
 .editor-heading .icon-button {
   border: 0;
   background: transparent;
 }
-.editor-heading .unsaved-dot {
-  margin-left: auto;
+#editor-undo {
+  margin-inline-start: auto;
+}
+#editor-undo:focus-visible {
+  outline-offset: calc(-1 * var(--otoha-focus-width));
 }
 @media (max-height: 600px) {
   #editor-fields textarea {
@@ -165,4 +172,70 @@ dialog::backdrop {
 }
 #editor-discard-message {
   margin-top: var(--otoha-space-2);
+}
+.editor-extra-controls {
+  display: grid;
+  gap: var(--otoha-space-3);
+  margin-block-start: var(--otoha-space-2);
+  margin-block-end: var(--otoha-space-3);
+}
+.editor-tool-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--otoha-space-2);
+  align-items: end;
+  min-width: 0;
+  margin: 0;
+  padding: var(--otoha-space-2-5) 0 0;
+  border: 0;
+}
+.editor-tool-group legend {
+  padding: 0 var(--otoha-space-2) 0 0;
+  color: var(--otoha-color-text-secondary);
+  font-size: var(--otoha-font-size-label);
+  font-weight: var(--otoha-font-weight-medium);
+}
+.editor-extra-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--otoha-space-1);
+  min-width: 0;
+  margin: 0;
+}
+.editor-extra-controls button {
+  min-width: 0;
+  padding-inline: var(--otoha-space-2);
+  font-size: var(--otoha-font-size-label);
+}
+#editor-fields [hidden] {
+  display: none;
+}
+.editor-extra-controls input,
+.editor-extra-controls select {
+  min-width: 0;
+  max-width: 100%;
+  font: inherit;
+}
+.editor-extra-controls p,
+.editor-extra-controls output {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+}
+.editor-extra-controls p:empty {
+  display: none;
+}
+.editor-extra-controls output {
+  color: var(--otoha-color-text-muted);
+  font-size: var(--otoha-font-size-small);
+}
+.editor-tool-group .editor-tool-wide {
+  grid-column: 1 / -1;
+}
+.editor-extra-controls .editor-toggle {
+  flex-direction: row;
+  align-items: center;
+}
+.editor-extra-controls input[type="checkbox"] {
+  width: auto;
+  min-height: 0;
 }

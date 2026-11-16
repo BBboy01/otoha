@@ -11,6 +11,7 @@ preferences-style.js
 iina-adapter.js
 job-controller.js
 language-preflight-client.js
+subtitle-generation.js
 runtime-store.js
 settings-controller.js
 sidebar-lifecycle.js
@@ -24,6 +25,11 @@ media-snapshot.js
 subtitle-track-manager.js
 subtitle-editor-controller.js
 subtitle-editor.js
+subtitle-association-controller.js
+subtitle-association.js
+subtitle-association.css
+subtitle-edit-tools.js
+subtitle-edit-controls.js
 subtitle-cues.js
 subtitle-cues.css
 subtitle-overflow.js
@@ -43,6 +49,7 @@ sidebar-workflow.js
 sidebar-workflow.css
 sidebar-home.css
 sidebar-generation.css
+sidebar-generation.js
 sidebar-progress.js
 sidebar-navigation.js
 sidebar-navigation.css

@@ -54,16 +54,16 @@ final class HelperModel: ObservableObject {
     }
 
     @available(macOS 26.4, *)
-    func run(using session: TranslationSession) async {
+    func run(using session: TranslationSession?) async {
         guard !hasStarted, let request else { return }
         hasStarted = true
         let configuration = request.configuration
         let cancellationFileURL = request.cancellationFileURL
-        let sessionHandle = TranslationSessionHandle(session)
+        let sessionHandle = session.map(TranslationSessionHandle.init)
         let cancellationWatcher = Task { @MainActor in
             while !Task.isCancelled {
                 if FileManager.default.fileExists(atPath: cancellationFileURL.path) {
-                    sessionHandle.value.cancel()
+                    sessionHandle?.value.cancel()
                     self.cancelSpeechOperation?()
                     return
                 }
@@ -77,10 +77,11 @@ final class HelperModel: ObservableObject {
                 preflight: {
                     let result = try await LanguagePreflightService.check(LanguagePreflightRequest(
                         requestId: request.jobId, sourceLanguage: request.sourceLanguage,
-                        targetLanguage: request.targetLanguage))
+                        targetLanguage: request.targetLanguage, generationMode: request.generationMode))
                     guard result.canGenerate else { throw LanguagePreflightFailure(result) }
                 },
                 prepareTranslation: {
+                    guard let sessionHandle else { throw TranslationAccumulatorError.noResults }
                     try await self.translationProvider.prepare(using: sessionHandle)
                 },
                 transcribe: { [weak self] in
@@ -120,6 +121,7 @@ final class HelperModel: ObservableObject {
                 },
                 translate: { [weak self] cues in
                     guard let self else { throw CancellationError() }
+                    guard let sessionHandle else { throw TranslationAccumulatorError.noResults }
                     return try await self.translationProvider.translate(
                         cues,
                         using: sessionHandle,
