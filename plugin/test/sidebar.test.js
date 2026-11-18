@@ -3,6 +3,78 @@ const assert = require("node:assert/strict");
 const { createSidebar, videoState, change } = require("./sidebar-fixture.js");
 const sidebarMarkup = require("node:fs").readFileSync(require("node:path").join(__dirname, "../sidebar.html"), "utf8");
 
+test("generation panel separates source modes and keeps advanced controls collapsed", () => {
+  assert.match(sidebarMarkup, /id="generation-source"[\s\S]*name="generation-source" value="audio"/);
+  assert.match(sidebarMarkup, /id="generation-source"[\s\S]*name="generation-source" value="existing-subtitle"/);
+  assert.match(sidebarMarkup, /<details id="generation-advanced"/);
+  assert.match(sidebarMarkup, /id="transcription-strategy"[\s\S]*value="reuse"[\s\S]*checked/);
+  assert.match(sidebarMarkup, /id="import-subtitle"[^>]*aria-label="导入 SRT"/);
+});
+
+test("existing subtitle mode submits a translation payload without an audio track", () => {
+  const sidebar = createSidebar();
+  sidebar.handlers.get("state")(videoState({
+    availableSubtitles: [{
+      path: "/library/video.ass",
+      sourceLanguage: "ja",
+      targetLanguage: "zh-Hans",
+    }],
+    languagePreflight: {
+      mediaPath: "/Users/test/video.mp4",
+      sourceLanguage: "ja",
+      targetLanguage: "en",
+      generationMode: "translate",
+      status: "ready",
+    },
+  }));
+  const source = sidebar.generationSources.find((input) => input.value === "existing-subtitle");
+  source.listeners.get("change")();
+  change(sidebar, "#target-language", "en");
+  assert.equal(sidebar.elements.get("#audio-generation-fields").hidden, true);
+  assert.equal(sidebar.elements.get("#source-language-field").hidden, false);
+  assert.equal(sidebar.elements.get("#source-language").disabled, true);
+  assert.equal(sidebar.elements.get("#source-language").value, "ja");
+  assert.equal(sidebar.elements.get("#start-button").textContent, "翻译并生成新版本");
+  sidebar.elements.get("#job-form").listeners.get("submit")({ preventDefault() {} });
+  assert.deepEqual(JSON.parse(JSON.stringify(sidebar.posts.at(-1))), {
+    name: "start",
+    payload: {
+      waitForProgress: true,
+      sourceLanguage: "ja",
+      targetLanguage: "en",
+      generationMode: "translate",
+      inputSubtitlePath: "/library/video.ass",
+    },
+  });
+});
+
+test("advanced transcription strategy controls force recognition only when selected", () => {
+  const sidebar = createSidebar();
+  sidebar.handlers.get("state")(videoState({
+    languagePreflight: {
+      mediaPath: "/Users/test/video.mp4",
+      sourceLanguage: "ja",
+      targetLanguage: "zh-Hans",
+      generationMode: "bilingual",
+      status: "ready",
+    },
+  }));
+  const force = sidebar.transcriptionStrategies.find((input) => input.value === "force");
+  force.listeners.get("change")();
+  sidebar.elements.get("#job-form").listeners.get("submit")({ preventDefault() {} });
+  assert.equal(sidebar.posts.at(-1).payload.forceTranscription, true);
+});
+
+test("existing subtitle mode identifies files from different language pairs", () => {
+  const sidebar = createSidebar({ subtitleLabel: () => "版本 1", subtitleVersion: () => "版本 1", onState() {}, onJob() {}, onPreflight() {} });
+  sidebar.handlers.get("state")(videoState({ availableSubtitles: [
+    { path: "/library/video [ja to zh-Hans].ass", sourceLanguage: "ja", targetLanguage: "zh-Hans" },
+    { path: "/library/video [en to fr].ass", sourceLanguage: "en", targetLanguage: "fr" },
+  ] }));
+  sidebar.generationSources.find(input => input.value === "existing-subtitle").listeners.get("change")();
+  assert.deepEqual(sidebar.elements.get("#subtitle-choice").children.map(option => option.text), ["video [ja to zh-Hans].ass", "video [en to fr].ass"]);
+});
+
 test("sidebar exports a selected ASS in one of three accessible modes and exposes the saved file", () => {
   assert.match(sidebarMarkup, /<fieldset class="export-mode">[\s\S]*<legend>导出内容<\/legend>/);
   assert.match(sidebarMarkup, /name="export-mode" value="source"/);
@@ -402,7 +474,7 @@ test("sidebar updates the generation label immediately for the chosen language p
   );
   assert.equal(sidebar.elements.get("#start-button").textContent, "重新生成");
   change(sidebar, "#target-language", "en");
-  assert.equal(sidebar.elements.get("#start-button").textContent, "生成");
+  assert.equal(sidebar.elements.get("#start-button").textContent, "生成字幕");
   change(sidebar, "#target-language", "zh-Hans");
   assert.equal(sidebar.elements.get("#start-button").textContent, "重新生成");
 });
@@ -410,7 +482,7 @@ test("sidebar updates the generation label immediately for the chosen language p
 test("sidebar treats unlabelled subtitles as a separate version", () => {
   const sidebar = createSidebar();
   sidebar.handlers.get("state")(videoState({ availableSubtitles: [{ path: "/library/video.ass" }] }));
-  assert.equal(sidebar.elements.get("#start-button").textContent, "生成");
+  assert.equal(sidebar.elements.get("#start-button").textContent, "生成字幕");
 });
 
 test("sidebar blocks generation with a missing or duplicate language", () => {

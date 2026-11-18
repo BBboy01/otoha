@@ -1,12 +1,14 @@
 const { PROTOCOL_VERSION } = require("./protocol.js");
 const RESOURCE_STATES = ["unsupported", "supported", "downloading", "installed"];
+const MAX_CACHED_CHECKS = 64;
 
 function createLanguagePreflightClient({ exec, helperPath, onUpdated }) {
   let sequence = 0;
   let state = { status: "idle" };
   let pending = null;
+  const readyChecks = new Map();
   function replace(next) { state = Object.freeze(next); onUpdated(); }
-  function reset() { sequence += 1; replace({ status: "idle" }); }
+  function reset() { sequence += 1; readyChecks.clear(); replace({ status: "idle" }); }
 
   async function check(input = {}, force = false) {
     const { sourceLanguage, targetLanguage = "", mediaPath = "", generationMode = "bilingual" } = input;
@@ -14,6 +16,13 @@ function createLanguagePreflightClient({ exec, helperPath, onUpdated }) {
     const same = state.sourceLanguage === sourceLanguage && state.targetLanguage === targetLanguage && state.mediaPath === mediaPath && state.generationMode === generationMode;
     if (!force && same && state.status === "ready") return;
     if (!force && same && state.status === "checking") return pending;
+    const key = JSON.stringify([mediaPath, sourceLanguage, targetLanguage, generationMode]);
+    if (!force && readyChecks.has(key)) {
+      sequence += 1;
+      replace(readyChecks.get(key));
+      return;
+    }
+    readyChecks.delete(key);
     const operation = ++sequence;
     const request = { protocolVersion: PROTOCOL_VERSION, requestId: `language-${operation}`, sourceLanguage, targetLanguage, generationMode };
     replace({ ...request, mediaPath, status: "checking", message: "正在检查语言资源" });
@@ -38,10 +47,15 @@ function createLanguagePreflightClient({ exec, helperPath, onUpdated }) {
           "translation.unsupportedLanguage": "所选翻译语言对不可用，请选择其他语言。",
           "translation.resourcesMissing": "翻译资源尚未安装。请通过 macOS 的翻译功能下载源语言和目标语言，再重新检查。",
         };
-        replace({ ...request, mediaPath, speech: value.speech, translation: value.translation,
+        const next = { ...request, mediaPath, speech: value.speech, translation: value.translation,
           status: errorCode ? "unavailable" : "ready", errorCode,
           message: errorCode ? messages[errorCode] : value.speech === "installed" ? "语言资源可用"
-            : "翻译资源可用；生成时准备语音模型，macOS 可能要求下载资源。" });
+            : "翻译资源可用；生成时准备语音模型，macOS 可能要求下载资源。" };
+        if (next.status === "ready") {
+          readyChecks.set(key, next);
+          if (readyChecks.size > MAX_CACHED_CHECKS) readyChecks.delete(readyChecks.keys().next().value);
+        }
+        replace(next);
       } catch (error) {
         if (operation !== sequence) return;
         replace({ ...request, mediaPath, status: "error", errorCode: "helper.unknown", message: error.message || String(error) });
@@ -49,7 +63,7 @@ function createLanguagePreflightClient({ exec, helperPath, onUpdated }) {
     })();
     return pending;
   }
-  return { check, reset, getState: () => state };
+  return { check, reset, getState: () => ({ ...state, readyChecks: Array.from(readyChecks.values()) }) };
 }
 
 module.exports = { createLanguagePreflightClient };

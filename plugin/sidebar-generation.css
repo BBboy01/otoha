@@ -1,38 +1,55 @@
-.generation-content .export-mode-options {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.subtitle-actions.generation-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--otoha-space-2);
-}
-.generation-actions .secondary {
+.generation-source,
+.generation-strategy {
   min-width: 0;
-  padding: var(--otoha-space-label-gap) var(--otoha-space-2);
-  background: var(--otoha-color-field);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.generation-source legend,
+.generation-strategy legend,
+.generation-content legend {
+  margin-bottom: var(--otoha-space-label-gap);
+  color: var(--otoha-color-text-secondary);
+  font-size: var(--otoha-font-size-label);
+  font-weight: normal;
+}
+.generation-source legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: var(--otoha-control-size-small);
+  padding: 0;
+}
+#generation-advanced {
+  margin-top: var(--otoha-space-2);
+}
+#generation-advanced summary {
+  color: var(--otoha-color-text-secondary);
+  cursor: pointer;
   font-size: var(--otoha-font-size-label);
   font-weight: var(--otoha-font-weight-medium);
 }
-.generation-actions .secondary:hover:not(:disabled) {
-  background: var(--otoha-color-surface-hover);
+#generation-advanced[open] summary {
+  margin-bottom: var(--otoha-space-2);
 }
-.generation-actions .icon {
+.generation-context {
+  margin: 0;
+  color: var(--otoha-color-text-secondary);
+  font-size: var(--otoha-font-size-label);
+}
+#import-subtitle {
+  flex: none;
+  width: var(--otoha-control-size-small);
+  height: var(--otoha-control-size-small);
+  min-height: var(--otoha-control-size-small);
+  padding: 0;
+  font-size: 0;
+}
+#import-subtitle .icon {
   flex: none;
   width: var(--otoha-icon-size-status);
   height: var(--otoha-icon-size-status);
-}
-.generation-toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--otoha-space-2);
-}
-.generation-toggle input[type="checkbox"] {
-  flex: none;
-  width: auto;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  accent-color: var(--otoha-color-accent);
 }
 .job-summary-drawer {
   display: grid;

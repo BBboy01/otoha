@@ -6,6 +6,32 @@ function response(request, patch = {}) {
   return { status: 0, stdout: JSON.stringify({ ...request, speech: "installed", translation: "installed", ...patch }) };
 }
 
+test("a cached mode invalidates an outstanding check and refresh failure removes stale approval", async () => {
+  const requests = [];
+  const client = createLanguagePreflightClient({ helperPath: () => "/helper", onUpdated() {},
+    exec: (_, args) => new Promise(resolve => requests.push({ request: JSON.parse(args[1]), resolve })),
+  });
+  const pair = { sourceLanguage: "en", targetLanguage: "ja", mediaPath: "/a.mp4" };
+  const first = client.check(pair);
+  requests[0].resolve(response(requests[0].request));
+  await first;
+  const other = client.check({ ...pair, generationMode: "source", targetLanguage: "" });
+  const restored = client.check(pair);
+  assert.equal(requests.length, 2);
+  await restored;
+  assert.equal(client.getState().status, "ready");
+  requests[1].resolve(response(requests[1].request));
+  await other;
+  assert.equal(client.getState().targetLanguage, "ja");
+  const refresh = client.check(pair, true);
+  requests[2].resolve({ status: 1, stderr: "refresh failed" });
+  await refresh;
+  assert.equal(client.getState().status, "error");
+  assert.equal(client.getState().readyChecks.length, 0);
+  client.reset();
+  assert.equal(client.getState().readyChecks.length, 0);
+});
+
 test("source-only checks ignore translation resources and translation-only checks ignore Speech", async () => {
   const client = createLanguagePreflightClient({ helperPath: () => "/helper", onUpdated() {},
     exec: async (_, args) => {

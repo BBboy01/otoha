@@ -192,7 +192,7 @@ function loadSidebarPage(show = false) {
     sidebar.onMessage("start", (payload) => startJob(payload));
     sidebar.onMessage("importSubtitle", (payload) => subtitleImport.import(payload));
     sidebar.onMessage("progressReady", (payload) => jobController.releaseStart(payload?.jobId));
-    sidebar.onMessage("checkLanguages", (payload) => !currentJob() && languagePreflightClient.check({ ...payload, mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url) }, true));
+    sidebar.onMessage("checkLanguages", (payload) => !currentJob() && languagePreflightClient.check({ ...payload, mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url) }, payload?.force === true));
     subtitleDeletion.register(sidebar);
     subtitleEditor.register(sidebar);
     subtitleAssociation.register(sidebar);

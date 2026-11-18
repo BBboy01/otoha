@@ -58,6 +58,8 @@ let selectedTrackId = null;
 let selectedSourceLanguage = "";
 let selectedTargetLanguage = "";
 let generationMode = "bilingual";
+let generationSource = "audio";
+let transcriptionStrategy = "reuse";
 let selectedSubtitlePath = "";
 let currentMediaPath = "";
 let lastPlayerTrackId;
@@ -72,6 +74,8 @@ const progressFeedback = window.createProgressFeedback(elements, () => currentMe
 const generationControls = window.createGenerationControls?.({
   post, getSelection: () => ({ subtitlePath: selectedSubtitlePath, sourceLanguage: selectedSourceLanguage, targetLanguage: selectedTargetLanguage }),
   onModeChanged: (mode) => { generationMode = mode; if (state) renderState(state); },
+  onSourceChanged: (source) => { generationSource = source; if (state) renderState(state); },
+  onStrategyChanged: (strategy) => { transcriptionStrategy = strategy; },
 });
 function post(name, payload) {
   iina.postMessage(name, payload);
@@ -91,17 +95,17 @@ function trackLabel(track) {
 
 function updateLanguageErrors() {
   const sameLanguage =
-    generationMode !== "source" && selectedSourceLanguage && selectedSourceLanguage === selectedTargetLanguage;
+    (generationSource === "existing-subtitle" || generationMode !== "source") && selectedSourceLanguage && selectedSourceLanguage === selectedTargetLanguage;
   const sourceMessage = !selectedSourceLanguage
     ? "请选择源语言。"
     : sameLanguage
       ? "源语言和目标语言不能相同。"
       : "";
-  const targetMessage = generationMode === "source" ? "" : !selectedTargetLanguage
+  const targetMessage = generationSource === "existing-subtitle" || generationMode !== "source" ? !selectedTargetLanguage
     ? "请选择目标语言。"
     : sameLanguage
       ? "请选择不同的转录语言和翻译语言。"
-      : "";
+      : "" : "";
   for (const [field, error, message] of [
     [elements.sourceLanguage, elements.sourceLanguageError, sourceMessage],
     [elements.targetLanguage, elements.targetLanguageError, targetMessage],
@@ -175,15 +179,17 @@ function renderState(nextState) {
     state.media && state.subtitleLibraryLoading,
   );
   elements.audioTrack.disabled =
-    !state.media || audioTracks.length === 0 || busy;
-  elements.sourceLanguage.disabled = busy;
-  elements.targetLanguage.disabled = busy || generationMode === "source";
-  elements.targetLanguage.required = generationMode !== "source";
-  const subtitles = Array.isArray(state.availableSubtitles)
-    ? state.availableSubtitles.filter(subtitle =>
+    !state.media || audioTracks.length === 0 || busy || generationSource === "existing-subtitle";
+  elements.sourceLanguage.disabled = busy || generationSource === "existing-subtitle";
+  elements.targetLanguage.disabled = busy || generationMode === "source" && generationSource === "audio";
+  elements.targetLanguage.required = generationSource === "existing-subtitle" || generationMode !== "source";
+  const allSubtitles = Array.isArray(state.availableSubtitles) ? state.availableSubtitles : [];
+  const subtitles = generationSource === "existing-subtitle"
+    ? allSubtitles
+    : allSubtitles.filter(subtitle =>
       !subtitle.sourceLanguage || !subtitle.targetLanguage ||
       subtitle.sourceLanguage === selectedSourceLanguage && subtitle.targetLanguage === selectedTargetLanguage)
-    : [];
+  ;
   elements.existingSubtitles.hidden = subtitles.length === 0;
   elements.reveal.hidden = subtitles.length === 0;
   elements.reveal.disabled = busy;
@@ -193,7 +199,7 @@ function renderState(nextState) {
   for (const subtitle of subtitles) {
     const path = subtitle.path;
     const name = typeof path === "string" ? path.split("/").pop() : "字幕文件";
-    const label = window.sidebarWorkflow?.subtitleLabel(subtitle, LANGUAGES) || name || "字幕文件";
+    const label = (generationSource === "existing-subtitle" ? name : window.sidebarWorkflow?.subtitleLabel(subtitle, LANGUAGES)) || name || "字幕文件";
     const option = new Option(label, path);
     if (typeof option.setAttribute === "function") {
       option.setAttribute("aria-label", label);
@@ -211,6 +217,11 @@ function renderState(nextState) {
     selectedSubtitlePath = subtitles.length ? subtitles[0].path : "";
   }
   elements.subtitleChoice.value = selectedSubtitlePath;
+  const selectedSubtitle = subtitles.find((subtitle) => subtitle.path === selectedSubtitlePath);
+  if (generationSource === "existing-subtitle" && selectedSubtitle?.sourceLanguage) {
+    selectedSourceLanguage = selectedSubtitle.sourceLanguage;
+    fillLanguages(elements.sourceLanguage, selectedSourceLanguage);
+  }
   const sourceOnly = subtitles.find(subtitle => subtitle.path === selectedSubtitlePath)?.mode === "source";
   const displayMode = sourceOnly ? "source" : state.displayMode || "bilingual";
   for (const radio of elements.displayModes) {
@@ -219,7 +230,6 @@ function renderState(nextState) {
   }
   elements.displayMode?.setAttribute?.("data-selected", displayMode);
   if (elements.subtitleVersion) {
-    const selectedSubtitle = subtitles.find((subtitle) => subtitle.path === selectedSubtitlePath);
     const subtitleVersion = window.sidebarWorkflow?.subtitleVersion(selectedSubtitle) || "";
     elements.subtitleVersion.textContent = subtitleVersion;
     elements.subtitleVersion.hidden = !subtitleVersion;
@@ -254,38 +264,44 @@ function restoreJobFocus(focused) {
   if (target === elements.jobMessage) target.tabIndex = -1;
   target.focus();
 }
-function updateGeneration() {
+function updateGeneration(force = false) {
   if (!state) return;
   const busy = state.jobActive || state.editorOpen || state.associationOpen || state.importOpen || state.job && ["running", "canceling", "loading"].includes(state.job.status);
-  generationControls?.update({ busy, state, selectedSubtitlePath, sourceLanguage: selectedSourceLanguage, targetLanguage: selectedTargetLanguage });
+  generationControls?.update({ busy, state, sourceMode: generationSource, selectedSubtitlePath, sourceLanguage: selectedSourceLanguage, targetLanguage: selectedTargetLanguage });
   const availableTrack = (state.tracks || []).some((track) => track.available && String(track.id) === String(selectedTrackId));
+  const hasSelectedSubtitle = (state.availableSubtitles || []).some((subtitle) => subtitle.path === selectedSubtitlePath);
+  const needsTarget = generationSource === "existing-subtitle" || generationMode !== "source";
   elements.start.disabled =
     !state.media ||
-    !availableTrack ||
+    generationSource === "audio" && !availableTrack ||
+    generationSource === "existing-subtitle" && !hasSelectedSubtitle ||
     busy ||
     state.editorOpen ||
     state.associationOpen || state.importOpen ||
     state.subtitleLibraryLoading ||
     !selectedSourceLanguage ||
-    generationMode !== "source" && (!selectedTargetLanguage || selectedSourceLanguage === selectedTargetLanguage);
-  const matchingSubtitle = (state.availableSubtitles || []).some((subtitle) =>
+    needsTarget && (!selectedTargetLanguage || selectedSourceLanguage === selectedTargetLanguage);
+  const matchingSubtitle = generationSource === "audio" && (state.availableSubtitles || []).some((subtitle) =>
       subtitle.sourceLanguage === selectedSourceLanguage &&
       subtitle.targetLanguage === selectedTargetLanguage);
-  elements.start.textContent = matchingSubtitle ? "重新生成" : "生成";
+  elements.start.textContent = generationSource === "existing-subtitle"
+    ? "翻译并生成新版本"
+    : matchingSubtitle ? "重新生成" : "生成字幕";
   elements.start.setAttribute("aria-label", busy ? "正在生成" : elements.start.textContent);
-  renderLanguagePreflight(busy);
+  renderLanguagePreflight(busy, force);
 }
-function renderLanguagePreflight(busy) {
-  const targetLanguage = generationMode === "source" ? "" : selectedTargetLanguage;
-  const valid = state.media && selectedSourceLanguage && (generationMode === "source" || targetLanguage && selectedSourceLanguage !== targetLanguage);
+function renderLanguagePreflight(busy, force) {
+  const targetLanguage = generationSource === "existing-subtitle" || generationMode !== "source" ? selectedTargetLanguage : "";
+  const preflightMode = generationSource === "existing-subtitle" ? "translate" : generationMode;
+  const valid = state.media && selectedSourceLanguage && (generationSource === "audio" && generationMode === "source" || targetLanguage && selectedSourceLanguage !== targetLanguage);
   elements.languageResourceStatus.hidden = !valid || Boolean(busy);
   elements.checkLanguages.disabled = Boolean(busy);
   if (!valid) { lastPreflightKey = ""; return; }
-  const key = JSON.stringify([currentMediaPath, selectedSourceLanguage, targetLanguage, generationMode]);
-  const check = state.languagePreflight;
-  const matches = check && check.mediaPath === currentMediaPath
+  const key = JSON.stringify([currentMediaPath, selectedSourceLanguage, targetLanguage, preflightMode]);
+  const check = [state.languagePreflight, ...(state.languagePreflight?.readyChecks || [])].find(check => check && check.mediaPath === currentMediaPath
     && check.sourceLanguage === selectedSourceLanguage && check.targetLanguage === targetLanguage
-    && (check.generationMode || "bilingual") === generationMode;
+    && (check.generationMode || "bilingual") === preflightMode);
+  const matches = Boolean(check);
   const status = matches ? check.status : "checking";
   window.sidebarWorkflow?.onPreflight(matches ? check : null);
   elements.languageResourceMessage.textContent = matches ? check.message || "正在检查语言资源" : "正在检查语言资源";
@@ -294,7 +310,7 @@ function renderLanguagePreflight(busy) {
   elements.start.disabled = elements.start.disabled || !matches || status !== "ready";
   if (!busy && key !== lastPreflightKey) {
     lastPreflightKey = key;
-    post("checkLanguages", { sourceLanguage: selectedSourceLanguage, targetLanguage, generationMode });
+    post("checkLanguages", { sourceLanguage: selectedSourceLanguage, targetLanguage, generationMode: preflightMode, force });
   }
 }
 function renderJob(job) {
@@ -396,11 +412,12 @@ elements.jobForm.addEventListener("submit", (event) => {
   event.preventDefault();
   languageValidationRequested = true;
   updateLanguageErrors();
-  if (!selectedSourceLanguage || generationMode !== "source" && !selectedTargetLanguage) {
+  const needsTarget = generationSource === "existing-subtitle" || generationMode !== "source";
+  if (!selectedSourceLanguage || needsTarget && !selectedTargetLanguage) {
     renderJob({ status: "validation", message: "请选择转录语言和翻译语言。" });
     return;
   }
-  if (generationMode !== "source" && selectedSourceLanguage === selectedTargetLanguage) {
+  if (needsTarget && selectedSourceLanguage === selectedTargetLanguage) {
     renderJob({
       status: "validation",
       message: "请选择不同的转录语言和翻译语言。",
@@ -408,15 +425,26 @@ elements.jobForm.addEventListener("submit", (event) => {
     return;
   }
   if (elements.start.disabled) return;
-  const payload = {
-    waitForProgress: true,
-    trackId: selectedTrackId,
-    sourceLanguage: selectedSourceLanguage,
-    targetLanguage: generationMode === "source" ? "" : selectedTargetLanguage,
-    generationMode,
-    forceTranscription: Boolean(document.querySelector("#force-transcription")?.checked),
-  };
-  const matching = (state.availableSubtitles || []).some((subtitle) => subtitle.sourceLanguage === selectedSourceLanguage && subtitle.targetLanguage === selectedTargetLanguage);
+  const payload = generationSource === "existing-subtitle"
+    ? {
+      waitForProgress: true,
+      sourceLanguage: selectedSourceLanguage,
+      targetLanguage: selectedTargetLanguage,
+      generationMode: "translate",
+      inputSubtitlePath: selectedSubtitlePath,
+    }
+    : {
+      waitForProgress: true,
+      trackId: selectedTrackId,
+      sourceLanguage: selectedSourceLanguage,
+      targetLanguage: generationMode === "source" ? "" : selectedTargetLanguage,
+      generationMode,
+      forceTranscription: transcriptionStrategy === "force",
+    };
+  const matching = (state.availableSubtitles || []).some((subtitle) =>
+    (generationSource === "audio" || subtitle.path !== selectedSubtitlePath) &&
+    subtitle.sourceLanguage === selectedSourceLanguage &&
+    subtitle.targetLanguage === selectedTargetLanguage);
   const start = () => post("start", payload);
   if (window.sidebarWorkflow) window.sidebarWorkflow.requestStart(payload, matching, start);
   else start();
@@ -426,7 +454,7 @@ elements.cancel.addEventListener("click", () => post("cancel"));
 elements.checkLanguages.addEventListener("click", () => {
   lastPreflightKey = "";
   if (state) state.languagePreflight = null;
-  updateGeneration();
+  updateGeneration(true);
 });
 elements.subtitleChoice.addEventListener("change", () => {
   selectedSubtitlePath = elements.subtitleChoice.value;

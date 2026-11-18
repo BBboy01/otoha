@@ -147,12 +147,15 @@ function videoState(overrides = {}) {
   };
 }
 
-test("sidebar exposes three accessible display radio modes with a moving selection surface", () => {
+test("sidebar exposes three accessible display radio modes with shared segment styling", () => {
   assert.match(
     sidebarMarkup,
     /<fieldset class="display-mode-row"[\s\S]*<legend class="visually-hidden">显示<\/legend>/,
   );
-  assert.match(sidebarMarkup, /id="display-mode" class="display-mode-options"/);
+  assert.match(
+    sidebarMarkup,
+    /id="display-mode" class="display-mode-options segmented-options"/,
+  );
   assert.match(sidebarMarkup, /name="display-mode" value="source"/);
   assert.match(sidebarMarkup, /name="display-mode" value="translation"/);
   assert.match(sidebarMarkup, /name="display-mode" value="bilingual"/);

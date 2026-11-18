@@ -31,6 +31,7 @@ test("sidebar requests language preflight, blocks unchecked generation and expos
   const ui = createSidebar();
   ui.state(undefined);
   assert.equal(ui.posts.at(-1).name, "checkLanguages");
+  assert.notEqual(ui.posts.at(-1).payload.force, true);
   assert.equal(ui.elements.get("#start-button").disabled, true);
   const pair = { sourceLanguage: "en", targetLanguage: "ja", mediaPath: "/synthetic.mp4" };
   ui.state({ ...pair, status: "unavailable", message: "需要下载翻译资源" });
@@ -38,9 +39,20 @@ test("sidebar requests language preflight, blocks unchecked generation and expos
   assert.equal(ui.elements.get("#check-languages").hidden, false);
   ui.elements.get("#check-languages").listeners.get("click")();
   assert.equal(ui.posts.at(-1).name, "checkLanguages");
+  assert.equal(ui.posts.at(-1).payload.force, true);
   ui.state({ ...pair, status: "ready", message: "语言资源可用" });
   assert.equal(ui.elements.get("#start-button").disabled, false);
   ui.state({ ...pair, status: "ready" }, "/next.mp4");
+  assert.equal(ui.elements.get("#start-button").disabled, true);
+});
+
+test("cached resource approval keeps the generation button enabled when returning to a mode", () => {
+  const ui = createSidebar();
+  const pair = { sourceLanguage: "en", targetLanguage: "ja", mediaPath: "/synthetic.mp4", generationMode: "bilingual", status: "ready", message: "语言资源可用" };
+  ui.state({ ...pair, generationMode: "source", targetLanguage: "", readyChecks: [pair] });
+  assert.equal(ui.elements.get("#start-button").disabled, false);
+  assert.equal(ui.elements.get("#language-resource-message").textContent, "语言资源可用");
+  ui.elements.get("#check-languages").listeners.get("click")();
   assert.equal(ui.elements.get("#start-button").disabled, true);
 });
 

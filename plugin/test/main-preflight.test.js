@@ -2,6 +2,20 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { createPlugin, helperPath } = require("./main-fixture");
 
+test("automatic preflight reuses previous modes while explicit refresh invokes the helper", async () => {
+  const plugin = createPlugin();
+  plugin.runSidebarLoad();
+  plugin.sidebarHandlers.get("ready")({ helperPath });
+  const check = plugin.sidebarHandlers.get("checkLanguages");
+  const pair = { sourceLanguage: "en", targetLanguage: "ja", generationMode: "bilingual" };
+  await check(pair);
+  await check({ ...pair, targetLanguage: "", generationMode: "source" });
+  await check(pair);
+  assert.equal(plugin.execCalls.filter(call => call.args[0] === "--check-languages-json").length, 2);
+  await check({ ...pair, force: true });
+  assert.equal(plugin.execCalls.filter(call => call.args[0] === "--check-languages-json").length, 3);
+});
+
 test("source-only generation starts without a target language or Translation resources", async () => {
   const plugin = createPlugin({ preflightTranslation: "unsupported" });
   plugin.runSidebarLoad();
