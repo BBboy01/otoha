@@ -64,7 +64,7 @@
         <div class="subtitle-group">
           <h3>语言与版本</h3>
           <div class="language-grid">
-            <div>
+            <div id="source-language-field">
               <label for="source-language">源语言</label>
               <select id="source-language" form="job-form" aria-describedby="source-language-error" aria-invalid="false" required></select>
               <p id="source-language-error" class="field-error" role="alert" hidden></p>
@@ -105,7 +105,7 @@
       <fieldset class="display-mode-row" aria-label="字幕显示方式">
         <legend class="visually-hidden">显示</legend>
         <h3 aria-hidden="true">显示</h3>
-        <div id="display-mode" class="display-mode-options" data-selected="bilingual">
+        <div id="display-mode" class="display-mode-options segmented-options" data-selected="bilingual">
           <label><input type="radio" name="display-mode" value="source" />原文</label>
           <label><input type="radio" name="display-mode" value="translation" />译文</label>
           <label><input type="radio" name="display-mode" value="bilingual" checked />双语</label>
@@ -115,20 +115,34 @@
       <section id="generation-options" aria-labelledby="generation-heading">
         <h3 id="generation-heading">生成</h3>
         <form id="job-form" aria-labelledby="generation-heading">
-        <fieldset class="export-mode generation-content"><legend>生成内容</legend><div class="export-mode-options">
+        <fieldset id="generation-source" class="generation-source">
+          <legend><span>字幕来源</span>
+            <button id="import-subtitle" class="icon-button" type="button" title="导入 SRT" aria-label="导入 SRT"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m17 8-5-5-5 5" /><path d="M12 3v12" /></svg></button>
+          </legend>
+          <div class="generation-source-options segmented-options">
+          <label><input type="radio" name="generation-source" value="audio" checked />从音轨生成</label>
+          <label><input type="radio" name="generation-source" value="existing-subtitle" />从已有字幕翻译</label>
+        </div></fieldset>
+        <div id="audio-generation-fields">
+        <fieldset class="export-mode generation-content"><legend>生成内容</legend><div class="segmented-options">
           <label><input type="radio" name="generation-mode" value="bilingual" checked />双语</label>
           <label><input type="radio" name="generation-mode" value="source" />仅原文</label>
         </div></fieldset>
-        <label class="generation-toggle" for="force-transcription"><input id="force-transcription" type="checkbox" />重新识别音频</label>
-        <div class="subtitle-actions generation-actions">
-          <button id="retranslate-subtitle" class="secondary" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></svg>重翻译所选字幕</button>
-          <button id="import-subtitle" class="secondary" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m17 8-5-5-5 5" /><path d="M12 3v12" /></svg>导入 SRT</button>
-        </div>
+        <details id="generation-advanced">
+          <summary>高级配置</summary>
+          <fieldset id="transcription-strategy" class="generation-strategy"><legend>转录方式</legend><div class="generation-strategy-options segmented-options">
+            <label><input type="radio" name="transcription-strategy" value="reuse" checked />复用已有转录</label>
+            <label><input type="radio" name="transcription-strategy" value="force" />重新识别音频</label>
+          </div></fieldset>
+        </details>
         <div class="track-row">
           <label for="audio-track">音轨</label>
           <select id="audio-track" name="trackId" required></select>
         </div>
-
+        </div>
+        <div id="existing-subtitle-generation-fields" hidden>
+          <p class="generation-context">将使用上方选中的字幕作为原文，并生成新的目标语言版本。</p>
+        </div>
         <div id="language-resource-status" class="job-status" hidden>
           <p id="language-resource-message" role="status" aria-live="polite"></p>
           <p id="resource-breakdown"></p>

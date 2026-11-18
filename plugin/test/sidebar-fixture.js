@@ -5,9 +5,10 @@ const sidebarSource = ["sidebar-progress.js", "sidebar-generation.js", "sidebar.
   .map((file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8"))
   .join("\n");
 
-function createSidebar() {
+function createSidebar(sidebarWorkflow) {
   const selectors = [
-    "#retranslate-subtitle", "#import-subtitle", "#force-transcription",
+    "#import-subtitle", "#audio-generation-fields", "#existing-subtitle-generation-fields",
+    "#source-language-field",
     "#edit-subtitle-button",
     "#audio-track",
     "#cancel-button",
@@ -86,6 +87,14 @@ function createSidebar() {
     value, checked: value === "bilingual", listeners: new Map(),
     addEventListener(name, callback) { this.listeners.set(name, callback); },
   }));
+  const generationSources = ["audio", "existing-subtitle"].map((value) => ({
+    value, checked: value === "audio", disabled: false, listeners: new Map(),
+    addEventListener(name, callback) { this.listeners.set(name, callback); },
+  }));
+  const transcriptionStrategies = ["reuse", "force"].map((value) => ({
+    value, checked: value === "reuse", disabled: false, listeners: new Map(),
+    addEventListener(name, callback) { this.listeners.set(name, callback); },
+  }));
   const displayModes = ["source", "translation", "bilingual"].map((value) => ({
     value,
     checked: value === "bilingual",
@@ -115,7 +124,7 @@ function createSidebar() {
     document: {
       querySelector: (selector) => elements.get(selector),
       querySelectorAll: (selector) =>
-        selector === "input[name='generation-mode']" ? generationModes : selector === "input[name='export-mode']"
+        selector === "input[name='generation-mode']" ? generationModes : selector === "input[name='generation-source']" ? generationSources : selector === "input[name='transcription-strategy']" ? transcriptionStrategies : selector === "input[name='export-mode']"
           ? exportModes
           : selector === "input[name='display-mode']"
             ? displayModes
@@ -125,6 +134,7 @@ function createSidebar() {
     Option,
     URL,
     window: {
+      sidebarWorkflow,
       location: { href: "file:///tmp/Otoha/sidebar.html" },
       setInterval() {},
     },
@@ -133,7 +143,7 @@ function createSidebar() {
   elements.get("#display-mode").setAttribute = function (name, value) {
     this.attributes.set(name, String(value));
   };
-  return { elements, exportModes, displayModes, generationModes, handlers, posts };
+  return { elements, exportModes, displayModes, generationModes, generationSources, transcriptionStrategies, handlers, posts };
 }
 
 function videoState(overrides = {}) {
