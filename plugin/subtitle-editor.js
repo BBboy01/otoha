@@ -197,12 +197,12 @@
       Boolean(currentMedia && currentMedia !== session.mediaPath) ||
       !currentMedia;
     const available = drafts.length > 0;
-    nodes.fields.hidden = !available;
-    nodes["save-area"].hidden = !available;
+    nodes.fields.dataset.loading = String(session.status === "loading" && !available);
+    nodes.fields.hidden = nodes["save-area"].hidden = false;
     nodes.close.disabled = saving;
     for (const field of [nodes.source, nodes.translation])
-      field.disabled = saving || unresolvedDraft;
-    cueList.setDisabled(saving);
+      field.disabled = !available || saving || unresolvedDraft;
+    cueList.setDisabled(!available || saving);
     nodes.previous.disabled = saving || index === 0;
     nodes.next.disabled = saving || index >= drafts.length - 1;
     nodes.follow.disabled = !available || saving || detached;
@@ -226,7 +226,7 @@
       undo: undo.length,
       looping,
       unresolvedDraft,
-      disabled: saving || detached,
+      disabled: !available || saving || detached,
     });
     if (available)
       cueList.update(
@@ -382,12 +382,15 @@
       baseline = [];
       drafts = [];
       index = 0;
+      cueList.replace([], [], []);
+      nodes.source.value = nodes.translation.value = "";
+      nodes.time.textContent = nodes.count.textContent = "";
       advanceAfterSave = false;
       preserveDraftOnClose = true;
       restoreFocus = document.activeElement;
       nodes.file.textContent = next.path?.split("/").pop() || "";
       navigate(true);
-      nodes.close.focus();
+      nodes.close.focus({ preventScroll: true });
     }
     if (next.status === "error") advanceAfterSave = false;
     if (next.snapshot && (next.status === "ready" || next.status === "saved")) {

@@ -19,6 +19,7 @@ function fixture(reducedMotion = false, { refreshOnCueChange = false } = {}) {
           scrollTop: 0,
           open: false,
           disabled: false,
+          dataset: {},
           children: [],
           animations: [],
           addEventListener(name, callback) {
@@ -30,7 +31,8 @@ function fixture(reducedMotion = false, { refreshOnCueChange = false } = {}) {
           close() {
             this.open = false;
           },
-          focus() {
+          focus(options) {
+            this.focusOptions = options;
             if (!this.disabled) document.activeElement = this;
           },
           getClientRects() {
