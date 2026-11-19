@@ -294,7 +294,7 @@ function renderLanguagePreflight(busy, force) {
   const targetLanguage = generationSource === "existing-subtitle" || generationMode !== "source" ? selectedTargetLanguage : "";
   const preflightMode = generationSource === "existing-subtitle" ? "translate" : generationMode;
   const valid = state.media && selectedSourceLanguage && (generationSource === "audio" && generationMode === "source" || targetLanguage && selectedSourceLanguage !== targetLanguage);
-  elements.languageResourceStatus.hidden = !valid || Boolean(busy);
+  elements.languageResourceStatus.hidden = !valid;
   elements.checkLanguages.disabled = Boolean(busy);
   if (!valid) { lastPreflightKey = ""; return; }
   const key = JSON.stringify([currentMediaPath, selectedSourceLanguage, targetLanguage, preflightMode]);

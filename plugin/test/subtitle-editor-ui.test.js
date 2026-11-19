@@ -129,6 +129,48 @@ test("closing a clean editor restores the last selected cue", () => {
   assert.equal(f.cueList.index, 1);
 });
 
+test("entering the editor moves focus without scrolling during the transition", () => {
+  const f = fixture();
+  f.emit("closed");
+  f.emit("ready", {
+    sessionId: "session-2",
+    path: f.snapshot.path,
+    snapshot: f.snapshot,
+  });
+  assert.equal(f.node("close").focusOptions?.preventScroll, true);
+});
+
+test("editor keeps its controls visible and disabled while cue content loads", () => {
+  const f = fixture();
+  f.emit("closed");
+  f.emit("loading", {
+    sessionId: "session-2",
+    path: f.snapshot.path,
+    message: "正在读取字幕",
+  });
+  assert.equal(f.node("fields").hidden, false);
+  assert.equal(f.node("fields").dataset.loading, "true");
+  assert.equal(f.node("save-area").hidden, false);
+  assert.equal(f.node("source").value, "");
+  assert.equal(f.node("translation").value, "");
+  for (const name of [
+    "source", "translation", "follow", "previous", "next", "save", "save-next",
+  ])
+    assert.equal(f.node(name).disabled, true, name);
+
+  f.emit("ready", {
+    sessionId: "session-2",
+    path: f.snapshot.path,
+    snapshot: f.snapshot,
+  });
+  assert.equal(f.node("fields").hidden, false);
+  assert.equal(f.node("fields").dataset.loading, "false");
+  assert.equal(f.node("save-area").hidden, false);
+  assert.equal(f.node("source").value, "Self-authored one");
+  assert.equal(f.node("source").disabled, false);
+  assert.equal(f.node("next").disabled, false);
+});
+
 test("undoing back to the saved baseline clears an autosaved draft", () => {
   const f = fixture();
   f.input("source", "临时修改");

@@ -35,6 +35,60 @@
   overflow-y: auto;
   padding: var(--otoha-space-0-5);
 }
+.editor-cue-skeleton {
+  display: none;
+  position: absolute;
+  inset: 0;
+}
+#editor-fields[data-loading="true"] .editor-cue-skeleton {
+  display: block;
+}
+#editor-fields[data-loading="true"] #editor-cue > :not(.editor-cue-skeleton) {
+  visibility: hidden;
+}
+.editor-cue-skeleton span,
+#editor-fields[data-loading="true"] .editor-field::after,
+#editor-fields[data-loading="true"] #editor-time::after {
+  display: block;
+  height: var(--otoha-font-size-label);
+  border-radius: var(--otoha-radius-small);
+  background: var(--otoha-color-surface-control);
+}
+.editor-cue-skeleton .cue.selected {
+  background: var(--otoha-color-accent-subtle);
+  border-left-color: var(--otoha-color-accent);
+}
+.editor-cue-skeleton .cue-meta,
+.editor-cue-skeleton p {
+  display: flex;
+  align-items: center;
+  height: 1lh;
+}
+.editor-cue-skeleton span {
+  height: var(--otoha-space-2);
+  width: 80%;
+}
+.editor-cue-skeleton .cue-meta span {
+  width: 8ch;
+}
+.editor-cue-skeleton .cue-translation span {
+  width: 64%;
+}
+#editor-fields[data-loading="true"] .editor-field::after {
+  content: "";
+  grid-area: 2 / 1;
+  margin: var(--otoha-space-3);
+  pointer-events: none;
+}
+#editor-fields[data-loading="true"] #editor-count::after {
+  content: "\2014";
+}
+#editor-fields[data-loading="true"] #editor-time::after {
+  content: "";
+  width: min(100%, 27ch);
+  height: var(--otoha-space-2);
+  margin-inline-start: auto;
+}
 #editor-status:empty {
   display: none;
 }
@@ -75,6 +129,7 @@ dialog::backdrop {
   overflow-wrap: anywhere;
 }
 #editor-fields textarea {
+  grid-area: 2 / 1;
   display: block;
   width: 100%;
   min-height: var(--otoha-editor-text-height);
@@ -157,7 +212,7 @@ dialog::backdrop {
 #editor-undo {
   margin-inline-start: auto;
 }
-#editor-undo:focus-visible {
+.editor-heading .icon-button:focus-visible {
   outline-offset: calc(-1 * var(--otoha-focus-width));
 }
 @media (max-height: 600px) {

@@ -14,25 +14,10 @@ main {
   display: grid;
   gap: var(--otoha-space-section-gap);
 }
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-width: 0;
-  padding-bottom: var(--otoha-space-section-inset);
-}
-
 h1,
 h2,
 p {
   margin: 0;
-}
-
-h1 {
-  position: relative;
-  font-size: var(--otoha-font-size-heading);
-  font-weight: var(--otoha-font-weight-heading);
-  line-height: var(--otoha-line-height-heading);
 }
 
 label {
@@ -95,13 +80,13 @@ h2 {
   gap: var(--otoha-space-1-5);
 }
 
-.section-heading h2 {
+.section-heading :is(h1, h2) {
   display: inline-flex;
   align-items: center;
   gap: var(--otoha-space-1-5);
 }
 
-.section-heading h2::before {
+.section-heading :is(h1, h2)::before {
   width: var(--otoha-brand-mark-height);
   height: var(--otoha-font-size-body);
   flex: none;
@@ -323,10 +308,14 @@ progress {
   opacity: 0;
   transform: translateY(calc(-1 * var(--otoha-space-1)));
   transition:
-    grid-template-rows var(--otoha-motion-duration-expand) var(--otoha-motion-ease-standard),
-    margin-top var(--otoha-motion-duration-expand) var(--otoha-motion-ease-standard),
-    opacity var(--otoha-motion-duration-expand) var(--otoha-motion-ease-standard),
-    transform var(--otoha-motion-duration-expand) var(--otoha-motion-ease-standard);
+    grid-template-rows var(--otoha-motion-duration-expand)
+      var(--otoha-motion-ease-standard),
+    margin-top var(--otoha-motion-duration-expand)
+      var(--otoha-motion-ease-standard),
+    opacity var(--otoha-motion-duration-expand)
+      var(--otoha-motion-ease-standard),
+    transform var(--otoha-motion-duration-expand)
+      var(--otoha-motion-ease-standard);
 }
 .job-progress[hidden] {
   display: none;

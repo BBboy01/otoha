@@ -51,32 +51,30 @@ function fixture(reduced = false) {
   };
 }
 
-test("editor slides at fixed dimensions, keeping the outgoing screen until motion completes", async () => {
+test("navigation switches screens immediately without animation", () => {
   const f = fixture();
   f.navigate(true);
-  assert.equal(f.home.hidden, false);
+  assert.equal(f.home.hidden, true);
   assert.equal(f.home.inert, true);
   assert.equal(f.editor.hidden, false);
   assert.equal(f.home.animations.length, 0);
-  assert.equal(f.editor.animations[0].frames[0].transform, "translateX(100%)");
-  assert.deepEqual(Object.keys(f.editor.animations[0].frames[0]), [
-    "transform",
-  ]);
-  f.editor.animations[0].finish();
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(f.home.hidden, true);
+  assert.equal(f.editor.animations.length, 0);
+  assert.equal(f.home.style.transform, undefined);
+  assert.equal(f.editor.style.transform, undefined);
   f.navigate(false);
   assert.equal(f.home.hidden, false);
-  assert.equal(f.editor.hidden, false);
-  f.editor.animations[1].finish();
-  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(f.home.inert, false);
   assert.equal(f.editor.hidden, true);
+  assert.equal(f.editor.inert, true);
 });
 
-test("reduced motion switches screens immediately", () => {
+test("repeated navigation to the current screen is a no-op", () => {
   const f = fixture(true);
   f.navigate(true);
   assert.equal(f.home.hidden, true);
   assert.equal(f.editor.hidden, false);
   assert.equal(f.editor.animations.length, 0);
+  f.navigate(true);
+  assert.equal(f.home.hidden, true);
+  assert.equal(f.editor.hidden, false);
 });

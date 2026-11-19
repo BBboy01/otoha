@@ -19,10 +19,11 @@ function createSidebar() {
     iina: { onMessage(name, callback) { handlers.set(name, callback); }, postMessage(name, payload) { posts.push({ name, payload }); } },
     Option: class {}, URL, window: { location: { href: "file:///tmp/Otoha/sidebar.html" }, setInterval() {} },
   });
-  const state = (preflight, mediaPath = "/synthetic.mp4") => handlers.get("state")({
+  const state = (preflight, mediaPath = "/synthetic.mp4", overrides = {}) => handlers.get("state")({
     media: { path: mediaPath, name: "synthetic.mp4" }, sourceLanguage: "en", targetLanguage: "ja",
     selectedTrackId: 1, tracks: [{ id: 1, available: true }], job: { status: "idle" },
     languagePreflight: preflight,
+    ...overrides,
   });
   return { elements, handlers, posts, state };
 }
@@ -54,6 +55,24 @@ test("cached resource approval keeps the generation button enabled when returnin
   assert.equal(ui.elements.get("#language-resource-message").textContent, "语言资源可用");
   ui.elements.get("#check-languages").listeners.get("click")();
   assert.equal(ui.elements.get("#start-button").disabled, true);
+});
+
+test("ready language resources remain visible while generation is running", () => {
+  const ui = createSidebar();
+  const pair = { sourceLanguage: "en", targetLanguage: "ja", mediaPath: "/synthetic.mp4", status: "ready", message: "语言资源可用" };
+  ui.state(pair);
+  ui.state(pair, "/synthetic.mp4", { jobActive: true, job: { status: "running" } });
+  assert.equal(ui.elements.get("#language-resource-status").hidden, false);
+  assert.equal(ui.elements.get("#language-resource-message").textContent, "语言资源可用");
+});
+
+test("language resource rechecks remain visible during generation", () => {
+  const ui = createSidebar();
+  const pair = { sourceLanguage: "en", targetLanguage: "ja", mediaPath: "/synthetic.mp4", status: "checking", message: "正在检查语言资源" };
+  ui.state(pair, "/synthetic.mp4", { jobActive: true, job: { status: "running" } });
+  assert.equal(ui.elements.get("#language-resource-status").hidden, false);
+  assert.equal(ui.elements.get("#language-resource-message").textContent, "正在检查语言资源");
+  assert.equal(ui.elements.get("#language-resource-status").getAttribute("aria-busy"), "true");
 });
 
 test("changing languages invalidates prior approval and rechecks without changing playback", () => {

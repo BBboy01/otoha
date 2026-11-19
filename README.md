@@ -12,9 +12,11 @@
 
 真实 IINA 中的开发版本截图，已发布功能以 [Releases](https://github.com/BBboy01/otoha/releases) 为准。
 
-| 首页 | 校对字幕 |
+<p><img src="assets/otoha-bilingual-playback.png" alt="IINA 播放英日双语字幕及 Otoha 生成设置" width="720"></p>
+
+| 生成字幕 | 校对字幕 |
 | --- | --- |
-| <img src="https://github.com/user-attachments/assets/893f0a2b-c686-461a-82ba-2a8eef475dd3" alt="Otoha 首页" width="300"> | <img src="https://github.com/user-attachments/assets/365889aa-7394-4131-89f4-4949a1503d91" alt="字幕校对页" width="300"> |
+| <img src="assets/otoha-generation.png" alt="IINA 中的 Otoha 字幕生成页面" width="300"> | <img src="assets/otoha-subtitle-editor.png" alt="IINA 中的 Otoha 字幕校对页面" width="300"> |
 
 ## 功能
 

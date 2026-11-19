@@ -38,12 +38,7 @@
   </head>
   <body>
     <div id="sidebar-screens">
-    <main id="sidebar-home">
-      <header class="header">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <h1>Otoha</h1>
-      </header>
-
+    <main id="sidebar-home" aria-labelledby="subtitle-heading">
       <section class="media" aria-label="当前视频">
         <div class="media-row">
           <p id="media-name" class="media-name" title="未打开视频" aria-label="未打开视频">未打开视频</p>
@@ -53,7 +48,7 @@
 
       <section class="subtitle-workspace" aria-labelledby="subtitle-heading">
         <div class="section-heading">
-          <h2 id="subtitle-heading">字幕</h2>
+          <h1 id="subtitle-heading">字幕</h1>
         <div class="subtitle-actions">
           <button id="subtitle-associate" class="icon-button" type="button" title="关联已有字幕" aria-label="关联已有字幕"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
           <button id="edit-subtitle-button" class="icon-button" type="button" title="校对字幕" aria-label="校对字幕"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg></button>
@@ -205,7 +200,14 @@
             <output id="editor-count" aria-live="polite" aria-atomic="true"></output>
             <label id="editor-follow-label" class="video-follow"><span>联动</span><input id="editor-follow" type="checkbox" role="switch" checked aria-label="联动视频位置" aria-describedby="editor-follow-tip" /><span id="editor-follow-tip" class="video-follow-tip" role="tooltip" hidden>开启后选择字幕会定位视频；关闭后单击选中，双击定位视频。</span></label>
           </div>
-          <div id="editor-cue" class="cues" role="listbox" aria-labelledby="editor-cue-heading"><span id="editor-video-marker" class="cue-video-position" aria-hidden="true" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="5" width="13" height="14" rx="2"/></svg></span></div>
+          <div id="editor-cue" class="cues" role="listbox" aria-labelledby="editor-cue-heading">
+            <div class="editor-cue-skeleton" aria-hidden="true">
+              <div class="cue selected"><div class="cue-meta"><span></span></div><p class="cue-source"><span></span></p><p class="cue-translation"><span></span></p></div>
+              <div class="cue"><div class="cue-meta"><span></span></div><p class="cue-source"><span></span></p><p class="cue-translation"><span></span></p></div>
+              <div class="cue"><div class="cue-meta"><span></span></div><p class="cue-source"><span></span></p><p class="cue-translation"><span></span></p></div>
+            </div>
+            <span id="editor-video-marker" class="cue-video-position" aria-hidden="true" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="5" width="13" height="14" rx="2"/></svg></span>
+          </div>
           <div class="editor-navigation">
             <button id="editor-previous" class="icon-button" type="button" title="上一句" aria-label="上一句"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 7-7 7 7" /> <path d="M12 19V5" /></svg></button>
             <button id="editor-next" class="icon-button" type="button" title="下一句" aria-label="下一句"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14" /> <path d="m19 12-7 7-7-7" /></svg></button>
