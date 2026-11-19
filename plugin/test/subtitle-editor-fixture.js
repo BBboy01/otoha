@@ -121,7 +121,6 @@ function fixture(reducedMotion = false, { refreshOnCueChange = false } = {}) {
     transform: element.transform || "none",
     getPropertyValue: (name) =>
       ({
-        "--otoha-motion-editor-offset": "2px",
         "--otoha-motion-duration-cue-retarget": "200ms",
         "--otoha-motion-ease-standard": "cubic-bezier(0.2, 0.7, 0.25, 1)",
       })[name] || "",
