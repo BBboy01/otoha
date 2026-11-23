@@ -42,6 +42,8 @@
   let undo = [];
   let looping = false;
   let unresolvedDraft = false;
+  const compareDrafts = window.subtitleEditTools.createDirtyCheck();
+  const attached = () => !!currentMedia && currentMedia === session?.mediaPath;
   const extras = window.createSubtitleEditControls?.({
     container: nodes.fields,
     undoButton: nodes.undo,
@@ -125,7 +127,10 @@
       draftTimer = null;
       return;
     }
-    const payload = {
+    draftTimer = setTimeout(persistDraft, 1000);
+  }
+  function persistDraft() {
+    post("persistSubtitleDraft", {
       sessionId: session.sessionId,
       draft: {
         revision: session.snapshot.revision,
@@ -133,12 +138,11 @@
         index,
         scrollTop: nodes.fields.scrollTop,
       },
-    };
-    draftTimer = setTimeout(() => post("persistSubtitleDraft", payload), 1000);
+    });
   }
   const draftSessions = new Map();
   const post = (name, payload) => iina.postMessage(name, payload);
-  const dirty = () => JSON.stringify(drafts) !== JSON.stringify(baseline);
+  const dirty = () => compareDrafts(drafts, baseline);
   const draftKey = (value) =>
     [value.mediaPath, value.path, value.snapshot?.revision].join("\n");
   const time = (seconds) => {
@@ -163,12 +167,7 @@
     () => discardMotion.close(),
   );
   function seek(position = index) {
-    if (
-      !session ||
-      session.status === "saving" ||
-      currentMedia !== session.mediaPath
-    )
-      return;
+    if (!attached() || session.status === "saving") return;
     post("seekSubtitleCue", {
       sessionId: session.sessionId,
       index: position,
@@ -192,12 +191,13 @@
   }
   function render() {
     if (!session) return;
+    const changed = dirty();
     const saving = session.status === "saving";
-    const detached =
-      Boolean(currentMedia && currentMedia !== session.mediaPath) ||
-      !currentMedia;
+    const detached = !attached();
     const available = drafts.length > 0;
-    nodes.fields.dataset.loading = String(session.status === "loading" && !available);
+    nodes.fields.dataset.loading = String(
+      session.status === "loading" && !available,
+    );
     nodes.fields.hidden = nodes["save-area"].hidden = false;
     nodes.close.disabled = saving;
     for (const field of [nodes.source, nodes.translation])
@@ -207,14 +207,14 @@
     nodes.next.disabled = saving || index >= drafts.length - 1;
     nodes.follow.disabled = !available || saving || detached;
     nodes.save.disabled =
-      !available || saving || detached || unresolvedDraft || !dirty();
+      !available || saving || detached || unresolvedDraft || !changed;
     nodes["save-next"].disabled =
       !available ||
       saving ||
       detached ||
       unresolvedDraft ||
       index >= drafts.length - 1;
-    nodes.dirty.hidden = !dirty();
+    nodes.dirty.hidden = !changed;
     nodes.translation.hidden = session.snapshot?.mode === "source";
     const translationLabel = document.querySelector?.(
       'label[for="editor-translation"]',
@@ -222,7 +222,7 @@
     if (translationLabel) translationLabel.hidden = nodes.translation.hidden;
     extras?.render({
       session,
-      dirty: dirty(),
+      dirty: changed,
       undo: undo.length,
       looping,
       unresolvedDraft,
@@ -261,16 +261,7 @@
     preserveDraftOnClose = !discard;
     clearTimeout(draftTimer);
     if (discard) discardDraft();
-    else if (session?.snapshot && !unresolvedDraft && dirty())
-      post("persistSubtitleDraft", {
-        sessionId: session.sessionId,
-        draft: {
-          revision: session.snapshot.revision,
-          cues: drafts,
-          index,
-          scrollTop: nodes.fields.scrollTop,
-        },
-      });
+    else if (session?.snapshot && !unresolvedDraft && dirty()) persistDraft();
     looping = false;
     updateLoop();
     if (discard && session) draftSessions.delete(draftKey(session));
@@ -378,6 +369,8 @@
     const fresh = session?.sessionId !== next.sessionId;
     session = { ...session, ...next };
     if (fresh) {
+      clearTimeout(draftTimer);
+      draftTimer = null;
       cueList.setVideoIndex(-1, false);
       baseline = [];
       drafts = [];
@@ -394,6 +387,8 @@
     }
     if (next.status === "error") advanceAfterSave = false;
     if (next.snapshot && (next.status === "ready" || next.status === "saved")) {
+      clearTimeout(draftTimer);
+      draftTimer = null;
       if (next.status === "saved") undo = [];
       unresolvedDraft = Boolean(next.snapshot.draft);
       const initialSnapshot = !drafts.length;
@@ -429,7 +424,13 @@
     });
     field.addEventListener("input", () => {
       if (!drafts[index] || unresolvedDraft) return;
+      if (
+        drafts[index].source === nodes.source.value &&
+        (drafts[index].translation || "") === nodes.translation.value
+      )
+        return;
       remember();
+      drafts = drafts.slice();
       drafts[index] = {
         ...drafts[index],
         source: nodes.source.value,

@@ -6,6 +6,7 @@ const {
   merge,
   split,
   createLoop,
+  createDirtyCheck,
 } = require("../subtitle-edit-tools.js");
 const cues = [
   {
@@ -25,6 +26,26 @@ const cues = [
     translation: "犬",
   },
 ];
+test("dirty comparison caches immutable references and invalidates on undo or a new baseline", () => {
+  const dirty = createDirtyCheck();
+  let reads = 0;
+  const original = [
+    {
+      get source() {
+        reads++;
+        return "original";
+      },
+    },
+  ];
+  assert.equal(dirty(original, original), false);
+  const compared = reads;
+  assert.equal(dirty(original, original), false);
+  assert.equal(reads, compared);
+  const changed = [{ source: "changed" }];
+  assert.equal(dirty(changed, original), true);
+  assert.equal(dirty(original, original), false);
+  assert.equal(dirty(changed, changed), false);
+});
 test("literal replacement records matches and never mutates input", () => {
   assert.equal(search(cues, "cat", "source").length, 2);
   assert.equal(

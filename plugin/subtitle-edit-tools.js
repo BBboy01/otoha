@@ -123,7 +123,18 @@
       },
     };
   }
-  const api = { search, replace, merge, split, createLoop };
+  function createDirtyCheck() {
+    let previousCues, previousBaseline, modified;
+    return (cues, baseline) => {
+      if (cues !== previousCues || baseline !== previousBaseline) {
+        modified = JSON.stringify(cues) !== JSON.stringify(baseline);
+        previousCues = cues;
+        previousBaseline = baseline;
+      }
+      return modified;
+    };
+  }
+  const api = { search, replace, merge, split, createLoop, createDirtyCheck };
   if (typeof module !== "undefined") module.exports = api;
   else root.subtitleEditTools = api;
 })(typeof window !== "undefined" ? window : globalThis);
