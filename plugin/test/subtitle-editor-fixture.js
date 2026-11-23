@@ -6,7 +6,10 @@ const source = fs.readFileSync(
   "utf8",
 );
 
-function fixture(reducedMotion = false, { refreshOnCueChange = false } = {}) {
+function fixture(
+  reducedMotion = false,
+  { refreshOnCueChange = false, editorSource = source } = {},
+) {
   const nodes = new Map();
   const document = {
     activeElement: null,
@@ -126,7 +129,18 @@ function fixture(reducedMotion = false, { refreshOnCueChange = false } = {}) {
       })[name] || "",
   });
   window.matchMedia = () => ({ matches: reducedMotion });
-  vm.runInNewContext(source, {
+  const serialization = { arrays: 0, cues: 0 };
+  vm.runInNewContext(editorSource, {
+    JSON: {
+      parse: JSON.parse,
+      stringify(value) {
+        if (Array.isArray(value)) {
+          serialization.arrays++;
+          serialization.cues += value.length;
+        }
+        return JSON.stringify(value);
+      },
+    },
     document,
     window,
     setTimeout: (callback) => {
@@ -189,6 +203,7 @@ function fixture(reducedMotion = false, { refreshOnCueChange = false } = {}) {
     document,
     opener,
     receivedPlayback,
+    serialization,
     flushDraft() {
       const pending = [...timers.values()];
       timers.clear();
