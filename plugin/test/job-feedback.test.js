@@ -131,7 +131,7 @@ function sidebar() {
     },
   };
   vm.runInNewContext(
-    ["sidebar-progress.js", "sidebar.js"]
+    ["operation-policy.js", "sidebar-progress.js", "sidebar.js"]
       .map((file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8"))
       .join("\n"),
     context,

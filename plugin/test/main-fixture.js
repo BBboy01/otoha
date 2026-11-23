@@ -46,6 +46,7 @@ function createPlugin({
   editedSubtitleContent = "",
   importSelection = null,
   importGate = null,
+  subtitleLoadGate = null,
 } = {}) {
   const sidebarHandlers = new Map();
   const eventHandlers = new Map();
@@ -104,6 +105,7 @@ function createPlugin({
         },
         async loadTrack(filePath) {
           loadedTracks.push(filePath);
+          if (subtitleLoadGate) await subtitleLoadGate;
           if (failSubtitleLoad) throw new Error("fixture load failure");
           const existing = tracks.find((track) => track.type === "sub" && track["external-filename"] === filePath);
           if (existing) {
@@ -338,6 +340,7 @@ function createPlugin({
     },
     iina,
     require(id) {
+      if (id === "./operation-policy.js") return require("../operation-policy.js");
       if (id === "./controller.js") return controller;
       if (id === "./iina-adapter.js") return require("../iina-adapter.js");
       if (id === "./job-controller.js") return require("../job-controller.js");

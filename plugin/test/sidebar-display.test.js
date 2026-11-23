@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-const sidebarSource = ["sidebar-progress.js", "sidebar.js"]
+const sidebarSource = ["operation-policy.js", "sidebar-progress.js", "sidebar.js"]
   .map((file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8"))
   .join("\n");
 const sidebarMarkup = fs.readFileSync(

@@ -174,7 +174,7 @@ function renderState(nextState) {
   fillLanguages(elements.sourceLanguage, selectedSourceLanguage);
   fillLanguages(elements.targetLanguage, selectedTargetLanguage);
 
-  const busy = state.jobActive || state.editorOpen || state.associationOpen || state.importOpen || state.job && ["running", "canceling", "loading"].includes(state.job.status);
+  const busy = !window.subtitleOperationPolicy.operationCapabilities(state).configure;
   const checkingSubtitles = Boolean(
     state.media && state.subtitleLibraryLoading,
   );
@@ -266,7 +266,7 @@ function restoreJobFocus(focused) {
 }
 function updateGeneration(force = false) {
   if (!state) return;
-  const busy = state.jobActive || state.editorOpen || state.associationOpen || state.importOpen || state.job && ["running", "canceling", "loading"].includes(state.job.status);
+  const busy = !window.subtitleOperationPolicy.operationCapabilities(state).generate;
   generationControls?.update({ busy, state, sourceMode: generationSource, selectedSubtitlePath, sourceLanguage: selectedSourceLanguage, targetLanguage: selectedTargetLanguage });
   const availableTrack = (state.tracks || []).some((track) => track.available && String(track.id) === String(selectedTrackId));
   const hasSelectedSubtitle = (state.availableSubtitles || []).some((subtitle) => subtitle.path === selectedSubtitlePath);
@@ -393,7 +393,7 @@ elements.targetLanguage.addEventListener("change", () => {
   if (state) renderState(state);
 });
 function setDisplayMode(mode) {
-  const busy = state && (state.jobActive || state.editorOpen || state.associationOpen || state.importOpen || state.job && ["running", "canceling", "loading"].includes(state.job.status));
+  const busy = state && !window.subtitleOperationPolicy.operationCapabilities(state).display;
   if (
     !state ||
     !state.media ||
