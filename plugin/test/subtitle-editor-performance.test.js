@@ -64,7 +64,7 @@ test("a new session cancels the previous debounce before accepting new cues", ()
   );
 });
 
-test("quick close flushes the latest draft without waiting for debounce", () => {
+test("external close retains the latest draft in the session cache before debounce", () => {
   const f = fixture();
   f.input("source", "Keep me");
   f.onState("/other.mp4");
