@@ -1,6 +1,7 @@
 const { audioTracks, createJsonLineParser, localMedia, phaseLabel, PROTOCOL_VERSION, resolveFFmpegPath, resolveAudioStreamIndex, waitForSubtitleTrack } = require("./controller.js");
 const { createIinaAdapter } = require("./iina-adapter.js");
 const { createJobController } = require("./job-controller.js");
+const { operationCapabilities } = require("./operation-policy.js");
 const { createLanguagePreflightClient } = require("./language-preflight-client.js");
 const { prepareGeneration, executeGeneration, createSubtitleImportRuntime, cancelGeneration } = require("./subtitle-generation.js");
 const { createSubtitleEditorController } = require("./subtitle-editor-controller.js");
@@ -27,10 +28,13 @@ const runtimeStore = createRuntimeStore({
 function currentJob() { return jobController.current(); }
 function jobState() { return runtimeStore.getState().job; }
 function replaceJob(nextJob) { runtimeStore.setState((state) => ({ ...state, job: jobController.withTiming(nextJob) })); }
+function operations(continuing = null) {
+  return operationCapabilities({ jobActive: Boolean(currentJob()), job: jobState(), editorOpen: subtitleEditor.isOpen(), deletionOpen: subtitleDeletion.isOpen(), associationOpen: subtitleAssociation.isOpen(), importOpen: subtitleImport.isOpen(), subtitleLibraryLoading: subtitleLibraryState().loading }, continuing);
+}
 const subtitleEditor = createSubtitleEditorController({
   file,
   utils,
-  getContext: () => ({ busy: Boolean(currentJob()) || jobState().status === "loading" || subtitleDeletion.isOpen() || subtitleAssociation.isOpen() || subtitleImport.isOpen(), helperPath, mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url), outputDirectoryPath: readSetting(preferences, "output_directory"), files: subtitleLibraryState().files }),
+  getContext: () => ({ busy: !operations("edit").edit, helperPath, mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url), outputDirectoryPath: readSetting(preferences, "output_directory"), files: subtitleLibraryState().files }),
   send: (payload) => send("editor", payload),
   onChanged: sendState,
   onSaved: async (path, media) => {
@@ -40,7 +44,7 @@ const subtitleEditor = createSubtitleEditorController({
   seek: (time) => mpv.command("seek", [String(time), "absolute"]),
   getPlayback: () => ({ position: Number(mpv.getNumber("time-pos")) || 0, duration: Number(mpv.getNumber("duration")) || 0, paused: mpv.getNative("pause") !== false }),
 });
-const subtitleTrackManager = require("./subtitle-style-runtime.js").createStyledSubtitleTrackManager({ mpv, preferences, file, utils, event, mediaPathForURL, renderSubtitleMode, getContext: () => ({ helperPath, path: lastOutputPath, loaded: jobState().loaded, busy: Boolean(currentJob()) || subtitleEditor.isOpen() || subtitleDeletion.isOpen() || subtitleAssociation.isOpen() || subtitleImport.isOpen() }), reload: (path) => loadSubtitle(path, null, false, true) });
+const subtitleTrackManager = require("./subtitle-style-runtime.js").createStyledSubtitleTrackManager({ mpv, preferences, file, utils, event, mediaPathForURL, renderSubtitleMode, getContext: () => ({ helperPath, path: lastOutputPath, loaded: jobState().loaded, busy: !operations().style }), reload: (path) => loadSubtitle(path, null, false, true) });
 let uiLoaded = false;
 let pendingFileLoadedURL = null;
 let latestFileLoadedURL = null;
@@ -68,11 +72,11 @@ const subtitleLibraryClient = require("./subtitle-library-client.js").createSubt
   },
   onUpdated: (mediaURLOverride) => sendState(mediaURLOverride),
   onAutoLoad: (files, mediaPathOverride) => {
-    if (subtitleEditor.isOpen() || subtitleDeletion.isOpen() || subtitleAssociation.isOpen() || subtitleImport.isOpen()) return;
     const mediaPath = mediaPathOverride || mediaPathForURL(latestFileLoadedURL || core.status.url);
     const selected = subtitleSettings.selectedSubtitle(mediaPath, files);
     if (!selected) return;
     if (currentJob()) return void (pendingAutoLoad = { mediaPath, path: selected.path });
+    if (!operations().load) return;
     loadSubtitle(selected.path, mediaPathOverride);
   },
   onError: ({ previousFiles, error }) => {
@@ -90,7 +94,7 @@ const subtitleLibraryClient = require("./subtitle-library-client.js").createSubt
 });
 const subtitleLibraryState = () => runtimeStore.getState().subtitleLibrary;
 const subtitleAssociation = require("./subtitle-association-controller.js").createSubtitleAssociationController({
-  getContext: () => ({ mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url), title: core.status.title, outputDirectoryPath: readSetting(preferences, "output_directory"), helperPath, busy: Boolean(currentJob()) || jobState().status === "loading" || subtitleEditor.isOpen() || subtitleDeletion.isOpen() || subtitleImport.isOpen() }),
+  getContext: () => ({ mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url), title: core.status.title, outputDirectoryPath: readSetting(preferences, "output_directory"), helperPath, busy: !operations("associate").associate }),
   exec: (...args) => utils.exec(...args), send: (payload) => send("association", payload), onChanged: sendState,
   onAssociated: async (path, media, root) => {
     if (media !== mediaPathForURL(latestFileLoadedURL || core.status.url) || root !== readSetting(preferences, "output_directory")) return;
@@ -100,11 +104,11 @@ const subtitleAssociation = require("./subtitle-association-controller.js").crea
   },
 });
 const subtitleImport = createSubtitleImportRuntime({
-  getContext: () => ({ mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url), outputDirectoryPath: readSetting(preferences, "output_directory"), helperPath, busy: Boolean(currentJob()) || jobState().status === "loading" || subtitleEditor.isOpen() || subtitleDeletion.isOpen() || subtitleAssociation.isOpen() }),
+  getContext: () => ({ mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url), outputDirectoryPath: readSetting(preferences, "output_directory"), helperPath, busy: !operations("import").import }),
   exec: (...args) => utils.exec(...args), start: (payload) => startJob(payload), onChanged: sendState, onError: (error) => setJobError(error.message || String(error)),
 });
 const subtitleDeletion = require("./subtitle-deletion-runtime.js").createSubtitleDeletionRuntime({
-  getContext: () => ({ mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url), title: core.status.title, outputDirectoryPath: readSetting(preferences, "output_directory"), helperPath, files: subtitleLibraryState().files, busy: Boolean(currentJob()) || jobState().status === "loading" || subtitleEditor.isOpen() || subtitleAssociation.isOpen() || subtitleImport.isOpen() }),
+  getContext: () => ({ mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url), title: core.status.title, outputDirectoryPath: readSetting(preferences, "output_directory"), helperPath, files: subtitleLibraryState().files, busy: !operations("delete").delete }),
   exec: (...args) => utils.exec(...args),
   send: (payload) => send("deletion", payload),
   onChanged: () => sendState(),
@@ -192,18 +196,18 @@ function loadSidebarPage(show = false) {
     sidebar.onMessage("start", (payload) => startJob(payload));
     sidebar.onMessage("importSubtitle", (payload) => subtitleImport.import(payload));
     sidebar.onMessage("progressReady", (payload) => jobController.releaseStart(payload?.jobId));
-    sidebar.onMessage("checkLanguages", (payload) => !currentJob() && languagePreflightClient.check({ ...payload, mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url) }, payload?.force === true));
+    sidebar.onMessage("checkLanguages", (payload) => operations().preflight && languagePreflightClient.check({ ...payload, mediaPath: mediaPathForURL(latestFileLoadedURL || core.status.url) }, payload?.force === true));
     subtitleDeletion.register(sidebar);
     subtitleEditor.register(sidebar);
     subtitleAssociation.register(sidebar);
     sidebar.onMessage("loadExisting", (filePath) => {
-      if (!currentJob() && !subtitleDeletion.isOpen() && !subtitleEditor.isOpen() && !subtitleAssociation.isOpen() && !subtitleImport.isOpen() && subtitleLibraryState().files.some((subtitle) => subtitle.path === filePath)) loadSubtitle(filePath, null, true);
+      if (operations().load && subtitleLibraryState().files.some((subtitle) => subtitle.path === filePath)) return loadSubtitle(filePath, null, true);
     });
-    sidebar.onMessage("exportSubtitle", (payload) => subtitleExportController.export(payload));
+    sidebar.onMessage("exportSubtitle", (payload) => operations().export && subtitleExportController.export(payload));
     sidebar.onMessage("setDisplayMode", (mode) => setDisplayMode(mode));
     sidebar.onMessage("cancel", () => cancelJob());
     sidebar.onMessage("retryLoad", () => {
-      if (!currentJob()) return loadSubtitle(lastOutputPath);
+      if (operations().load) return loadSubtitle(lastOutputPath);
       return undefined;
     });
     sidebar.onMessage("reveal", (filePath) => settingsController.reveal(filePath || lastOutputPath));
@@ -319,12 +323,13 @@ function sendState(mediaURLOverride = null) {
     job: jobState(), jobActive: Boolean(currentJob()),
     languagePreflight: languagePreflightClient.getState(),
     editorOpen: subtitleEditor.isOpen(),
+    deletionOpen: subtitleDeletion.isOpen(),
     associationOpen: subtitleAssociation.isOpen(), importOpen: subtitleImport.isOpen(),
     hasOutput: Boolean(lastOutputPath || availableSubtitles.length),
   });
 }
 async function startJob(payload = {}, mediaOverride = null) {
-  if (currentJob() || subtitleDeletion.isOpen() || subtitleEditor.isOpen() || subtitleAssociation.isOpen() || subtitleImport.isOpen()) return;
+  if (!operations().generate) return;
   runtimeStore.begin("display");
   const jobFileLoadedSequence = fileLoadedSequence;
   let jobId = null;
@@ -382,7 +387,7 @@ async function startJob(payload = {}, mediaOverride = null) {
   } finally {
     const runningJob = currentJob();
     if (runningJob && runningJob.id === jobId && runningJob.cancelPath) {
-      utils.exec("/bin/rm", ["-f", runningJob.cancelPath]).catch(() => {});
+      await utils.exec("/bin/rm", ["-f", runningJob.cancelPath]).catch(() => {});
     }
     if (runningJob && runningJob.id === jobId && pendingAutoLoad) {
       const deferred = pendingAutoLoad;
@@ -487,7 +492,7 @@ async function loadSubtitle(filePath, mediaURLOverride = null, rememberSelection
   sendState(mediaURLOverride);
 }
 function setDisplayMode(value) {
-  if (currentJob() || subtitleDeletion.isOpen() || subtitleEditor.isOpen() || subtitleAssociation.isOpen() || subtitleImport.isOpen()) return;
+  if (!operations().display) return;
   const mode = normalizeDisplayMode(value);
   const mediaPath = mediaPathForURL(latestFileLoadedURL || core.status.url);
   if (!mediaPath) return;

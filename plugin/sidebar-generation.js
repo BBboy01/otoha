@@ -20,7 +20,7 @@
     });
     return {
       update({ busy, state, sourceMode, sourceLanguage, targetLanguage }) {
-        const locked = busy || state.editorOpen || state.associationOpen || state.importOpen;
+        const locked = !window.subtitleOperationPolicy.operationCapabilities(state).configure;
         const valid = state.media && sourceLanguage && targetLanguage && sourceLanguage !== targetLanguage;
         const existing = sourceMode === "existing-subtitle";
         for (const input of modes) input.disabled = locked || existing;
