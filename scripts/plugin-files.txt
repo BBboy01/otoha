@@ -2,6 +2,9 @@
 Info.json
 main.js
 operation-policy.js
+sidebar-state.js
+sidebar-render.js
+sidebar-preflight.js
 controller.js
 protocol.js
 subtitle-settings.js
