@@ -148,7 +148,6 @@ const subtitleExportController = createSubtitleExportRuntime({
   },
   onResult: (result) => send("exportResult", result),
 });
-const initializeSidebar = () => sidebarLifecycle.initialize();
 function loadSidebarPage(show = false) {
   sidebarShowRequested = sidebarShowRequested || show;
   if (uiLoaded) {
@@ -208,7 +207,6 @@ function loadSidebarPage(show = false) {
     sidebar.onMessage("cancel", () => cancelJob());
     sidebar.onMessage("retryLoad", () => {
       if (operations().load) return loadSubtitle(lastOutputPath);
-      return undefined;
     });
     sidebar.onMessage("reveal", (filePath) => settingsController.reveal(filePath || lastOutputPath));
     sidebar.onMessage("setSetting", ({ key, value }) =>
@@ -260,7 +258,7 @@ function showSidebar() {
 event.on("iina.window-loaded", () => {
   if (!uiLoaded) {
     sidebarLifecycle.reset();
-    initializeSidebar();
+    sidebarLifecycle.initialize();
   } else sendState();
 });
 event.on("iina.file-loaded", (url) => {
@@ -273,7 +271,7 @@ event.on("iina.file-loaded", (url) => {
   fileLoadedSequence += 1;
   subtitleTrackManager.reset();
   if (eventMediaPath && !uiLoaded) pendingFileLoadedURL = url;
-  if (!uiLoaded) initializeSidebar();
+  if (!uiLoaded) sidebarLifecycle.initialize();
   else {
     refreshSubtitleLibrary(eventMediaPath ? url : undefined, Boolean(eventMediaPath));
     sendState(eventMediaPath ? url : undefined);
