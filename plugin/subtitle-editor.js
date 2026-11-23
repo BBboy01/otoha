@@ -43,8 +43,7 @@
   let looping = false;
   let unresolvedDraft = false;
   const compareDrafts = window.subtitleEditTools.createDirtyCheck();
-  const attached = () =>
-    Boolean(currentMedia && currentMedia === session?.mediaPath);
+  const attached = () => !!currentMedia && currentMedia === session?.mediaPath;
   const extras = window.createSubtitleEditControls?.({
     container: nodes.fields,
     undoButton: nodes.undo,

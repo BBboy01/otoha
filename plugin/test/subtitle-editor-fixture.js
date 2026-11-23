@@ -5,6 +5,10 @@ const source = fs.readFileSync(
   path.join(__dirname, "../subtitle-editor.js"),
   "utf8",
 );
+const editToolsSource = fs.readFileSync(
+  path.join(__dirname, "../subtitle-edit-tools.js"),
+  "utf8",
+);
 
 function fixture(
   reducedMotion = false,
@@ -73,7 +77,6 @@ function fixture(
   const receivedPlayback = [];
   let previousCue = -1;
   const window = {
-    subtitleEditTools: require("../subtitle-edit-tools.js"),
     addEventListener() {},
     createSubtitleEditControls(api) {
       edit = api;
@@ -131,7 +134,7 @@ function fixture(
   });
   window.matchMedia = () => ({ matches: reducedMotion });
   const serialization = { arrays: 0, cues: 0 };
-  vm.runInNewContext(editorSource, {
+  vm.runInNewContext(editToolsSource + "\n" + editorSource, {
     JSON: {
       parse: JSON.parse,
       stringify(value) {
