@@ -42,7 +42,9 @@
   let undo = [];
   let looping = false;
   let unresolvedDraft = false;
-  let comparedDrafts, comparedBaseline, modified;
+  const compareDrafts = window.subtitleEditTools.createDirtyCheck();
+  const attached = () =>
+    Boolean(currentMedia && currentMedia === session?.mediaPath);
   const extras = window.createSubtitleEditControls?.({
     container: nodes.fields,
     undoButton: nodes.undo,
@@ -141,14 +143,7 @@
   }
   const draftSessions = new Map();
   const post = (name, payload) => iina.postMessage(name, payload);
-  const dirty = () => {
-    if (drafts !== comparedDrafts || baseline !== comparedBaseline) {
-      modified = JSON.stringify(drafts) !== JSON.stringify(baseline);
-      comparedDrafts = drafts;
-      comparedBaseline = baseline;
-    }
-    return modified;
-  };
+  const dirty = () => compareDrafts(drafts, baseline);
   const draftKey = (value) =>
     [value.mediaPath, value.path, value.snapshot?.revision].join("\n");
   const time = (seconds) => {
@@ -173,12 +168,7 @@
     () => discardMotion.close(),
   );
   function seek(position = index) {
-    if (
-      !session ||
-      session.status === "saving" ||
-      currentMedia !== session.mediaPath
-    )
-      return;
+    if (!attached() || session.status === "saving") return;
     post("seekSubtitleCue", {
       sessionId: session.sessionId,
       index: position,
@@ -204,9 +194,7 @@
     if (!session) return;
     const changed = dirty();
     const saving = session.status === "saving";
-    const detached =
-      Boolean(currentMedia && currentMedia !== session.mediaPath) ||
-      !currentMedia;
+    const detached = !attached();
     const available = drafts.length > 0;
     nodes.fields.dataset.loading = String(
       session.status === "loading" && !available,

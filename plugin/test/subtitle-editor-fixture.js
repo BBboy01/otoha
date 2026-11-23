@@ -73,6 +73,7 @@ function fixture(
   const receivedPlayback = [];
   let previousCue = -1;
   const window = {
+    subtitleEditTools: require("../subtitle-edit-tools.js"),
     addEventListener() {},
     createSubtitleEditControls(api) {
       edit = api;
