@@ -28,7 +28,9 @@
           ([owner, flag]) =>
             !(operation === continuing && owner === continuing) && state[flag],
         );
-        return [operation, !occupied && !loading];
+        const readOnlyPreflight =
+          operation === "preflight" && state.job?.status === "loading";
+        return [operation, !occupied && (!loading || readOnlyPreflight)];
       }),
     );
   }

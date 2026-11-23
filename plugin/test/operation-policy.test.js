@@ -29,7 +29,11 @@ for (const [name, state] of cases) {
   test(`${name} blocks all new operation entries`, () => {
     const capabilities = operationCapabilities(state);
     for (const operation of operations)
-      assert.equal(capabilities[operation], false, operation);
+      assert.equal(
+        capabilities[operation],
+        name === "loading" && operation === "preflight",
+        operation,
+      );
   });
 }
 for (const [operation, flag] of [
