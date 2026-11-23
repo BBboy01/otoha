@@ -7,7 +7,10 @@
         lastKey = "";
         return;
       }
-      if (!capabilities.preflight) return;
+      if (!capabilities.preflight) {
+        lastKey = "";
+        return;
+      }
       if (force || preflight.key !== lastKey) {
         lastKey = preflight.key;
         if (force || !preflight.check || preflight.check.status !== "ready")
