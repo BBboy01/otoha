@@ -442,7 +442,6 @@ function handleHelperEvent(helperEvent) {
     send("job", jobState());
     return;
   }
-
   if (helperEvent.type === "error") {
     jobController.markTerminal();
     setJobError(helperEvent.message || "字幕生成失败。", helperEvent.code || "helper.unknown");
