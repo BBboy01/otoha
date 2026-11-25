@@ -83,9 +83,6 @@
 #editor-status:empty {
   display: none;
 }
-dialog::backdrop {
-  background: var(--otoha-color-backdrop);
-}
 .editor-heading,
 .editor-navigation,
 .editor-confirm-actions {
@@ -101,7 +98,7 @@ dialog::backdrop {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--otoha-color-text-muted);
+  color: var(--otoha-color-text-secondary);
   font-size: var(--otoha-font-size-small);
 }
 #editor-error {
@@ -184,7 +181,7 @@ dialog::backdrop {
   margin: 0;
 }
 #editor-count {
-  color: var(--otoha-color-text-muted);
+  color: var(--otoha-color-text-secondary);
   font-size: var(--otoha-font-size-small);
 }
 .editor-heading {
@@ -271,7 +268,7 @@ dialog::backdrop {
   display: none;
 }
 .editor-extra-controls output {
-  color: var(--otoha-color-text-muted);
+  color: var(--otoha-color-text-secondary);
   font-size: var(--otoha-font-size-small);
 }
 .editor-tool-group .editor-tool-wide {

@@ -5,7 +5,7 @@
 }
 
 .delete-trigger {
-  color: var(--otoha-color-danger);
+  color: var(--otoha-color-error);
 }
 
 dialog {
@@ -20,7 +20,7 @@ dialog {
   border-radius: var(--otoha-radius-dialog);
 }
 
-dialog::backdrop {
+#delete-dialog::backdrop {
   background: var(--otoha-color-backdrop-soft);
 }
 
@@ -31,12 +31,17 @@ dialog::backdrop {
   margin-top: var(--otoha-space-4);
 }
 
-.danger {
+button.danger {
+  border-color: var(--otoha-color-danger-border);
   color: var(--otoha-color-on-danger);
   background: var(--otoha-color-danger);
 }
 
+button.danger:hover:not(:disabled) {
+  background: var(--otoha-color-danger-hover);
+}
+
 #delete-error {
-  color: var(--otoha-color-danger);
+  color: var(--otoha-color-error);
   overflow-wrap: anywhere;
 }

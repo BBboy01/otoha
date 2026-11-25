@@ -129,7 +129,7 @@ h3 {
   clip-path: inset(50%);
 }
 .segmented-options label:has(input:checked) {
-  color: var(--otoha-color-accent);
+  color: var(--otoha-color-accent-text);
   border-color: var(--otoha-color-accent);
   background: var(--otoha-color-accent-subtle);
 }

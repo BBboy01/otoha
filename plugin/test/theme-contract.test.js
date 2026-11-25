@@ -49,6 +49,26 @@ test("component theme references are namespaced and defined by the shared theme"
   }
 });
 
+test("shared color tokens have a stylesheet consumer", () => {
+  const definitions = new Set(
+    [...read("theme.css").matchAll(/(--otoha-color-[\w-]+)\s*:/g)].map(
+      (match) => match[1],
+    ),
+  );
+  const references = new Set(
+    stylesheets.flatMap((file) =>
+      [...read(file).matchAll(/var\(\s*(--otoha-color-[\w-]+)/g)].map(
+        (match) => match[1],
+      ),
+    ),
+  );
+  assert.deepEqual(
+    [...definitions].filter((name) => !references.has(name)),
+    [],
+    "remove unused shared colors",
+  );
+});
+
 test("component styles use theme values instead of literal dimensions and colors", () => {
   for (const file of stylesheets.filter((file) => file !== "theme.css")) {
     const source = read(file).replace(/\/\*[\s\S]*?\*\//g, "");

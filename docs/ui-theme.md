@@ -2,22 +2,24 @@
 
 `plugin/theme.css` 是侧栏、校对页、弹窗和插件设置页共用的设计变量入口。两个 HTML 页面必须先加载它，再加载各自的组件样式。新增样式资源同时加入 `scripts/plugin-files.txt`。
 
-本轮只迁移变量，不调整视觉设计。默认颜色、控件大小和间距保持原样；没有主题切换器或额外运行时依赖。深浅色仍跟随系统。
+深浅色跟随系统，没有主题切换器或额外运行时依赖。
 
 ## 变量分层
 
 所有变量使用 `--otoha-` 前缀。
 
-| 类别 | 示例 | 使用规则 |
-| --- | --- | --- |
-| 基础间距 | `--otoha-space-unit`、`--otoha-space-2` | 基础单位为 4px，尺度通过 `calc()` 派生；半级用于密集工具界面 |
-| 语义间距 | `--otoha-sidebar-padding-inline`、`--otoha-dialog-padding` | 组件优先表达用途，再引用基础尺度 |
-| 文字 | `--otoha-font-size-body`、`--otoha-font-weight-heading` | 字族、字号、字重、行高统一引用变量 |
-| 颜色 | `--otoha-color-surface`、`--otoha-color-text-muted` | 按表面、文字、边框、操作和状态命名，组件不直接使用色值 |
-| 尺寸 | `--otoha-control-height`、`--otoha-icon-size` | 高度、图标、弹窗宽度、编辑区尺寸按用途命名 |
-| 细节 | `--otoha-radius-control`、`--otoha-shadow-menu` | 圆角、边框、焦点、阴影、层级和禁用透明度集中定义 |
+| 类别     | 示例                                                       | 使用规则                                                     |
+| -------- | ---------------------------------------------------------- | ------------------------------------------------------------ |
+| 基础间距 | `--otoha-space-unit`、`--otoha-space-2`                    | 基础单位为 4px，尺度通过 `calc()` 派生；半级用于密集工具界面 |
+| 语义间距 | `--otoha-sidebar-padding-inline`、`--otoha-dialog-padding` | 组件优先表达用途，再引用基础尺度                             |
+| 文字     | `--otoha-font-size-body`、`--otoha-font-weight-heading`    | 字族、字号、字重、行高统一引用变量                           |
+| 颜色     | `--otoha-color-surface`、`--otoha-color-text-secondary`    | 按表面、文字、边框、操作和状态命名，组件不直接使用色值       |
+| 尺寸     | `--otoha-control-height`、`--otoha-icon-size`              | 高度、图标、弹窗宽度、编辑区尺寸按用途命名                   |
+| 细节     | `--otoha-radius-control`、`--otoha-shadow-menu`            | 圆角、边框、焦点、阴影、层级和禁用透明度集中定义             |
 
 不为每个选择器或每个数值创建独立变量。同一用途复用同一变量；即使当前数值相同，不同用途也不能强行绑定，例如图标大小与面板留白。
+
+辅助说明、文件元信息和次要内容统一使用 `--otoha-color-text-secondary`；控件及中性状态边框统一使用 `--otoha-color-border-control`。成功反馈使用成功色标识和中性背景。弹窗遮罩在公共样式中定义，删除弹窗通过具体选择器使用柔和遮罩，组件不重复声明公共遮罩。
 
 ## 组件使用
 

@@ -7,7 +7,7 @@
 
 .export-mode legend {
   margin-bottom: var(--otoha-space-label-gap);
-  color: var(--otoha-color-text-muted);
+  color: var(--otoha-color-text-secondary);
   font-size: var(--otoha-font-size-small);
   font-weight: var(--otoha-font-weight-medium);
 }
@@ -57,14 +57,14 @@
   gap: var(--otoha-space-1-5);
   padding: var(--otoha-space-1-5) var(--otoha-space-2);
   border-left: var(--otoha-status-border-width) solid
-    var(--otoha-color-border-strong);
+    var(--otoha-color-border-control);
   background: var(--otoha-color-surface-inset);
   font-size: var(--otoha-font-size-small);
   line-height: var(--otoha-line-height-compact);
 }
 
 .export-result[data-kind="error"] {
-  border-left-color: var(--otoha-color-danger);
+  border-left-color: var(--otoha-color-error);
 }
 
 #export-message {

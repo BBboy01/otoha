@@ -210,13 +210,16 @@ button.primary {
 button.primary:hover:not(:disabled) {
   background: var(--otoha-color-accent-hover);
 }
+dialog::backdrop {
+  background: var(--otoha-color-backdrop);
+}
 .job-status {
   min-width: 0;
   padding: var(--otoha-space-row-gap) var(--otoha-space-2);
   border-left: var(--otoha-status-border-width) solid
-    var(--otoha-color-border-strong);
+    var(--otoha-color-border-control);
   background: var(--otoha-color-surface-inset);
-  color: var(--otoha-color-text-muted);
+  color: var(--otoha-color-text-secondary);
   font-size: var(--otoha-font-size-small);
   line-height: var(--otoha-line-height-body);
 }
@@ -268,7 +271,6 @@ button.primary:hover:not(:disabled) {
 
 .job-status[data-kind="success"] {
   border-left-color: var(--otoha-color-success);
-  background: var(--otoha-color-accent-subtle);
   color: var(--otoha-color-text);
 }
 

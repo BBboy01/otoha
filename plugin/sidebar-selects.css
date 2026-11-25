@@ -47,7 +47,7 @@
   border-radius: var(--otoha-radius-small);
 }
 .select-menu [role="option"][aria-selected="true"] {
-  color: var(--otoha-color-accent);
+  color: var(--otoha-color-accent-text);
   font-weight: var(--otoha-font-weight-medium);
 }
 .select-menu [role="option"]:is(.active, :hover):not([aria-disabled="true"]) {
