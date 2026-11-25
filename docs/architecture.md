@@ -35,8 +35,10 @@ flowchart TB
 
 | 模块 | 责任 | 不负责什么 |
 | --- | --- | --- |
-| `plugin/main.js` | 生命周期、当前媒体、启动/取消 helper、处理事件、加载字幕 | 读取音频帧、调用 Apple 语言 API |
-| `plugin/runtime-store.js` | 保存完整 `AppState` 快照，过滤过期异步结果 | 直接渲染 HTML |
+| `plugin/main.js` | 依赖装配、宿主生命周期、当前媒体和侧栏状态投影 | 执行生成或字幕加载流水线 |
+| `plugin/generation-workflow.js` | 占用任务槽、预检、helper 事件、取消、完成和清理 | 操作 IINA 字幕轨道 |
+| `plugin/subtitle-playback.js` | 字幕加载、加载确认、重试、显示模式和当前输出路径 | 改写生成任务或字幕库错误 |
+| `plugin/runtime-store.js` / `runtime-state.js` | 保存独立领域状态、操作令牌和兼容 `job` 展示投影 | 保存编辑器草稿或插件偏好 |
 | `plugin/sidebar.js` | 渲染状态、发送用户操作、无障碍属性 | 推断任务真相 |
 | `plugin/subtitle-library-client.js` | 调用 helper 列出当前视频字幕，自动加载已有文件 | 生成字幕内容 |
 | `plugin/subtitle-deletion-controller.js` | 确认单个文件删除并验证 helper 响应 | 直接操作文件系统 |
@@ -48,6 +50,8 @@ flowchart TB
 | 用户 FFmpeg | 读取视频并提取选定的 FFmpeg stream index | 转录或翻译 |
 
 侧栏状态中的 `jobActive` 表示主进程仍持有任务。Helper 的终止事件可先于进程退出到达；此时显示终止结果，但生成及字幕操作仍保持禁用，直到任务清理完成后的状态更新。取消控件失效时焦点暂留状态文本，任务释放后返回生成按钮。
+
+生成任务、字幕加载与字幕库错误分别由 `generationJob`、`subtitleLoad`、`subtitleLibraryError` 表达，`job` 仅为兼容的展示投影。字幕库失败不会改写正在生成的任务或字幕加载结果，互斥策略读取领域状态与任务槽归属。运行时 store 的变更立即发布完整快照；兼容的局部 `job` 消息也先合并状态，再经过同一个侧栏渲染入口。周期刷新仅用于核对宿主偏好、音轨等外部变化，加载和任务按钮不依赖轮询更新。
 
 ## 生成字幕时序
 
@@ -95,6 +99,8 @@ ASS 是字幕库中的规范文件；SRT 导出副本统一写入字幕库根目
 媒体切换、字幕库刷新、显示模式转换和任务启动各自使用 operation token。插件提交异步结果前会核对媒体路径、操作 token 和任务 ID，过期结果直接丢弃。切换到新视频时，插件写入取消标记，helper 终止当前任务并清理临时目录，不发布半成品。
 
 `job-controller.js` 同时拥有任务的开始与结束时间；`runtime-store.js` 保存带时间戳的任务快照，侧栏只负责格式化耗时。helper 没有可靠百分比的阶段保持不确定进度。取消请求后不再接受阶段更新，避免迟到事件覆盖取消提示。
+
+转录缓存是可选优化。普通缓存写入或清理 I/O 失败时继续翻译和发布字幕，取消、非法路径和符号链接校验仍会终止任务。缓存键继续包含完整媒体内容摘要，避免仅用文件大小和修改时间误复用转录。
 
 ## 文件和进程
 

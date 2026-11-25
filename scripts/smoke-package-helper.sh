@@ -29,6 +29,7 @@ if "$HELPER_BIN" --check-languages-json '{"protocolVersion":2,"requestId":"inval
 fi
 
 printf 'Packaged helper CLI smoke tests passed.\n'
+node "$(dirname "$0")/test-helper-protocol.cjs" "$HELPER_BIN"
 node "$(dirname "$0")/test-subtitle-editing.cjs" "$HELPER_BIN"
 node "$(dirname "$0")/test-subtitle-style.cjs" "$HELPER_BIN"
 node "$(dirname "$0")/test-subtitle-workflows.cjs" "$HELPER_BIN"

@@ -46,6 +46,10 @@ public struct TranscriptionCache: Sendable {
 
     public func save(_ output: TranscriptionOutput, key: String) throws {
         guard key.count == 64, key.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { throw ImportError.outsideLibrary }
+        guard directory.resolvingSymlinksInPath().path == directory.standardizedFileURL.path,
+              (try? FileManager.default.destinationOfSymbolicLink(atPath: directory.path)) == nil else {
+            throw ImportError.outsideLibrary
+        }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         guard directory.resolvingSymlinksInPath() == directory.standardizedFileURL else { throw ImportError.outsideLibrary }
         let entry = Entry(version: 1, key: key, offset: output.sourceTimeOffset,

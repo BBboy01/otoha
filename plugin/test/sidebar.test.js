@@ -3,6 +3,35 @@ const assert = require("node:assert/strict");
 const { createSidebar, videoState, change } = require("./sidebar-fixture.js");
 const sidebarMarkup = require("node:fs").readFileSync(require("node:path").join(__dirname, "../sidebar.html"), "utf8");
 
+test("job-only updates immediately reconcile all conflicting controls without a polling refresh", () => {
+  const sidebar = createSidebar();
+  sidebar.handlers.get("state")(videoState({ availableSubtitles: [{ path: "/library/video.ass" }] }));
+  const selectors = ["#edit-subtitle-button", "#delete-button", "#export-button", "#subtitle-choice", "#source-language"];
+  sidebar.handlers.get("job")({ status: "loading", phase: "loading", path: "/library/video.ass", message: "Loading" });
+  for (const selector of selectors) assert.equal(sidebar.elements.get(selector).disabled, true, selector);
+  assert.ok(sidebar.displayModes.every((radio) => radio.disabled));
+  sidebar.handlers.get("job")({ status: "completed", path: "/library/video.ass", loaded: true });
+  for (const selector of selectors) assert.equal(sidebar.elements.get(selector).disabled, false, selector);
+  assert.ok(sidebar.displayModes.every((radio) => !radio.disabled));
+});
+
+test("library warnings remain visible alongside loading retry feedback", () => {
+  const sidebar = createSidebar();
+  sidebar.handlers.get("state")(videoState({
+    availableSubtitles: [{ path: "/library/video.ass" }],
+    job: { status: "load-error", path: "/library/video.ass", message: "Load failed" },
+    subtitleLibraryError: { code: "subtitle.libraryFailed", message: "Library unavailable" },
+  }));
+  assert.equal(sidebar.elements.get("#subtitle-library-error").textContent, "Library unavailable");
+  assert.equal(sidebar.elements.get("#subtitle-library-error").hidden, false);
+  assert.equal(sidebar.elements.get("#retry-button").hidden, false);
+  sidebar.handlers.get("state")(videoState({
+    job: { status: "error", errorCode: "subtitle.libraryFailed", message: "Library unavailable" },
+    subtitleLibraryError: { code: "subtitle.libraryFailed", message: "Library unavailable" },
+  }));
+  assert.equal(sidebar.elements.get("#job-status").hidden, true);
+});
+
 test("generation panel separates source modes and keeps advanced controls collapsed", () => {
   assert.match(sidebarMarkup, /id="generation-source"[\s\S]*name="generation-source" value="audio"/);
   assert.match(sidebarMarkup, /id="generation-source"[\s\S]*name="generation-source" value="existing-subtitle"/);

@@ -5,6 +5,7 @@ const EMPTY_LIBRARY = Object.freeze({
   files: [],
   loading: false,
   failed: false,
+  error: null,
 });
 
 function createSubtitleLibraryClient({
@@ -74,6 +75,7 @@ function createSubtitleLibraryClient({
       files: previousFiles,
       loading: true,
       failed: false,
+      error: null,
     });
     const request = { mediaPath: media.path, outputDirectoryPath };
 
@@ -97,6 +99,7 @@ function createSubtitleLibraryClient({
           files,
           loading: false,
           failed: false,
+          error: null,
         });
         if (files.length > 0 && !suppressAutoLoad && isAutoLoadEnabled()) onAutoLoad(files, mediaURLOverride ? media.path : null);
         if (typeof onUpdated === "function") onUpdated(mediaURLOverride);
@@ -110,6 +113,10 @@ function createSubtitleLibraryClient({
           files: previousFiles,
           loading: false,
           failed: true,
+          error: {
+            code: "subtitle.libraryFailed",
+            message: previousFiles.length ? `新字幕库读取失败，仍可使用已发现的字幕：${error.message || error}` : `无法读取字幕列表：${error.message || error}`,
+          },
         });
         onError({ mediaChanged, previousFiles, error });
       });

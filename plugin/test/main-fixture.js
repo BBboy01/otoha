@@ -47,6 +47,7 @@ function createPlugin({
   importSelection = null,
   importGate = null,
   subtitleLoadGate = null,
+  onSidebarMessage = null,
 } = {}) {
   const sidebarHandlers = new Map();
   const eventHandlers = new Map();
@@ -197,7 +198,10 @@ function createPlugin({
         messages.push({ kind: "load-file", filePath });
       },
       onMessage: (name, callback) => sidebarHandlers.set(name, callback),
-      postMessage: (name, payload) => messages.push({ kind: "message", name, payload }),
+      postMessage(name, payload) {
+        messages.push({ kind: "message", name, payload });
+        onSidebarMessage?.(name, payload);
+      },
     },
     utils: {
       resolvePath(value) {
@@ -346,9 +350,12 @@ function createPlugin({
       if (id === "./job-controller.js") return require("../job-controller.js");
       if (id === "./language-preflight-client.js") return require("../language-preflight-client.js");
       if (id === "./subtitle-generation.js") return require("../subtitle-generation.js");
+      if (id === "./generation-workflow.js") return require("../generation-workflow.js");
+      if (id === "./subtitle-playback.js") return require("../subtitle-playback.js");
       if (id === "./subtitle-editor-controller.js") return require("../subtitle-editor-controller.js");
       if (id === "./subtitle-association-controller.js") return require("../subtitle-association-controller.js");
       if (id === "./runtime-store.js") return require("../runtime-store.js");
+      if (id === "./runtime-state.js") return require("../runtime-state.js");
       if (id === "./subtitle-track-manager.js") return require("../subtitle-track-manager.js");
       if (id === "./subtitle-style-runtime.js") return require("../subtitle-style-runtime.js");
       if (id === "./sidebar-lifecycle.js") return require("../sidebar-lifecycle.js");

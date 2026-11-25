@@ -50,10 +50,10 @@ function createJobController({
     current() {
       return active;
     },
-    withTiming(job) {
+    withTiming(job, { finish = true } = {}) {
       if (!active || active.id !== job.jobId) return job;
       if (
-        !["running", "loading"].includes(job.status) &&
+        finish && !["running", "loading"].includes(job.status) &&
         active.finishedAt === null
       ) {
         active.finishedAt = now();

@@ -42,6 +42,7 @@
     ),
     checkLanguages: document.querySelector("#check-languages"),
     mediaError: document.querySelector("#media-error"),
+    subtitleLibraryError: document.querySelector("#subtitle-library-error"),
     mediaName: document.querySelector("#media-name"),
     progress: document.querySelector("#translation-progress"),
     reveal: document.querySelector("#reveal-button"),

@@ -30,6 +30,7 @@ function createSidebar() {
     "#job-detail-toggle",
     "#job-detail-message",
     "#media-error",
+    "#subtitle-library-error",
     "#media-name",
     "#subtitle-choice",
     "#translation-progress",
