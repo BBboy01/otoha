@@ -54,11 +54,6 @@
   height: var(--otoha-cue-height);
   padding: var(--otoha-space-2) var(--otoha-space-3);
   border-left: var(--otoha-brand-mark-height) solid transparent;
-  opacity: var(--otoha-cue-opacity);
-  transition: opacity var(--otoha-motion-cue-text-duration) ease;
-}
-.cue.selected {
-  opacity: 1;
 }
 .cue:focus-visible {
   outline: var(--otoha-focus-width) solid var(--otoha-color-accent);
@@ -66,7 +61,7 @@
 }
 .cue-meta {
   position: relative;
-  color: var(--otoha-color-text-muted);
+  color: var(--otoha-color-text-secondary);
   font-size: var(--otoha-font-size-small);
   font-variant-numeric: tabular-nums;
 }
@@ -101,7 +96,7 @@
   color: var(--otoha-color-text-secondary);
 }
 .cue.selected .cue-translation {
-  color: var(--otoha-color-accent);
+  color: var(--otoha-color-accent-text);
 }
 .cue-video-position {
   position: absolute;

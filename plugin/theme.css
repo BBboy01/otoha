@@ -73,7 +73,6 @@
   --otoha-overflow-gap: var(--otoha-space-6);
   --otoha-motion-overflow-speed: 36;
   --otoha-motion-overflow-delay: 500ms;
-  --otoha-cue-opacity: 0.65;
   --otoha-switch-width: 28px;
   --otoha-switch-height: 16px;
   --otoha-switch-inset: 2px;
@@ -107,11 +106,6 @@
   --otoha-line-height-relaxed: 1.5;
 
   --otoha-color-text: #202628;
-  --otoha-color-text-muted: color-mix(
-    in srgb,
-    var(--otoha-color-text) 62%,
-    transparent
-  );
   --otoha-color-text-secondary: color-mix(
     in srgb,
     var(--otoha-color-text) 70%,
@@ -140,6 +134,7 @@
     var(--otoha-color-surface)
   );
   --otoha-color-accent: #0f766e;
+  --otoha-color-accent-text: #0b5f59;
   --otoha-control-accent: var(--otoha-color-accent);
   --otoha-color-accent-hover: #0b5f59;
   --otoha-color-accent-border: #0a625c;
@@ -151,6 +146,8 @@
   --otoha-color-on-accent: #fff;
   --otoha-color-success: #267a45;
   --otoha-color-danger: #b42318;
+  --otoha-color-danger-hover: #912018;
+  --otoha-color-danger-border: #912018;
   --otoha-color-on-danger: #fff;
   --otoha-color-error: #b42318;
   --otoha-color-warning: #8a5a00;
@@ -166,17 +163,7 @@
   );
   --otoha-color-border-control: color-mix(
     in srgb,
-    var(--otoha-color-text) 23%,
-    transparent
-  );
-  --otoha-color-border-strong: color-mix(
-    in srgb,
     var(--otoha-color-text) 24%,
-    transparent
-  );
-  --otoha-color-border-help: color-mix(
-    in srgb,
-    var(--otoha-color-text) 30%,
     transparent
   );
   --otoha-color-backdrop: #0006;
@@ -240,10 +227,12 @@
     --otoha-color-surface: #202223;
     --otoha-color-field: #292c2d;
     --otoha-color-accent: #5ed6c3;
+    --otoha-color-accent-text: #5ed6c3;
     --otoha-color-accent-hover: #83e5d5;
     --otoha-color-accent-border: #5ed6c3;
     --otoha-color-success: #86d99c;
     --otoha-color-on-accent: #102b27;
+    --otoha-color-danger-border: #ff9b93;
     --otoha-color-error: #ff9b93;
     --otoha-color-warning: #e5b958;
     --otoha-motion-press-brightness: 1.08;
@@ -257,6 +246,7 @@
     --otoha-color-surface: Canvas;
     --otoha-color-field: Field;
     --otoha-color-accent: Highlight;
+    --otoha-color-accent-text: Highlight;
     --otoha-color-on-accent: HighlightText;
     --otoha-color-accent-subtle: Canvas;
     --otoha-color-accent-border: Highlight;

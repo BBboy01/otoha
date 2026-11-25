@@ -30,7 +30,7 @@
   align-items: center;
   gap: var(--otoha-space-1-5);
   min-height: var(--otoha-font-size-small);
-  color: var(--otoha-color-text-muted);
+  color: var(--otoha-color-text-secondary);
   font-size: var(--otoha-font-size-small);
   line-height: var(--otoha-line-height-compact);
 }
@@ -70,7 +70,7 @@
   background: var(--otoha-color-surface-control);
 }
 .file-details {
-  color: var(--otoha-color-text-muted);
+  color: var(--otoha-color-text-secondary);
   font-size: var(--otoha-font-size-small);
 }
 #subtitle-filename {
