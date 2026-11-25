@@ -94,6 +94,10 @@ function renderState(nextState) {
   elements.mediaError.textContent =
     state.mediaError ||
     (state.title && !state.media ? "仅支持本地文件视频。" : "");
+  const libraryError = state.subtitleLibraryError?.message || "";
+  if (elements.subtitleLibraryError.textContent !== libraryError)
+    elements.subtitleLibraryError.textContent = libraryError;
+  elements.subtitleLibraryError.hidden = !libraryError;
 
   const audioTracks = view.tracks;
   window.updateSidebarOptions(
@@ -191,7 +195,9 @@ function renderState(nextState) {
   updateLanguageErrors();
   updateGeneration();
   renderJob(
-    checkingSubtitles && (!state.job || state.job.status === "idle")
+    state.subtitleLibraryError && state.job?.errorCode === "subtitle.libraryFailed"
+      ? { status: "idle", message: "" }
+      : checkingSubtitles && (!state.job || state.job.status === "idle")
       ? { status: "checking", message: "正在检查字幕列表" }
       : state.job,
   );
@@ -477,14 +483,11 @@ iina.onMessage("exportResult", (result) => {
   if (state) renderState(state);
 });
 iina.onMessage("job", (job) => {
-  const focused = document.activeElement;
   if (state) {
-    state.job = job;
-    state.hasOutput = Boolean(job.path || state.hasOutput);
+    renderState({ ...state, job, hasOutput: Boolean(job.path || state.hasOutput) });
+  } else {
+    renderJob(job);
   }
-  renderJob(job);
-  updateGeneration();
-  restoreJobFocus(focused);
 });
 
 const helperURL = new URL(

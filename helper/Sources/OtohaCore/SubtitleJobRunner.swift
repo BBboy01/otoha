@@ -68,7 +68,12 @@ public struct SubtitleJobRunner: Sendable {
                       String(describing: currentMedia.fileResourceIdentifier) == String(describing: originalMedia.fileResourceIdentifier) else {
                     throw JobConfigurationError.mediaNotReadable
                 }
-                try cache.save(transcription, key: key)
+                do {
+                    try cache.save(transcription, key: key)
+                } catch let error as NSError where error.domain == NSCocoaErrorDomain || error.domain == NSPOSIXErrorDomain {
+                    try cancellation.check()
+                    emit(.phase(.transcribing, message: "转录已完成，缓存不可用；继续生成字幕"))
+                }
             }
         }
         try cancellation.check()

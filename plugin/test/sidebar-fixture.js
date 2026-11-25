@@ -5,7 +5,7 @@ const sidebarSource = ["operation-policy.js", "sidebar-state.js", "sidebar-rende
   .map((file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8"))
   .join("\n");
 
-function createSidebar(sidebarWorkflow) {
+function createSidebar(sidebarWorkflow, { onPostMessage } = {}) {
   const selectors = [
     "#import-subtitle", "#audio-generation-fields", "#existing-subtitle-generation-fields",
     "#source-language-field",
@@ -23,6 +23,7 @@ function createSidebar(sidebarWorkflow) {
     "#job-detail-message",
     "#subtitle-loaded",
     "#media-error",
+    "#subtitle-library-error",
     "#job-elapsed",
     "#language-resource-status",
     "#language-resource-message",
@@ -110,6 +111,7 @@ function createSidebar(sidebarWorkflow) {
     },
     postMessage(name, payload) {
       posts.push({ name, payload });
+      onPostMessage?.(name, payload);
     },
   };
 

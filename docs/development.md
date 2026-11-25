@@ -114,6 +114,7 @@ focused tests：`node --test plugin/test/job-controller.test.js plugin/test/job-
 ## 代码分层
 
 - `plugin/`：IINA 适配、状态 store、侧栏 UI、字幕库客户端、任务控制器和协议解析。
+- `generation-workflow.js` 管理从启动到清理的完整生成流程；`subtitle-playback.js` 管理加载与显示转换；`main.js` 装配二者和宿主事件。
 - `helper/Sources/OtohaCore/`：无 UI 的任务核心、FFmpeg、字幕文件名/库、ASS 输出和取消令牌。
 - `helper/Sources/OtohaHelper/`：macOS App 入口、Speech/Translation 适配、后台 JSONL 事件。
 - `plugin/test/` 与 `helper/Tests/`：协议、状态并发、字幕渲染、文件发布和取消的 focused tests。
@@ -134,6 +135,8 @@ focused tests：`node --test plugin/test/job-controller.test.js plugin/test/job-
 2. Swift 事件和 JavaScript `parseHelperEvent` 必须在同一个改动中更新。
 3. 新字段优先可选；改变字段含义或状态机才升级 `protocolVersion`。
 4. 增加一个有效事件测试和一个未知/无效事件测试，不能用中文 message 作为分支条件。
+
+`runtime-bridge.test.js` 将真实主进程和侧栏逻辑通过异步消息连接，模拟宿主边界，覆盖加载互斥、字幕库失败、取消和媒体切换。`HelperProtocolContractTests` 将 Swift 实际编码的 JSONL 交给生产 JavaScript parser；需要开发环境中的 Node.js。打包 smoke 同时将真实 helper 的非法请求响应交给这个 parser，避免两端 mock 各自通过而协议不兼容。它们仍不替代 IINA 与 Apple Speech/Translation 的实机验收。
 
 ### 修改字幕输出
 

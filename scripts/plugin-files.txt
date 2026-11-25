@@ -16,7 +16,10 @@ iina-adapter.js
 job-controller.js
 language-preflight-client.js
 subtitle-generation.js
+generation-workflow.js
+subtitle-playback.js
 runtime-store.js
+runtime-state.js
 settings-controller.js
 sidebar-lifecycle.js
 settings-schema.js

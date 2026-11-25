@@ -20,6 +20,8 @@ const cases = [
   ["running", { job: { status: "running" } }],
   ["canceling", { job: { status: "canceling" } }],
   ["loading", { job: { status: "loading" } }],
+  ["loading", { job: { status: "error" }, subtitleLoad: { status: "loading" } }],
+  ["running", { job: { status: "available" }, generationJob: { status: "running" } }],
   ["edit", { editorOpen: true }],
   ["delete", { deletionOpen: true }],
   ["associate", { associationOpen: true }],
